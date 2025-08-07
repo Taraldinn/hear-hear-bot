@@ -12,6 +12,8 @@ import pymongo
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # Load environment variables
 load_dotenv()
@@ -43,8 +45,25 @@ except Exception as e:
     print(f"Error connecting to MongoDB: {e}")
     db = None
 
-l = {}      # timer trigger library
+l = {}      # timer trigger library - format: {user_id_channel_id: status}
 t = {}      # reminder storage library
+active_timers = {}  # track active timer messages - format: {user_id_channel_id: message_obj}
+
+# Simple HTTP server to satisfy Render's port requirements
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b'Hear! Hear! Discord Bot is running!')
+    
+    def log_message(self, format, *args):
+        pass  # Suppress HTTP server logs
+
+def start_http_server():
+    port = int(os.environ.get('PORT', 8080))
+    server = HTTPServer(('0.0.0.0', port), HealthHandler)
+    server.serve_forever()
 
 # Removed Top.gg/DBL client initialization since we're not using it
 
@@ -245,7 +264,7 @@ async def _time(ctx):
 
 @client.command(aliases=['timekeep', 't', 'chrono'])
 async def timer(ctx, duration, seconds='0s'):
-    """Set a visual timer"""
+    """Set a visual timer with interactive buttons"""
     lang = await get_language(ctx.guild.id)
     
     if not (duration.endswith('m') and seconds.endswith('s')):
@@ -265,71 +284,192 @@ async def timer(ctx, duration, seconds='0s'):
             await ctx.send("Timer duration must be greater than 0.")
             return
         
-        l[ctx.channel.id] = 0
+        if total_seconds > 7200:  # 2 hours limit
+            await ctx.send("Timer cannot exceed 2 hours.")
+            return
+        
+        # Create unique timer ID
+        timer_id = f"{ctx.author.id}_{ctx.channel.id}"
+        
+        # Check if user already has a timer in this channel
+        if timer_id in l:
+            conflict_messages = {
+                'en': f'{ctx.author.mention}, you already have a timer running in this channel. Use the stop button or `.stop` to stop it first.',
+                'fr': f'{ctx.author.mention}, vous avez déjà un chronomètre en cours dans ce canal. Utilisez le bouton stop ou `.stop` pour l\'arrêter d\'abord.'
+            }
+            await ctx.send(conflict_messages.get(lang, conflict_messages['en']))
+            return
+        
+        l[timer_id] = 0  # 0 = running, 1 = stopped, 2 = paused
         
         start_messages = {
-            'en': f'**Timer set for {minutes}m {secs}s {ctx.author.mention}**\n*Use `.r` for background timer*',
-            'fr': f'**Chronomètre réglé pour {minutes}m {secs}s {ctx.author.mention}**\n*Utilisez `.r` pour un chronomètre en arrière-plan*'
+            'en': f'**Timer set for {minutes}m {secs}s {ctx.author.mention}**\n*Use `.reminder` for background timer*',
+            'fr': f'**Chronomètre réglé pour {minutes}m {secs}s {ctx.author.mention}**\n*Utilisez `.reminder` pour un chronomètre en arrière-plan*'
         }
         
         await ctx.send(start_messages.get(lang, start_messages['en']))
         
+        # Create interactive buttons
+        class TimerView(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=total_seconds + 30)
+                
+            @discord.ui.button(label='⏸️ Pause', style=discord.ButtonStyle.secondary)
+            async def pause_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                if interaction.user.id != ctx.author.id:
+                    await interaction.response.send_message("Only the timer owner can control this timer.", ephemeral=True)
+                    return
+                
+                if timer_id in l and l[timer_id] == 0:
+                    l[timer_id] = 2
+                    button.label = '▶️ Resume'
+                    button.style = discord.ButtonStyle.primary
+                    await interaction.response.edit_message(view=self)
+                elif timer_id in l and l[timer_id] == 2:
+                    l[timer_id] = 0
+                    button.label = '⏸️ Pause'
+                    button.style = discord.ButtonStyle.secondary
+                    await interaction.response.edit_message(view=self)
+                else:
+                    await interaction.response.send_message("No timer to pause/resume.", ephemeral=True)
+            
+            @discord.ui.button(label='⏹️ Stop', style=discord.ButtonStyle.danger)
+            async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                if interaction.user.id != ctx.author.id:
+                    await interaction.response.send_message("Only the timer owner can control this timer.", ephemeral=True)
+                    return
+                
+                if timer_id in l:
+                    l[timer_id] = 1
+                    # Disable all buttons
+                    for item in self.children:
+                        item.disabled = True
+                    await interaction.response.edit_message(view=self)
+                else:
+                    await interaction.response.send_message("No timer to stop.", ephemeral=True)
+            
+            @discord.ui.button(label='➕ Add 1min', style=discord.ButtonStyle.success)
+            async def add_time_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                if interaction.user.id != ctx.author.id:
+                    await interaction.response.send_message("Only the timer owner can control this timer.", ephemeral=True)
+                    return
+                
+                nonlocal total_seconds
+                if timer_id in l and l[timer_id] != 1:
+                    total_seconds += 60
+                    add_messages = {
+                        'en': 'Added 1 minute to timer ⏰',
+                        'fr': '1 minute ajoutée au chronomètre ⏰'
+                    }
+                    await interaction.response.send_message(add_messages.get(lang, add_messages['en']), ephemeral=True)
+                else:
+                    await interaction.response.send_message("Timer is not running.", ephemeral=True)
+        
+        view = TimerView()
+        
         timer_format = {
-            'en': ':clock1: **Timer:** **`{:02d}:{:02d}`** {} `.pause` to pause',
-            'fr': ':clock1: **Chronomètre:** **`{:02d}:{:02d}`** {} `.pause` pour mettre sur pause'
+            'en': ':clock1: **Timer:** **`{:02d}:{:02d}`** {} ',
+            'fr': ':clock1: **Chronomètre:** **`{:02d}:{:02d}`** {} '
         }
         
-        msg = await ctx.send(timer_format[lang].format(minutes, secs, ctx.author.mention))
+        msg = await ctx.send(timer_format[lang].format(minutes, secs, ctx.author.mention), view=view)
+        active_timers[timer_id] = msg
         
+        # Animated timer countdown
         while total_seconds > 0:
-            if ctx.channel.id not in l:
+            if timer_id not in l:
                 break
                 
-            if l[ctx.channel.id] == 1:  # Stop
-                await ctx.send("Timer stopped!")
-                del l[ctx.channel.id]
-                break
-            elif l[ctx.channel.id] == 2:  # Pause
-                pause_format = {
-                    'en': ':pause_button: **Paused:** **`{:02d}:{:02d}`** {} `.resume` to resume',
-                    'fr': ':pause_button: **En pause:** **`{:02d}:{:02d}`** {} `.resume` pour reprendre'
+            if l[timer_id] == 1:  # Stop
+                stop_messages = {
+                    'en': f"⏹️ **Timer stopped by {ctx.author.mention}!**",
+                    'fr': f"⏹️ **Chronomètre arrêté par {ctx.author.mention}!**"
                 }
-                await msg.edit(content=pause_format[lang].format(total_seconds // 60, total_seconds % 60, ctx.author.mention))
-                while l.get(ctx.channel.id, 0) == 2:
+                await ctx.send(stop_messages.get(lang, stop_messages['en']))
+                del l[timer_id]
+                if timer_id in active_timers:
+                    del active_timers[timer_id]
+                break
+                
+            elif l[timer_id] == 2:  # Pause
+                pause_format = {
+                    'en': ':pause_button: **Paused:** **`{:02d}:{:02d}`** {} ',
+                    'fr': ':pause_button: **En pause:** **`{:02d}:{:02d}`** {} '
+                }
+                try:
+                    await msg.edit(content=pause_format[lang].format(total_seconds // 60, total_seconds % 60, ctx.author.mention), view=view)
+                except:
+                    pass
+                while l.get(timer_id, 1) == 2:
                     await asyncio.sleep(1)
                 continue
             
-            # Update timer display
-            await msg.edit(content=timer_format[lang].format(total_seconds // 60, total_seconds % 60, ctx.author.mention))
+            # Update timer display with animation
+            clock_emojis = ['🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛']
+            clock = clock_emojis[total_seconds % 12]
+            
+            try:
+                await msg.edit(content=f'{clock} **Timer:** **`{total_seconds // 60:02d}:{total_seconds % 60:02d}`** {ctx.author.mention}', view=view)
+            except:
+                pass
             
             # Check for milestone notifications
-            if total_seconds == 60:
-                milestone_messages = {
-                    'en': ':orange_circle: **1 minute LEFT** {}',
-                    'fr': ':orange_circle: **1 minute RESTANTE** {}'
-                }
-                await ctx.send(milestone_messages[lang].format(ctx.author.mention))
+            if total_seconds in [300, 180, 60, 30, 10, 5, 3, 2, 1]:  # 5min, 3min, 1min, 30s, 10s, 5s, 3s, 2s, 1s
+                if total_seconds == 300:
+                    milestone_messages = {
+                        'en': ':yellow_circle: **5 minutes LEFT** {}',
+                        'fr': ':yellow_circle: **5 minutes RESTANTES** {}'
+                    }
+                elif total_seconds == 180:
+                    milestone_messages = {
+                        'en': ':orange_circle: **3 minutes LEFT** {}',
+                        'fr': ':orange_circle: **3 minutes RESTANTES** {}'
+                    }
+                elif total_seconds == 60:
+                    milestone_messages = {
+                        'en': ':orange_circle: **1 minute LEFT** {}',
+                        'fr': ':orange_circle: **1 minute RESTANTE** {}'
+                    }
+                elif total_seconds == 30:
+                    milestone_messages = {
+                        'en': ':red_circle: **30 seconds LEFT** {}',
+                        'fr': ':red_circle: **30 secondes RESTANTES** {}'
+                    }
+                elif total_seconds <= 10:
+                    milestone_messages = {
+                        'en': f':rotating_light: **{total_seconds} seconds LEFT** {{}}',
+                        'fr': f':rotating_light: **{total_seconds} secondes RESTANTES** {{}}'
+                    }
+                
+                try:
+                    await ctx.send(milestone_messages[lang].format(ctx.author.mention))
+                except:
+                    pass
             
             await asyncio.sleep(1)
             total_seconds -= 1
         
-        if total_seconds <= 0 and ctx.channel.id in l:
+        if total_seconds <= 0 and timer_id in l:
+            # Disable all buttons
+            for item in view.children:
+                item.disabled = True
+            
             end_messages = {
-                'en': ":red_circle: **Time's UP!** {} Additional 15 seconds given.",
-                'fr': ":red_circle: **Le temps est ÉCOULÉ!** {} 15 secondes de grâce accordées."
+                'en': ":red_circle: **Time's UP!** {} 🎉",
+                'fr': ":red_circle: **Le temps est ÉCOULÉ!** {} 🎉"
             }
-            await ctx.send(end_messages[lang].format(ctx.author.mention))
-            await msg.edit(content=f':clock1: **Timer:** **`00:00`** {ctx.author.mention}')
-            await asyncio.sleep(15)
             
-            final_messages = {
-                'en': "**Additional time finished!** {}",
-                'fr': "**Le temps de grâce est écoulé!** {}"
-            }
-            await ctx.send(final_messages[lang].format(ctx.author.mention))
+            try:
+                await msg.edit(content=f':alarm_clock: **Timer:** **`00:00`** {ctx.author.mention} **FINISHED!**', view=view)
+                await ctx.send(end_messages[lang].format(ctx.author.mention))
+            except:
+                pass
             
-            if ctx.channel.id in l:
-                del l[ctx.channel.id]
+            # Cleanup
+            if timer_id in l:
+                del l[timer_id]
+            if timer_id in active_timers:
+                del active_timers[timer_id]
                 
     except ValueError:
         await ctx.send("Invalid time format. Use format like: `5m 30s`")
@@ -338,30 +478,75 @@ async def timer(ctx, duration, seconds='0s'):
 
 @client.command()
 async def pause(ctx):
-    """Pause the timer"""
-    if ctx.channel.id in l:
-        l[ctx.channel.id] = 2
-        await ctx.send("Timer paused.")
+    """Pause your timer"""
+    timer_id = f"{ctx.author.id}_{ctx.channel.id}"
+    lang = await get_language(ctx.guild.id)
+    
+    if timer_id in l and l[timer_id] == 0:
+        l[timer_id] = 2
+        pause_messages = {
+            'en': f"⏸️ Timer paused by {ctx.author.mention}.",
+            'fr': f"⏸️ Chronomètre mis en pause par {ctx.author.mention}."
+        }
+        await ctx.send(pause_messages.get(lang, pause_messages['en']))
+    elif timer_id in l and l[timer_id] == 2:
+        already_paused_messages = {
+            'en': f"{ctx.author.mention}, your timer is already paused.",
+            'fr': f"{ctx.author.mention}, votre chronomètre est déjà en pause."
+        }
+        await ctx.send(already_paused_messages.get(lang, already_paused_messages['en']))
     else:
-        await ctx.send("No timer running in this channel.")
+        no_timer_messages = {
+            'en': f"{ctx.author.mention}, you don't have a timer running in this channel.",
+            'fr': f"{ctx.author.mention}, vous n'avez pas de chronomètre en cours dans ce canal."
+        }
+        await ctx.send(no_timer_messages.get(lang, no_timer_messages['en']))
 
 @client.command()
 async def resume(ctx):
-    """Resume the timer"""
-    if ctx.channel.id in l:
-        l[ctx.channel.id] = 0
-        await ctx.send("Timer resumed.")
+    """Resume your timer"""
+    timer_id = f"{ctx.author.id}_{ctx.channel.id}"
+    lang = await get_language(ctx.guild.id)
+    
+    if timer_id in l and l[timer_id] == 2:
+        l[timer_id] = 0
+        resume_messages = {
+            'en': f"▶️ Timer resumed by {ctx.author.mention}.",
+            'fr': f"▶️ Chronomètre repris par {ctx.author.mention}."
+        }
+        await ctx.send(resume_messages.get(lang, resume_messages['en']))
+    elif timer_id in l and l[timer_id] == 0:
+        already_running_messages = {
+            'en': f"{ctx.author.mention}, your timer is already running.",
+            'fr': f"{ctx.author.mention}, votre chronomètre est déjà en cours."
+        }
+        await ctx.send(already_running_messages.get(lang, already_running_messages['en']))
     else:
-        await ctx.send("No timer to resume in this channel.")
+        no_timer_messages = {
+            'en': f"{ctx.author.mention}, you don't have a paused timer in this channel.",
+            'fr': f"{ctx.author.mention}, vous n'avez pas de chronomètre en pause dans ce canal."
+        }
+        await ctx.send(no_timer_messages.get(lang, no_timer_messages['en']))
 
 @client.command(aliases=['cleartimers'])
 async def stop(ctx):
-    """Stop the timer"""
-    if ctx.channel.id in l:
-        l[ctx.channel.id] = 1
-        await ctx.send("Timer stopped.")
+    """Stop your timer"""
+    timer_id = f"{ctx.author.id}_{ctx.channel.id}"
+    lang = await get_language(ctx.guild.id)
+    
+    if timer_id in l:
+        l[timer_id] = 1
+        stop_messages = {
+            'en': f"⏹️ Timer stopped by {ctx.author.mention}.",
+            'fr': f"⏹️ Chronomètre arrêté par {ctx.author.mention}."
+        }
+        await ctx.send(stop_messages.get(lang, stop_messages['en']))
     else:
-        await ctx.send("No timer running in this channel.")
+        no_timer_messages = {
+            'en': f"{ctx.author.mention}, you don't have a timer running in this channel.",
+            'fr': f"{ctx.author.mention}, vous n'avez pas de chronomètre en cours dans ce canal."
+        }
+        await ctx.send(no_timer_messages.get(lang, no_timer_messages['en']))
 
 @client.command(aliases=['8ball', 'test'])
 async def _8ball(ctx, *, question):
@@ -470,6 +655,7 @@ async def help(ctx):
 **Chronométrage**
 ```
 ~ timer       : .t | .timer - régler un chronomètre à l'écran
+~ reminder    : .reminder - régler un rappel en arrière-plan
 ~ pause       : mettre le chronomètre sur pause
 ~ resume      : reprendre le chronomètre
 ~ stop        : arrêter le chronomètre
@@ -510,6 +696,7 @@ async def help(ctx):
 **Time Keeping**
 ```
 ~ timer       : .t | .timer - set an on-screen timer
+~ reminder    : .reminder - set a background reminder
 ~ pause       : pause the timer
 ~ resume      : resume the timer
 ~ stop        : stop the timer
@@ -681,7 +868,7 @@ async def toss(ctx, position=None):
     
     await ctx.send(toss_messages.get(lang, toss_messages['en']))
 
-@client.command(aliases=['r'])
+@client.command()
 async def reminder(ctx, duration, seconds='0s', *, message='Timer finished!'):
     """Set a background reminder"""
     lang = await get_language(ctx.guild.id)
@@ -767,6 +954,11 @@ Community Support  : Bangla Online Debate Platform
     await ctx.send(about_text)
 
 if __name__ == "__main__":
+    # Start HTTP server in background thread for Render
+    http_thread = threading.Thread(target=start_http_server, daemon=True)
+    http_thread.start()
+    print("HTTP server started for Render compatibility")
+    
     try:
         client.run(token)
     except Exception as e:
