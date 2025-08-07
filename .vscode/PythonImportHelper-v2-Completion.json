@@ -1,0 +1,224 @@
+[
+    {
+        "label": "discord",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "discord",
+        "description": "discord",
+        "detail": "discord",
+        "documentation": {}
+    },
+    {
+        "label": "commands",
+        "importPath": "discord.ext",
+        "description": "discord.ext",
+        "isExtraImport": true,
+        "detail": "discord.ext",
+        "documentation": {}
+    },
+    {
+        "label": "get",
+        "importPath": "discord.utils",
+        "description": "discord.utils",
+        "isExtraImport": true,
+        "detail": "discord.utils",
+        "documentation": {}
+    },
+    {
+        "label": "asyncio",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "asyncio",
+        "description": "asyncio",
+        "detail": "asyncio",
+        "documentation": {}
+    },
+    {
+        "label": "random",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "random",
+        "description": "random",
+        "detail": "random",
+        "documentation": {}
+    },
+    {
+        "label": "time",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "time",
+        "description": "time",
+        "detail": "time",
+        "documentation": {}
+    },
+    {
+        "label": "pymongo",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "pymongo",
+        "description": "pymongo",
+        "detail": "pymongo",
+        "documentation": {}
+    },
+    {
+        "label": "MongoClient",
+        "importPath": "pymongo",
+        "description": "pymongo",
+        "isExtraImport": true,
+        "detail": "pymongo",
+        "documentation": {}
+    },
+    {
+        "label": "dbl",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "dbl",
+        "description": "dbl",
+        "detail": "dbl",
+        "documentation": {}
+    },
+    {
+        "label": "intents",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "intents = discord.Intents.default()\nclient = commands.AutoShardedBot(shard_count=2, command_prefix = '.', intents = intents)\nclient.remove_command('help')\ntoken = 'discordBotToken' \nmongoClusterKey0 = 'MongoDB Cluster Key'\ncluster0 = MongoClient(mongoClusterKey0)\ndb = cluster0['hearhear-bot']\nl = {}      #timer trigger library\nt = {}      #reminder storage library",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "client",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "client = commands.AutoShardedBot(shard_count=2, command_prefix = '.', intents = intents)\nclient.remove_command('help')\ntoken = 'discordBotToken' \nmongoClusterKey0 = 'MongoDB Cluster Key'\ncluster0 = MongoClient(mongoClusterKey0)\ndb = cluster0['hearhear-bot']\nl = {}      #timer trigger library\nt = {}      #reminder storage library\nTopGG_Token = 'TopGG Token'\ndbl.DBLClient(client, TopGG_Token, autopost=True) # Autopost will post your guild count every 30 minutes",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "token",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "token = 'discordBotToken' \nmongoClusterKey0 = 'MongoDB Cluster Key'\ncluster0 = MongoClient(mongoClusterKey0)\ndb = cluster0['hearhear-bot']\nl = {}      #timer trigger library\nt = {}      #reminder storage library\nTopGG_Token = 'TopGG Token'\ndbl.DBLClient(client, TopGG_Token, autopost=True) # Autopost will post your guild count every 30 minutes\n@client.event\nasync def on_ready():",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "mongoClusterKey0",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "mongoClusterKey0 = 'MongoDB Cluster Key'\ncluster0 = MongoClient(mongoClusterKey0)\ndb = cluster0['hearhear-bot']\nl = {}      #timer trigger library\nt = {}      #reminder storage library\nTopGG_Token = 'TopGG Token'\ndbl.DBLClient(client, TopGG_Token, autopost=True) # Autopost will post your guild count every 30 minutes\n@client.event\nasync def on_ready():\n    print('Bot Activated!\\n')",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "cluster0",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "cluster0 = MongoClient(mongoClusterKey0)\ndb = cluster0['hearhear-bot']\nl = {}      #timer trigger library\nt = {}      #reminder storage library\nTopGG_Token = 'TopGG Token'\ndbl.DBLClient(client, TopGG_Token, autopost=True) # Autopost will post your guild count every 30 minutes\n@client.event\nasync def on_ready():\n    print('Bot Activated!\\n')\n    print(f'Logged in as {client.user.name}\\n')",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "db",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "db = cluster0['hearhear-bot']\nl = {}      #timer trigger library\nt = {}      #reminder storage library\nTopGG_Token = 'TopGG Token'\ndbl.DBLClient(client, TopGG_Token, autopost=True) # Autopost will post your guild count every 30 minutes\n@client.event\nasync def on_ready():\n    print('Bot Activated!\\n')\n    print(f'Logged in as {client.user.name}\\n')\n    print('------------------------------\\n')",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "l",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "l = {}      #timer trigger library\nt = {}      #reminder storage library\nTopGG_Token = 'TopGG Token'\ndbl.DBLClient(client, TopGG_Token, autopost=True) # Autopost will post your guild count every 30 minutes\n@client.event\nasync def on_ready():\n    print('Bot Activated!\\n')\n    print(f'Logged in as {client.user.name}\\n')\n    print('------------------------------\\n')\n    act = f'debates in {len(client.guilds)} servers [.help]'",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "t",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "t = {}      #reminder storage library\nTopGG_Token = 'TopGG Token'\ndbl.DBLClient(client, TopGG_Token, autopost=True) # Autopost will post your guild count every 30 minutes\n@client.event\nasync def on_ready():\n    print('Bot Activated!\\n')\n    print(f'Logged in as {client.user.name}\\n')\n    print('------------------------------\\n')\n    act = f'debates in {len(client.guilds)} servers [.help]'\n    while True:",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "TopGG_Token",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "TopGG_Token = 'TopGG Token'\ndbl.DBLClient(client, TopGG_Token, autopost=True) # Autopost will post your guild count every 30 minutes\n@client.event\nasync def on_ready():\n    print('Bot Activated!\\n')\n    print(f'Logged in as {client.user.name}\\n')\n    print('------------------------------\\n')\n    act = f'debates in {len(client.guilds)} servers [.help]'\n    while True:\n        await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=act))",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "@commands.has_permissions(administrator",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "@commands.has_permissions(administrator = True)\nasync def setlang(ctx, l):\n    if l == 'FR':\n        l = 'fr'\n    if l == 'EN':\n        l = 'en'\n    guild = str(ctx.guild.id)\n    collection = db['language']\n    post = {'_id' : guild, 'ln' : l}\n    find = collection.find({'_id': guild})",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "@commands.has_permissions(administrator",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "@commands.has_permissions(administrator = True)\nasync def autorole(ctx, *, r):\n    guild = str(ctx.guild.id)\n    collection = db['autorole']\n    post = {'_id': guild, 'rol': r}\n    try:\n        collection.insert_one(post)\n    except:\n        collection.delete_one({'_id': guild})\n        collection.insert_one(post)   ",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "@client.command(aliases",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "@client.command(aliases = ['time'])\nasync def _time(ctx):\n    import time\n    a=int(time.time())\n    await ctx.send(f'{str(a)}')\n#Timer\n@client.command(aliases=['timekeep', 't', 'chrono'])\nasync def timer(ctx, x, y='0s'):\n    lang = 'en'\n    try:",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "@commands.has_permissions(manage_messages",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "@commands.has_permissions(manage_messages = True)\nasync def clear(ctx, amount=0,):\n    lang = 'en'\n    try:\n        guild = str(ctx.guild.id)\n        collection = db['language']\n        find = collection.find_one({'_id': guild})\n        lang = find['ln']\n        print(lang)\n    except:",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "@commands.has_permissions(manage_messages",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "@commands.has_permissions(manage_messages = True)\nasync def announce(ctx, text: str):\n    debate_tcs = [channel for channel in ctx.guild.text_channels]\n    await asyncio.wait([channel.send(text) for channel in debate_tcs])\n    await ctx.send(f\"Announcement was sent successfully! {ctx.message.author.mention}\")\n#create rolemenu\n@client.command()\n@commands.has_permissions(administrator = True)\nasync def addrolemenu(ctx):\n    lang = 'en'",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "@commands.has_permissions(administrator",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "@commands.has_permissions(administrator = True)\nasync def addrolemenu(ctx):\n    lang = 'en'\n    try:\n        guild = str(ctx.guild.id)\n        collection = db['language']\n        find = collection.find_one({'_id': guild})\n        lang = find['ln']\n        print(lang)\n    except:",
+        "detail": "pybot",
+        "documentation": {}
+    },
+    {
+        "label": "@client.command(aliases",
+        "kind": 5,
+        "importPath": "pybot",
+        "description": "pybot",
+        "peekOfCode": "@client.command(aliases = ['commands', 'HELP'])\nasync def help(ctx):\n    lang = 'en'\n    try:\n        guild = str(ctx.guild.id)\n        collection = db['language']\n        find = collection.find_one({'_id': guild})\n        lang = find['ln']\n        print(lang)\n    except:",
+        "detail": "pybot",
+        "documentation": {}
+    }
+]
