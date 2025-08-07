@@ -302,41 +302,36 @@ async def timer(ctx, duration, seconds='0s'):
         
         l[timer_id] = 0  # 0 = running, 1 = stopped, 2 = paused
         
-        start_messages = {
-            'en': f'**Timer set for {minutes}m {secs}s {ctx.author.mention}**\n*Use `.reminder` for background timer*',
-            'fr': f'**Chronomètre réglé pour {minutes}m {secs}s {ctx.author.mention}**\n*Utilisez `.reminder` pour un chronomètre en arrière-plan*'
-        }
-        
-        await ctx.send(start_messages.get(lang, start_messages['en']))
-        
         # Create interactive buttons
         class TimerView(discord.ui.View):
             def __init__(self):
                 super().__init__(timeout=total_seconds + 30)
                 
-            @discord.ui.button(label='⏸️ Pause', style=discord.ButtonStyle.secondary)
+            @discord.ui.button(label='⏸️ Pause', style=discord.ButtonStyle.secondary, emoji='⏸️')
             async def pause_button(self, interaction: discord.Interaction, button: discord.ui.Button):
                 if interaction.user.id != ctx.author.id:
-                    await interaction.response.send_message("Only the timer owner can control this timer.", ephemeral=True)
+                    await interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
                     return
                 
                 if timer_id in l and l[timer_id] == 0:
                     l[timer_id] = 2
                     button.label = '▶️ Resume'
-                    button.style = discord.ButtonStyle.primary
+                    button.style = discord.ButtonStyle.success
+                    button.emoji = '▶️'
                     await interaction.response.edit_message(view=self)
                 elif timer_id in l and l[timer_id] == 2:
                     l[timer_id] = 0
                     button.label = '⏸️ Pause'
                     button.style = discord.ButtonStyle.secondary
+                    button.emoji = '⏸️'
                     await interaction.response.edit_message(view=self)
                 else:
-                    await interaction.response.send_message("No timer to pause/resume.", ephemeral=True)
+                    await interaction.response.send_message("❌ No timer to pause/resume.", ephemeral=True)
             
-            @discord.ui.button(label='⏹️ Stop', style=discord.ButtonStyle.danger)
+            @discord.ui.button(label='⏹️ Stop', style=discord.ButtonStyle.danger, emoji='⏹️')
             async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
                 if interaction.user.id != ctx.author.id:
-                    await interaction.response.send_message("Only the timer owner can control this timer.", ephemeral=True)
+                    await interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
                     return
                 
                 if timer_id in l:
@@ -346,36 +341,55 @@ async def timer(ctx, duration, seconds='0s'):
                         item.disabled = True
                     await interaction.response.edit_message(view=self)
                 else:
-                    await interaction.response.send_message("No timer to stop.", ephemeral=True)
+                    await interaction.response.send_message("❌ No timer to stop.", ephemeral=True)
             
-            @discord.ui.button(label='➕ Add 1min', style=discord.ButtonStyle.success)
+            @discord.ui.button(label='➕ Add 1min', style=discord.ButtonStyle.success, emoji='⏰')
             async def add_time_button(self, interaction: discord.Interaction, button: discord.ui.Button):
                 if interaction.user.id != ctx.author.id:
-                    await interaction.response.send_message("Only the timer owner can control this timer.", ephemeral=True)
+                    await interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
                     return
                 
                 nonlocal total_seconds
                 if timer_id in l and l[timer_id] != 1:
                     total_seconds += 60
                     add_messages = {
-                        'en': 'Added 1 minute to timer ⏰',
-                        'fr': '1 minute ajoutée au chronomètre ⏰'
+                        'en': '⏰ Added 1 minute to timer! ⏱️',
+                        'fr': '⏰ 1 minute ajoutée au chronomètre! ⏱️'
                     }
                     await interaction.response.send_message(add_messages.get(lang, add_messages['en']), ephemeral=True)
                 else:
-                    await interaction.response.send_message("Timer is not running.", ephemeral=True)
+                    await interaction.response.send_message("❌ Timer is not running.", ephemeral=True)
+            
+            @discord.ui.button(label='🔔 Notify Me', style=discord.ButtonStyle.primary, emoji='🔔')
+            async def notify_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                if interaction.user.id != ctx.author.id:
+                    await interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
+                    return
+                
+                if timer_id in l and l[timer_id] != 1:
+                    await interaction.response.send_message("🔔 You'll be notified when the timer finishes!", ephemeral=True)
+                else:
+                    await interaction.response.send_message("❌ Timer is not running.", ephemeral=True)
         
         view = TimerView()
         
-        timer_format = {
-            'en': ':clock1: **Timer:** **`{:02d}:{:02d}`** {} ',
-            'fr': ':clock1: **Chronomètre:** **`{:02d}:{:02d}`** {} '
-        }
+        # Send only ONE timer message with buttons
+        timer_embed = discord.Embed(
+            title="⏰ Interactive Timer Started!",
+            description=f"```\n⏱️  {minutes:02d}:{secs:02d}  ⏱️\n```",
+            color=0x00ff00
+        )
+        timer_embed.add_field(name="👤 Timer Owner", value=ctx.author.mention, inline=True)
+        timer_embed.add_field(name="🎯 Status", value="🟢 **RUNNING**", inline=True)
+        timer_embed.add_field(name="� Channel", value=ctx.channel.mention, inline=True)
+        timer_embed.set_footer(text="Use the buttons below to control your timer!")
+        timer_embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/755774680633016380.gif")
         
-        msg = await ctx.send(timer_format[lang].format(minutes, secs, ctx.author.mention), view=view)
+        msg = await ctx.send(embed=timer_embed, view=view)
         active_timers[timer_id] = msg
         
-        # Animated timer countdown
+        # Animated timer countdown with rate limit protection
+        last_update = 0
         while total_seconds > 0:
             if timer_id not in l:
                 break
@@ -392,29 +406,83 @@ async def timer(ctx, duration, seconds='0s'):
                 break
                 
             elif l[timer_id] == 2:  # Pause
-                pause_format = {
-                    'en': ':pause_button: **Paused:** **`{:02d}:{:02d}`** {} ',
-                    'fr': ':pause_button: **En pause:** **`{:02d}:{:02d}`** {} '
-                }
+                pause_embed = discord.Embed(
+                    title="⏸️ Timer Paused",
+                    description=f"```\n⏸️  {total_seconds // 60:02d}:{total_seconds % 60:02d}  ⏸️\n```",
+                    color=0x808080
+                )
+                pause_embed.add_field(name="👤 Timer Owner", value=ctx.author.mention, inline=True)
+                pause_embed.add_field(name="🎯 Status", value="⏸️ **PAUSED**", inline=True)
+                pause_embed.add_field(name="📍 Channel", value=ctx.channel.mention, inline=True)
+                pause_embed.set_footer(text="Click Resume to continue the timer!")
+                
                 try:
-                    await msg.edit(content=pause_format[lang].format(total_seconds // 60, total_seconds % 60, ctx.author.mention), view=view)
+                    await msg.edit(embed=pause_embed, view=view)
                 except:
                     pass
                 while l.get(timer_id, 1) == 2:
                     await asyncio.sleep(1)
                 continue
             
-            # Update timer display with animation
-            clock_emojis = ['🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛']
-            clock = clock_emojis[total_seconds % 12]
+            # Update timer display with rate limit protection (every 5 seconds or important milestones)
+            current_time = time.time()
+            should_update = (
+                current_time - last_update >= 5 or  # Every 5 seconds
+                total_seconds <= 10 or  # Last 10 seconds
+                total_seconds % 60 == 0 or  # Every minute
+                total_seconds in [300, 180, 60, 30]  # Important milestones
+            )
             
-            try:
-                await msg.edit(content=f'{clock} **Timer:** **`{total_seconds // 60:02d}:{total_seconds % 60:02d}`** {ctx.author.mention}', view=view)
-            except:
-                pass
+            if should_update:
+                # Dynamic colors based on time remaining
+                if total_seconds > 300:  # > 5 minutes
+                    color = 0x00ff00  # Green
+                    status_emoji = "�"
+                    status_text = "RUNNING"
+                elif total_seconds > 60:  # 1-5 minutes
+                    color = 0xffff00  # Yellow
+                    status_emoji = "🟡"
+                    status_text = "RUNNING"
+                elif total_seconds > 30:  # 30s-1min
+                    color = 0xff8800  # Orange
+                    status_emoji = "🟠"
+                    status_text = "HURRY UP!"
+                else:  # < 30 seconds
+                    color = 0xff0000  # Red
+                    status_emoji = "🔴"
+                    status_text = "FINAL COUNTDOWN!"
+                
+                # Create progress bar
+                total_time = minutes * 60 + secs
+                progress = max(0, (total_time - total_seconds) / total_time)
+                filled_blocks = int(progress * 10)
+                empty_blocks = 10 - filled_blocks
+                progress_bar = "█" * filled_blocks + "░" * empty_blocks
+                
+                timer_embed = discord.Embed(
+                    title="⏰ Interactive Timer",
+                    description=f"```\n⏱️  {total_seconds // 60:02d}:{total_seconds % 60:02d}  ⏱️\n```",
+                    color=color
+                )
+                timer_embed.add_field(name="👤 Timer Owner", value=ctx.author.mention, inline=True)
+                timer_embed.add_field(name="🎯 Status", value=f"{status_emoji} **{status_text}**", inline=True)
+                timer_embed.add_field(name="📍 Channel", value=ctx.channel.mention, inline=True)
+                timer_embed.add_field(name="📊 Progress", value=f"```{progress_bar}``` {int(progress*100)}%", inline=False)
+                
+                if total_seconds <= 30:
+                    timer_embed.set_footer(text="⚡ Time is running out! ⚡")
+                    timer_embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/755774680633016380.gif")
+                else:
+                    timer_embed.set_footer(text="Use the buttons below to control your timer!")
+                
+                try:
+                    await msg.edit(embed=timer_embed, view=view)
+                    last_update = current_time
+                except:
+                    pass
             
             # Check for milestone notifications
-            if total_seconds in [300, 180, 60, 30, 10, 5, 3, 2, 1]:  # 5min, 3min, 1min, 30s, 10s, 5s, 3s, 2s, 1s
+            if total_seconds in [300, 180, 60, 30, 10, 5, 3, 2, 1]:
                 if total_seconds == 300:
                     milestone_messages = {
                         'en': ':yellow_circle: **5 minutes LEFT** {}',
@@ -455,12 +523,24 @@ async def timer(ctx, duration, seconds='0s'):
                 item.disabled = True
             
             end_messages = {
-                'en': ":red_circle: **Time's UP!** {} 🎉",
-                'fr': ":red_circle: **Le temps est ÉCOULÉ!** {} 🎉"
+                'en': ":red_circle: **Time's UP!** {} 🎉\nhttps://tenor.com/view/wrap-it-up-kowalski-game-awards-finish-already-penguin-gif-9878765111777341683",
+                'fr': ":red_circle: **Le temps est ÉCOULÉ!** {} 🎉\nhttps://tenor.com/view/wrap-it-up-kowalski-game-awards-finish-already-penguin-gif-9878765111777341683"
             }
             
             try:
-                await msg.edit(content=f':alarm_clock: **Timer:** **`00:00`** {ctx.author.mention} **FINISHED!**', view=view)
+                final_embed = discord.Embed(
+                    title="🎉 Timer Completed!",
+                    description="```\n🚨  00:00  🚨\n```",
+                    color=0xff0000
+                )
+                final_embed.add_field(name="👤 Timer Owner", value=ctx.author.mention, inline=True)
+                final_embed.add_field(name="🎯 Status", value="✅ **FINISHED!**", inline=True)
+                final_embed.add_field(name="� Channel", value=ctx.channel.mention, inline=True)
+                final_embed.add_field(name="🎊 Result", value="**TIME'S UP!** 🎉", inline=False)
+                final_embed.set_footer(text="Timer completed successfully!")
+                final_embed.set_image(url="https://tenor.com/view/wrap-it-up-kowalski-game-awards-finish-already-penguin-gif-9878765111777341683.gif")
+                
+                await msg.edit(embed=final_embed, view=view)
                 await ctx.send(end_messages[lang].format(ctx.author.mention))
             except:
                 pass
