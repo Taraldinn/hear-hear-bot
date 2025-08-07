@@ -541,6 +541,206 @@ async def help(ctx):
     await ctx.send(help_text)
 
 @client.command()
+async def getmotion(ctx):
+    """Get a random debate motion"""
+    if not db:
+        await ctx.send("Database not available.")
+        return
+    
+    lang = await get_language(ctx.guild.id)
+    
+    try:
+        collection = db['motions']
+        motions = list(collection.find())
+        
+        if not motions:
+            no_motions_messages = {
+                'en': 'No motions found in database. Use `.addmotion` to add some!',
+                'fr': 'Aucune motion trouvée dans la base de données. Utilisez `.addmotion` pour en ajouter!'
+            }
+            await ctx.send(no_motions_messages.get(lang, no_motions_messages['en']))
+            return
+        
+        motion = random.choice(motions)
+        
+        format_messages = {
+            'en': f'**Random Motion:** {motion["text"]}',
+            'fr': f'**Motion Aléatoire:** {motion["text"]}'
+        }
+        
+        await ctx.send(format_messages.get(lang, format_messages['en']))
+        
+    except Exception as e:
+        await ctx.send(f"Error getting motion: {e}")
+
+@client.command()
+async def addmotion(ctx, *, motion_text):
+    """Add a motion to the database"""
+    if not db:
+        await ctx.send("Database not available.")
+        return
+    
+    lang = await get_language(ctx.guild.id)
+    
+    if len(motion_text) < 10:
+        error_messages = {
+            'en': 'Motion too short. Please provide a detailed motion.',
+            'fr': 'Motion trop courte. Veuillez fournir une motion détaillée.'
+        }
+        await ctx.send(error_messages.get(lang, error_messages['en']))
+        return
+    
+    try:
+        collection = db['motions']
+        
+        # Check if motion already exists
+        existing = collection.find_one({'text': motion_text})
+        if existing:
+            duplicate_messages = {
+                'en': 'This motion already exists in the database!',
+                'fr': 'Cette motion existe déjà dans la base de données!'
+            }
+            await ctx.send(duplicate_messages.get(lang, duplicate_messages['en']))
+            return
+        
+        # Add new motion
+        motion_doc = {
+            'text': motion_text,
+            'added_by': str(ctx.author.id),
+            'added_at': time.time(),
+            'guild_id': str(ctx.guild.id)
+        }
+        
+        collection.insert_one(motion_doc)
+        
+        success_messages = {
+            'en': f'Motion added successfully: **{motion_text}**',
+            'fr': f'Motion ajoutée avec succès: **{motion_text}**'
+        }
+        
+        await ctx.send(success_messages.get(lang, success_messages['en']))
+        
+    except Exception as e:
+        await ctx.send(f"Error adding motion: {e}")
+
+@client.command()
+async def matchup(ctx, position=None):
+    """Get a debate matchup"""
+    lang = await get_language(ctx.guild.id)
+    
+    teams = {
+        'en': {
+            'AP': 'Affirmative (Pro)',
+            'BP': 'Negative (Con)', 
+            'sides': ['Affirmative (Pro)', 'Negative (Con)']
+        },
+        'fr': {
+            'AP': 'Affirmatif (Pour)',
+            'BP': 'Négatif (Contre)',
+            'sides': ['Affirmatif (Pour)', 'Négatif (Contre)']
+        }
+    }
+    
+    if position and position.upper() in ['AP', 'BP']:
+        side = teams[lang][position.upper()]
+        result_messages = {
+            'en': f'**Your assigned position:** {side}',
+            'fr': f'**Votre position assignée:** {side}'
+        }
+        await ctx.send(result_messages.get(lang, result_messages['en']))
+    else:
+        side = random.choice(teams[lang]['sides'])
+        result_messages = {
+            'en': f'**Random matchup for {ctx.author.mention}:** {side}',
+            'fr': f'**Appariement aléatoire pour {ctx.author.mention}:** {side}'
+        }
+        await ctx.send(result_messages.get(lang, result_messages['en']))
+
+@client.command()
+async def toss(ctx, position=None):
+    """Coin toss for debate position"""
+    lang = await get_language(ctx.guild.id)
+    
+    teams = {
+        'en': ['Affirmative (Pro)', 'Negative (Con)'],
+        'fr': ['Affirmatif (Pour)', 'Négatif (Contre)']
+    }
+    
+    result = random.choice(teams[lang])
+    
+    if position and position.upper() == 'BP':
+        toss_messages = {
+            'en': f'**Coin toss result for {ctx.author.mention}:** {result}',
+            'fr': f'**Résultat du tirage pour {ctx.author.mention}:** {result}'
+        }
+    else:
+        toss_messages = {
+            'en': f'**Coin toss result for {ctx.author.mention}:** {result}',
+            'fr': f'**Résultat du tirage pour {ctx.author.mention}:** {result}'
+        }
+    
+    await ctx.send(toss_messages.get(lang, toss_messages['en']))
+
+@client.command(aliases=['r'])
+async def reminder(ctx, duration, seconds='0s', *, message='Timer finished!'):
+    """Set a background reminder"""
+    lang = await get_language(ctx.guild.id)
+    
+    if not (duration.endswith('m') and seconds.endswith('s')):
+        error_messages = {
+            'en': '*Syntax error*\n*The command should contain minutes and seconds in format* **Nm Ns**\nFor example: ***7m 15s "Your message here"***',
+            'fr': '*Erreur de syntaxe*\n*La commande doit contenir le nombre de minutes et de secondes selon le format* **Nm Ns**\nPar exemple : ***7m 15s "Votre message ici"***'
+        }
+        await ctx.send(error_messages.get(lang, error_messages['en']))
+        return
+    
+    try:
+        minutes = int(duration[:-1])
+        secs = int(seconds[:-1])
+        total_seconds = minutes * 60 + secs
+        
+        if total_seconds <= 0:
+            await ctx.send("Reminder duration must be greater than 0.")
+            return
+        
+        if total_seconds > 86400:  # 24 hours limit
+            await ctx.send("Reminder cannot exceed 24 hours.")
+            return
+        
+        start_messages = {
+            'en': f'**Background reminder set for {minutes}m {secs}s** ⏰',
+            'fr': f'**Rappel en arrière-plan réglé pour {minutes}m {secs}s** ⏰'
+        }
+        
+        await ctx.send(start_messages.get(lang, start_messages['en']))
+        
+        # Store reminder info
+        reminder_id = f"{ctx.author.id}_{int(time.time())}"
+        t[reminder_id] = {
+            'user': ctx.author,
+            'channel': ctx.channel,
+            'message': message,
+            'lang': lang
+        }
+        
+        # Wait for the specified time
+        await asyncio.sleep(total_seconds)
+        
+        # Send reminder
+        if reminder_id in t:
+            reminder_messages = {
+                'en': f'⏰ **Reminder for {ctx.author.mention}:** {message}',
+                'fr': f'⏰ **Rappel pour {ctx.author.mention}:** {message}'
+            }
+            await ctx.send(reminder_messages.get(lang, reminder_messages['en']))
+            del t[reminder_id]
+                
+    except ValueError:
+        await ctx.send("Invalid time format. Use format like: `5m 30s Your message`")
+    except Exception as e:
+        await ctx.send(f"An error occurred: {e}")
+
+@client.command()
 async def about(ctx):
     """Show information about the bot"""
     lang = await get_language(ctx.guild.id)
