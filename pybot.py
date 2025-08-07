@@ -315,7 +315,7 @@ async def timer(ctx, duration, seconds='0s'):
             def __init__(self):
                 super().__init__(timeout=total_seconds + 30)
                 
-            @discord.ui.button(label='⏸️ Pause', style=discord.ButtonStyle.secondary, emoji='⏸️')
+            @discord.ui.button(label='Pause', style=discord.ButtonStyle.secondary, emoji='⏸️')
             async def pause_button(self, interaction: discord.Interaction, button: discord.ui.Button):
                 if interaction.user.id != ctx.author.id:
                     await interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
@@ -323,20 +323,20 @@ async def timer(ctx, duration, seconds='0s'):
                 
                 if timer_id in l and l[timer_id] == 0:
                     l[timer_id] = 2
-                    button.label = '▶️ Resume'
+                    button.label = 'Resume'
                     button.style = discord.ButtonStyle.success
                     button.emoji = '▶️'
                     await interaction.response.edit_message(view=self)
                 elif timer_id in l and l[timer_id] == 2:
                     l[timer_id] = 0
-                    button.label = '⏸️ Pause'
+                    button.label = 'Pause'
                     button.style = discord.ButtonStyle.secondary
                     button.emoji = '⏸️'
                     await interaction.response.edit_message(view=self)
                 else:
                     await interaction.response.send_message("❌ No timer to pause/resume.", ephemeral=True)
             
-            @discord.ui.button(label='⏹️ Stop', style=discord.ButtonStyle.danger, emoji='⏹️')
+            @discord.ui.button(label='Stop', style=discord.ButtonStyle.danger, emoji='⏹️')
             async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
                 if interaction.user.id != ctx.author.id:
                     await interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
@@ -351,7 +351,7 @@ async def timer(ctx, duration, seconds='0s'):
                 else:
                     await interaction.response.send_message("❌ No timer to stop.", ephemeral=True)
             
-            @discord.ui.button(label='➕ Add 1min', style=discord.ButtonStyle.success, emoji='⏰')
+            @discord.ui.button(label='Add 1min', style=discord.ButtonStyle.success, emoji='➕')
             async def add_time_button(self, interaction: discord.Interaction, button: discord.ui.Button):
                 if interaction.user.id != ctx.author.id:
                     await interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
@@ -368,7 +368,7 @@ async def timer(ctx, duration, seconds='0s'):
                 else:
                     await interaction.response.send_message("❌ Timer is not running.", ephemeral=True)
             
-            @discord.ui.button(label='🔔 Notify Me', style=discord.ButtonStyle.primary, emoji='🔔')
+            @discord.ui.button(label='Notify Me', style=discord.ButtonStyle.primary, emoji='🔔')
             async def notify_button(self, interaction: discord.Interaction, button: discord.ui.Button):
                 if interaction.user.id != ctx.author.id:
                     await interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
@@ -432,10 +432,10 @@ async def timer(ctx, duration, seconds='0s'):
                     await asyncio.sleep(1)
                 continue
             
-            # Update timer display with rate limit protection (every 5 seconds or important milestones)
+            # Update timer display with rate limit protection (every second for real-time updates)
             current_time = time.time()
             should_update = (
-                current_time - last_update >= 5 or  # Every 5 seconds
+                current_time - last_update >= 1 or  # Every second for real-time
                 total_seconds <= 10 or  # Last 10 seconds
                 total_seconds % 60 == 0 or  # Every minute
                 total_seconds in [300, 180, 60, 30]  # Important milestones
@@ -460,36 +460,27 @@ async def timer(ctx, duration, seconds='0s'):
                     status_emoji = "🔴"
                     status_text = "FINAL COUNTDOWN!"
                 
-                # Create enhanced full-width progress bar
+                # Create simple single-line progress bar
                 total_time = minutes * 60 + secs
                 progress = max(0, (total_time - total_seconds) / total_time)
                 
-                # Full width progress bar (30 characters for better visibility)
-                bar_length = 30
+                # Single line progress bar (20 characters for clean display)
+                bar_length = 20
                 filled_blocks = int(progress * bar_length)
                 empty_blocks = bar_length - filled_blocks
                 
-                # Dynamic progress bar with colors
-                if progress < 0.3:
-                    progress_char = "🟩"  # Green
-                elif progress < 0.7:
-                    progress_char = "🟨"  # Yellow
-                else:
-                    progress_char = "🟥"  # Red
-                
-                progress_bar = progress_char * filled_blocks + "⬜" * empty_blocks
-                time_remaining = f"{total_seconds // 60:02d}:{total_seconds % 60:02d}"
-                time_elapsed = f"{(total_time - total_seconds) // 60:02d}:{(total_time - total_seconds) % 60:02d}"
+                # Simple progress bar with single character
+                progress_bar = "█" * filled_blocks + "░" * empty_blocks
                 
                 timer_embed = discord.Embed(
                     title="⏰ Interactive Timer",
-                    description=f"```\n⏱️  {time_remaining}  ⏱️\n```",
+                    description=f"```\n⏱️  {total_seconds // 60:02d}:{total_seconds % 60:02d}  ⏱️\n```",
                     color=color
                 )
                 timer_embed.add_field(name="👤 Timer Owner", value=ctx.author.mention, inline=True)
                 timer_embed.add_field(name="🎯 Status", value=f"{status_emoji} **{status_text}**", inline=True)
                 timer_embed.add_field(name="📍 Channel", value=ctx.channel.mention, inline=True)
-                timer_embed.add_field(name="📊 Progress", value=f"{progress_bar}\n`{time_elapsed}` ⏳ `{time_remaining}` | **{int(progress*100)}%**", inline=False)
+                timer_embed.add_field(name="📊 Progress", value=f"{progress_bar}", inline=False)
                 
                 if total_seconds <= 30:
                     timer_embed.set_footer(text="⚡ Time is running out! ⚡")
