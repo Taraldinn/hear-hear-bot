@@ -14,6 +14,7 @@ import os
 from dotenv import load_dotenv
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
+import aiohttp
 
 # Load environment variables
 load_dotenv()
@@ -69,12 +70,17 @@ def start_http_server():
 
 @client.event
 async def on_ready():
-    print('Bot Activated!\n')
-    print(f'Logged in as {client.user.name}\n')
-    print('------------------------------\n')
+    """Bot is ready"""
+    print(f'Logged in as {client.user}!')
     
-    # Start the presence update loop
+    # Update presence
     client.loop.create_task(update_presence())
+    
+    # Start keep-alive ping
+    client.loop.create_task(keep_alive_ping())
+    
+    # Start HTTP server for Render
+    start_http_server()
 
 async def update_presence():
     """Update bot presence every 30 minutes"""
@@ -86,6 +92,30 @@ async def update_presence():
         except Exception as e:
             print(f"Error updating presence: {e}")
             await asyncio.sleep(1800)
+
+async def keep_alive_ping():
+    """Ping the bot's HTTP server every 14 minutes to prevent sleeping"""
+    while True:
+        try:
+            await asyncio.sleep(840)  # 14 minutes
+            port = int(os.environ.get('PORT', 8080))
+            url = f"http://localhost:{port}"
+            
+            try:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url) as response:
+                        print("Keep-alive ping sent successfully")
+            except ImportError:
+                # Fallback method without aiohttp
+                import urllib.request
+                try:
+                    urllib.request.urlopen(url, timeout=10)
+                    print("Keep-alive ping sent successfully (fallback method)")
+                except:
+                    print("Keep-alive ping failed")
+        except Exception as e:
+            print(f"Keep-alive ping failed: {e}")
 
 @client.event
 async def on_command_error(ctx, error):
