@@ -300,6 +300,14 @@ async def timer(ctx, duration, seconds='0s'):
             await ctx.send(conflict_messages.get(lang, conflict_messages['en']))
             return
         
+        # Clean up any existing timer messages for this user/channel
+        if timer_id in active_timers:
+            try:
+                await active_timers[timer_id].delete()
+            except:
+                pass
+            del active_timers[timer_id]
+        
         l[timer_id] = 0  # 0 = running, 1 = stopped, 2 = paused
         
         # Create interactive buttons
@@ -452,22 +460,36 @@ async def timer(ctx, duration, seconds='0s'):
                     status_emoji = "🔴"
                     status_text = "FINAL COUNTDOWN!"
                 
-                # Create progress bar
+                # Create enhanced full-width progress bar
                 total_time = minutes * 60 + secs
                 progress = max(0, (total_time - total_seconds) / total_time)
-                filled_blocks = int(progress * 10)
-                empty_blocks = 10 - filled_blocks
-                progress_bar = "█" * filled_blocks + "░" * empty_blocks
+                
+                # Full width progress bar (30 characters for better visibility)
+                bar_length = 30
+                filled_blocks = int(progress * bar_length)
+                empty_blocks = bar_length - filled_blocks
+                
+                # Dynamic progress bar with colors
+                if progress < 0.3:
+                    progress_char = "🟩"  # Green
+                elif progress < 0.7:
+                    progress_char = "🟨"  # Yellow
+                else:
+                    progress_char = "🟥"  # Red
+                
+                progress_bar = progress_char * filled_blocks + "⬜" * empty_blocks
+                time_remaining = f"{total_seconds // 60:02d}:{total_seconds % 60:02d}"
+                time_elapsed = f"{(total_time - total_seconds) // 60:02d}:{(total_time - total_seconds) % 60:02d}"
                 
                 timer_embed = discord.Embed(
                     title="⏰ Interactive Timer",
-                    description=f"```\n⏱️  {total_seconds // 60:02d}:{total_seconds % 60:02d}  ⏱️\n```",
+                    description=f"```\n⏱️  {time_remaining}  ⏱️\n```",
                     color=color
                 )
                 timer_embed.add_field(name="👤 Timer Owner", value=ctx.author.mention, inline=True)
                 timer_embed.add_field(name="🎯 Status", value=f"{status_emoji} **{status_text}**", inline=True)
                 timer_embed.add_field(name="📍 Channel", value=ctx.channel.mention, inline=True)
-                timer_embed.add_field(name="📊 Progress", value=f"```{progress_bar}``` {int(progress*100)}%", inline=False)
+                timer_embed.add_field(name="📊 Progress", value=f"{progress_bar}\n`{time_elapsed}` ⏳ `{time_remaining}` | **{int(progress*100)}%**", inline=False)
                 
                 if total_seconds <= 30:
                     timer_embed.set_footer(text="⚡ Time is running out! ⚡")
