@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-import dbl
+# Remove the dbl import since we're not using Top.gg
 
 intents = discord.Intents.default()
 intents.message_content = True  # Required for Discord.py 2.0+
@@ -28,7 +28,6 @@ client.remove_command('help')
 # Use environment variables for sensitive data
 token = os.getenv('DISCORD_BOT_TOKEN')
 mongoClusterKey0 = os.getenv('MONGODB_CONNECTION_STRING')
-TopGG_Token = os.getenv('TOPGG_TOKEN')
 
 # Check if required environment variables are set
 if not token:
@@ -39,6 +38,7 @@ if not mongoClusterKey0:
 try:
     cluster0 = MongoClient(mongoClusterKey0)
     db = cluster0['hearhear-bot']
+    print("Connected to MongoDB successfully!")
 except Exception as e:
     print(f"Error connecting to MongoDB: {e}")
     db = None
@@ -46,12 +46,7 @@ except Exception as e:
 l = {}      # timer trigger library
 t = {}      # reminder storage library
 
-# Only initialize DBL client if token is provided
-if TopGG_Token:
-    try:
-        dbl.DBLClient(client, TopGG_Token, autopost=True)
-    except Exception as e:
-        print(f"Error initializing DBL client: {e}")
+# Removed Top.gg/DBL client initialization since we're not using it
 
 @client.event
 async def on_ready():
