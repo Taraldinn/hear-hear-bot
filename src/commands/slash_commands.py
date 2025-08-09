@@ -18,106 +18,6 @@ class SlashCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
-    # Timer Commands Group
-    timer_group = app_commands.Group(name="timer", description="Timer commands for debates")
-    
-    @timer_group.command(name="start", description="Start a new debate timer")
-    async def timer_start(self, interaction: discord.Interaction):
-        """Start a debate timer"""
-        user_id = interaction.user.id
-        channel_id = interaction.channel.id
-        timer_manager = self.bot.timer_manager
-        
-        if timer_manager.is_timer_active(user_id, channel_id):
-            elapsed = timer_manager.get_elapsed_time(user_id, channel_id)
-            time_str = timer_manager.get_time_string(elapsed)
-            await interaction.response.send_message(f"⏱️ You already have an active timer: {time_str}", ephemeral=True)
-            return
-        
-        timer_manager.start_timer(user_id, channel_id)
-        
-        embed = discord.Embed(
-            title="⏱️ Timer Started",
-            description=f"Timer started for {interaction.user.mention}",
-            color=discord.Color.green(),
-            timestamp=interaction.created_at
-        )
-        
-        embed.add_field(name="Commands", value="Use `/timer stop` to stop\nUse `/timer check` to check time", inline=True)
-        
-        await interaction.response.send_message(embed=embed)
-    
-    @timer_group.command(name="stop", description="Stop your active timer")
-    async def timer_stop(self, interaction: discord.Interaction):
-        """Stop your timer"""
-        user_id = interaction.user.id
-        channel_id = interaction.channel.id
-        timer_manager = self.bot.timer_manager
-        
-        elapsed = timer_manager.stop_timer(user_id, channel_id)
-        
-        if elapsed is None:
-            await interaction.response.send_message("❌ You don't have an active timer in this channel.", ephemeral=True)
-            return
-        
-        time_str = timer_manager.format_time(elapsed)
-        
-        embed = discord.Embed(
-            title="⏹️ Timer Stopped",
-            description=f"Timer stopped for {interaction.user.mention}",
-            color=discord.Color.red(),
-            timestamp=interaction.created_at
-        )
-        
-        embed.add_field(name="Total Time", value=time_str, inline=True)
-        
-        # Add performance feedback
-        if elapsed >= 420:  # 7 minutes
-            embed.add_field(name="Performance", value="⚠️ Over time limit", inline=True)
-        elif elapsed >= 360:  # 6 minutes
-            embed.add_field(name="Performance", value="⏰ Close to time limit", inline=True)
-        else:
-            embed.add_field(name="Performance", value="✅ Within time limit", inline=True)
-        
-        await interaction.response.send_message(embed=embed)
-    
-    @timer_group.command(name="check", description="Check your current timer status")
-    async def timer_check(self, interaction: discord.Interaction):
-        """Check timer status"""
-        user_id = interaction.user.id
-        channel_id = interaction.channel.id
-        timer_manager = self.bot.timer_manager
-        
-        if not timer_manager.is_timer_active(user_id, channel_id):
-            await interaction.response.send_message("❌ You don't have an active timer in this channel.", ephemeral=True)
-            return
-        
-        elapsed = timer_manager.get_elapsed_time(user_id, channel_id)
-        time_str = timer_manager.get_time_string(elapsed)
-        
-        embed = discord.Embed(
-            title="⏱️ Timer Status",
-            description=f"Current timer for {interaction.user.mention}",
-            color=discord.Color.blue(),
-            timestamp=interaction.created_at
-        )
-        
-        embed.add_field(name="Elapsed Time", value=time_str, inline=True)
-        
-        # Add progress indicator
-        if elapsed < 300:  # Under 5 minutes
-            progress = "🟢 Good pace"
-        elif elapsed < 360:  # Under 6 minutes
-            progress = "🟡 Approaching limit"
-        elif elapsed < 420:  # Under 7 minutes
-            progress = "🟠 Near time limit"
-        else:
-            progress = "🔴 Over time!"
-        
-        embed.add_field(name="Status", value=progress, inline=True)
-        
-        await interaction.response.send_message(embed=embed)
-    
     # Debate Commands
     @app_commands.command(name="randommotion", description="Get a random debate motion")
     @app_commands.describe(language="Language for the motion")
@@ -272,7 +172,7 @@ class SlashCommands(commands.Cog):
         
         # Slash commands
         slash_cmds = [
-            "`/timer start/stop/check` - Manage debate timer",
+            "`/timer` - Interactive debate timer with buttons",
             "`/randommotion [lang]` - Get random motion",
             "`/coinflip` - Flip a coin",
             "`/diceroll [sides]` - Roll a dice",
