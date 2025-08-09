@@ -97,20 +97,31 @@ body {
     overflow-x: auto;
 }
 
-.text-primary { color: #3B82F6; }
-.text-secondary { color: #8B5CF6; }
-.text-accent { color: #10B981; }
-.text-discord { color: #5865F2; }
+.text-primary {
+    color: #3B82F6;
+}
+
+.text-secondary {
+    color: #8B5CF6;
+}
+
+.text-accent {
+    color: #10B981;
+}
+
+.text-discord {
+    color: #5865F2;
+}
 
 @media (max-width: 768px) {
     .hero h1 {
         font-size: 2.5rem;
     }
-    
+
     .hero p {
         font-size: 1.2rem;
     }
-    
+
     .features-grid {
         grid-template-columns: 1fr;
     }

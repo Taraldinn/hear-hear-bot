@@ -39,7 +39,8 @@ class Config:
     @classmethod
     def validate_config(cls):
         """Validate that all required environment variables are set"""
-        required_vars = ['BOT_TOKEN', 'MONGODB_CONNECTION_STRING']
+        # Only BOT_TOKEN is strictly required
+        required_vars = ['BOT_TOKEN']
         missing_vars = []
         
         for var in required_vars:
@@ -48,6 +49,10 @@ class Config:
         
         if missing_vars:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+        
+        # Warn about optional but recommended variables
+        if not cls.MONGODB_CONNECTION_STRING:
+            print("⚠️  Warning: MONGODB_CONNECTION_STRING not set - database features will be disabled")
         
         return True
 

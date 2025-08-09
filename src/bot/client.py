@@ -140,11 +140,14 @@ class HearHearBot(commands.AutoShardedBot):
     
     async def get_language(self, guild_id):
         """Get language setting for a guild"""
-        if not self.database.db:
+        if not self.database or self.database.db is None:
             return 'english'
         
         try:
             collection = self.database.get_collection('guilds')
+            if collection is None:
+                return 'english'
+                
             guild_data = collection.find_one({'_id': guild_id})
             
             if guild_data and 'language' in guild_data:
@@ -157,11 +160,14 @@ class HearHearBot(commands.AutoShardedBot):
     
     async def set_language(self, guild_id, language):
         """Set language for a guild"""
-        if not self.database.db:
+        if not self.database or self.database.db is None:
             return False
         
         try:
             collection = self.database.get_collection('guilds')
+            if collection is None:
+                return False
+                
             collection.update_one(
                 {'_id': guild_id},
                 {'$set': {'language': language}},
@@ -196,10 +202,12 @@ class HearHearBot(commands.AutoShardedBot):
                 logger.error(f"Error stopping web server: {e}")
         
         # Clean up timers
-        self.timer_manager.cleanup_timers()
+        if hasattr(self, 'timer_manager') and self.timer_manager:
+            self.timer_manager.cleanup_timers()
         
         # Close database connection
-        self.database.close_connection()
+        if hasattr(self, 'database') and self.database:
+            self.database.close_connection()
         
         await super().close()
 
