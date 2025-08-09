@@ -5,6 +5,7 @@
 import discord
 from discord.ext import commands
 from discord.utils import get
+from discord import app_commands
 import asyncio
 import random
 import time
@@ -72,6 +73,13 @@ def start_http_server():
 async def on_ready():
     """Bot is ready"""
     print(f'Logged in as {client.user}!')
+    
+    # Sync slash commands
+    try:
+        synced = await client.tree.sync()
+        print(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        print(f"Failed to sync commands: {e}")
     
     # Update presence
     client.loop.create_task(update_presence())
@@ -524,41 +532,43 @@ async def timer(ctx, duration, seconds='0s'):
                 except:
                     pass
             
-            # Check for milestone notifications
-            if total_seconds in [300, 180, 60, 30, 10, 5, 3, 2, 1]:
-                if total_seconds == 300:
-                    milestone_messages = {
-                        'en': ':yellow_circle: **5 minutes LEFT** {}',
-                        'fr': ':yellow_circle: **5 minutes RESTANTES** {}'
-                    }
-                elif total_seconds == 180:
-                    milestone_messages = {
-                        'en': ':orange_circle: **3 minutes LEFT** {}',
-                        'fr': ':orange_circle: **3 minutes RESTANTES** {}'
-                    }
-                elif total_seconds == 60:
-                    milestone_messages = {
-                        'en': ':orange_circle: **1 minute LEFT** {}',
-                        'fr': ':orange_circle: **1 minute RESTANTE** {}'
-                    }
-                elif total_seconds == 30:
-                    milestone_messages = {
-                        'en': ':red_circle: **30 seconds LEFT** {}',
-                        'fr': ':red_circle: **30 secondes RESTANTES** {}'
-                    }
-                elif total_seconds <= 10:
-                    milestone_messages = {
-                        'en': f':rotating_light: **{total_seconds} seconds LEFT** {{}}',
-                        'fr': f':rotating_light: **{total_seconds} secondes RESTANTES** {{}}'
-                    }
-                
+        # Check for milestone notifications
+        if total_seconds in [300, 180, 60, 30, 10, 5, 3, 2, 1]:
+            milestone_messages = {}
+            if total_seconds == 300:
+                milestone_messages = {
+                    'en': ':yellow_circle: **5 minutes LEFT** {}',
+                    'fr': ':yellow_circle: **5 minutes RESTANTES** {}'
+                }
+            elif total_seconds == 180:
+                milestone_messages = {
+                    'en': ':orange_circle: **3 minutes LEFT** {}',
+                    'fr': ':orange_circle: **3 minutes RESTANTES** {}'
+                }
+            elif total_seconds == 60:
+                milestone_messages = {
+                    'en': ':orange_circle: **1 minute LEFT** {}',
+                    'fr': ':orange_circle: **1 minute RESTANTE** {}'
+                }
+            elif total_seconds == 30:
+                milestone_messages = {
+                    'en': ':red_circle: **30 seconds LEFT** {}',
+                    'fr': ':red_circle: **30 secondes RESTANTES** {}'
+                }
+            elif total_seconds <= 10:
+                milestone_messages = {
+                    'en': f':rotating_light: **{total_seconds} seconds LEFT** {{}}',
+                    'fr': f':rotating_light: **{total_seconds} secondes RESTANTES** {{}}'
+                }
+            
+            if milestone_messages:
                 try:
                     await ctx.send(milestone_messages[lang].format(ctx.author.mention))
                 except:
                     pass
             
-            await asyncio.sleep(1)
-            total_seconds -= 1
+        await asyncio.sleep(1)
+        total_seconds -= 1
         
         if total_seconds <= 0 and timer_id in l:
             # Disable all buttons
@@ -598,6 +608,776 @@ async def timer(ctx, duration, seconds='0s'):
         await ctx.send("Invalid time format. Use format like: `5m 30s`")
     except Exception as e:
         await ctx.send(f"An error occurred: {e}")
+
+@client.tree.command(name="timer", description="Set a visual timer with interactive buttons")
+@app_commands.describe(
+    duration="Duration in minutes (e.g., 5)",
+    seconds="Additional seconds (default: 0)"
+)
+async def slash_timer(interaction: discord.Interaction, duration: int, seconds: int = 0):
+    """Slash command version of timer"""
+    # Get language setting
+    lang = await get_language(interaction.guild.id)
+    
+    if duration < 0 or seconds < 0:
+        error_messages = {
+            'en': 'Duration and seconds must be positive numbers.',
+            'fr': 'La durée et les secondes doivent être des nombres positifs.'
+        }
+        await interaction.response.send_message(error_messages.get(lang, error_messages['en']), ephemeral=True)
+        return
+    
+    total_seconds = duration * 60 + seconds
+    
+    if total_seconds <= 0:
+        await interaction.response.send_message("Timer duration must be greater than 0.", ephemeral=True)
+        return
+    
+    if total_seconds > 7200:  # 2 hours limit
+        await interaction.response.send_message("Timer cannot exceed 2 hours.", ephemeral=True)
+        return
+    
+    # Create unique timer ID
+    timer_id = f"{interaction.user.id}_{interaction.channel.id}"
+    
+    # Check if user already has a timer in this channel
+    if timer_id in l:
+        conflict_messages = {
+            'en': f'{interaction.user.mention}, you already have a timer running in this channel. Use the stop button first.',
+            'fr': f'{interaction.user.mention}, vous avez déjà un chronomètre en cours dans ce canal. Utilisez le bouton stop d\'abord.'
+        }
+        await interaction.response.send_message(conflict_messages.get(lang, conflict_messages['en']), ephemeral=True)
+        return
+    
+    # Clean up any existing timer messages for this user/channel
+    if timer_id in active_timers:
+        try:
+            await active_timers[timer_id].delete()
+        except:
+            pass
+        del active_timers[timer_id]
+    
+    l[timer_id] = 0  # 0 = running, 1 = stopped, 2 = paused
+    
+    # Create interactive buttons (same as prefix command)
+    class TimerView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=total_seconds + 30)
+            
+        @discord.ui.button(label='Pause', style=discord.ButtonStyle.secondary, emoji='⏸️')
+        async def pause_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+            if button_interaction.user.id != interaction.user.id:
+                await button_interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
+                return
+            
+            if timer_id in l and l[timer_id] == 0:
+                l[timer_id] = 2
+                button.label = 'Resume'
+                button.style = discord.ButtonStyle.success
+                button.emoji = '▶️'
+                await button_interaction.response.edit_message(view=self)
+            elif timer_id in l and l[timer_id] == 2:
+                l[timer_id] = 0
+                button.label = 'Pause'
+                button.style = discord.ButtonStyle.secondary
+                button.emoji = '⏸️'
+                await button_interaction.response.edit_message(view=self)
+            else:
+                await button_interaction.response.send_message("❌ No timer to pause/resume.", ephemeral=True)
+        
+        @discord.ui.button(label='Stop', style=discord.ButtonStyle.danger, emoji='⏹️')
+        async def stop_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+            if button_interaction.user.id != interaction.user.id:
+                await button_interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
+                return
+            
+            if timer_id in l:
+                l[timer_id] = 1
+                # Disable all buttons
+                for item in self.children:
+                    item.disabled = True
+                await button_interaction.response.edit_message(view=self)
+            else:
+                await button_interaction.response.send_message("❌ No timer to stop.", ephemeral=True)
+        
+        @discord.ui.button(label='Add 1min', style=discord.ButtonStyle.success, emoji='➕')
+        async def add_time_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+            if button_interaction.user.id != interaction.user.id:
+                await button_interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
+                return
+            
+            nonlocal total_seconds
+            if timer_id in l and l[timer_id] != 1:
+                total_seconds += 60
+                add_messages = {
+                    'en': '⏰ Added 1 minute to timer! ⏱️',
+                    'fr': '⏰ 1 minute ajoutée au chronomètre! ⏱️'
+                }
+                await button_interaction.response.send_message(add_messages.get(lang, add_messages['en']), ephemeral=True)
+            else:
+                await button_interaction.response.send_message("❌ Timer is not running.", ephemeral=True)
+        
+        @discord.ui.button(label='Notify Me', style=discord.ButtonStyle.primary, emoji='🔔')
+        async def notify_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+            if button_interaction.user.id != interaction.user.id:
+                await button_interaction.response.send_message("🚫 Only the timer owner can control this timer.", ephemeral=True)
+                return
+            
+            if timer_id in l and l[timer_id] != 1:
+                await button_interaction.response.send_message("🔔 You'll be notified when the timer finishes!", ephemeral=True)
+            else:
+                await button_interaction.response.send_message("❌ Timer is not running.", ephemeral=True)
+    
+    view = TimerView()
+    
+    # Create initial timer embed
+    timer_embed = discord.Embed(
+        title="⏰ Interactive Timer Started!",
+        description=f"```\n⏱️  {duration:02d}:{seconds:02d}  ⏱️\n```",
+        color=0x00ff00
+    )
+    timer_embed.add_field(name="👤 Timer Owner", value=interaction.user.mention, inline=True)
+    timer_embed.add_field(name="🎯 Status", value="🟢 **RUNNING**", inline=True)
+    timer_embed.add_field(name="📍 Channel", value=interaction.channel.mention, inline=True)
+    timer_embed.set_footer(text="Use the buttons below to control your timer!")
+    timer_embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/755774680633016380.gif")
+    
+    await interaction.response.send_message(embed=timer_embed, view=view)
+    msg = await interaction.original_response()
+    active_timers[timer_id] = msg
+    
+    # Start the timer countdown (simplified version of the prefix command logic)
+    last_update = 0
+    while total_seconds > 0:
+        if timer_id not in l:
+            break
+            
+        if l[timer_id] == 1:  # Stop
+            stop_messages = {
+                'en': f"⏹️ **Timer stopped by {interaction.user.mention}!**",
+                'fr': f"⏹️ **Chronomètre arrêté par {interaction.user.mention}!**"
+            }
+            await interaction.followup.send(stop_messages.get(lang, stop_messages['en']))
+            del l[timer_id]
+            if timer_id in active_timers:
+                del active_timers[timer_id]
+            break
+            
+        elif l[timer_id] == 2:  # Pause
+            pause_embed = discord.Embed(
+                title="⏸️ Timer Paused",
+                description=f"```\n⏸️  {total_seconds // 60:02d}:{total_seconds % 60:02d}  ⏸️\n```",
+                color=0x808080
+            )
+            pause_embed.add_field(name="👤 Timer Owner", value=interaction.user.mention, inline=True)
+            pause_embed.add_field(name="🎯 Status", value="⏸️ **PAUSED**", inline=True)
+            pause_embed.add_field(name="📍 Channel", value=interaction.channel.mention, inline=True)
+            pause_embed.set_footer(text="Click Resume to continue the timer!")
+            
+            try:
+                await msg.edit(embed=pause_embed, view=view)
+            except:
+                pass
+            while l.get(timer_id, 1) == 2:
+                await asyncio.sleep(1)
+            continue
+        
+        # Update timer display
+        current_time = time.time()
+        should_update = (
+            current_time - last_update >= 1 or
+            total_seconds <= 10 or
+            total_seconds % 60 == 0 or
+            total_seconds in [300, 180, 60, 30]
+        )
+        
+        if should_update:
+            # Dynamic colors
+            if total_seconds > 300:
+                color = 0x00ff00
+                status_emoji = "🟢"
+                status_text = "RUNNING"
+            elif total_seconds > 60:
+                color = 0xffff00
+                status_emoji = "🟡"
+                status_text = "RUNNING"
+            elif total_seconds > 30:
+                color = 0xff8800
+                status_emoji = "🟠"
+                status_text = "HURRY UP!"
+            else:
+                color = 0xff0000
+                status_emoji = "🔴"
+                status_text = "FINAL COUNTDOWN!"
+            
+            # Progress bar
+            total_time = duration * 60 + seconds
+            progress = max(0, (total_time - total_seconds) / total_time)
+            bar_length = 20
+            filled_blocks = int(progress * bar_length)
+            empty_blocks = bar_length - filled_blocks
+            progress_bar = "█" * filled_blocks + "░" * empty_blocks
+            
+            timer_embed = discord.Embed(
+                title="⏰ Interactive Timer",
+                description=f"```\n⏱️  {total_seconds // 60:02d}:{total_seconds % 60:02d}  ⏱️\n```",
+                color=color
+            )
+            timer_embed.add_field(name="👤 Timer Owner", value=interaction.user.mention, inline=True)
+            timer_embed.add_field(name="🎯 Status", value=f"{status_emoji} **{status_text}**", inline=True)
+            timer_embed.add_field(name="📍 Channel", value=interaction.channel.mention, inline=True)
+            timer_embed.add_field(name="📊 Progress", value=f"{progress_bar}", inline=False)
+            
+            if total_seconds <= 30:
+                timer_embed.set_footer(text="⚡ Time is running out! ⚡")
+            else:
+                timer_embed.set_footer(text="Use the buttons below to control your timer!")
+            
+            try:
+                await msg.edit(embed=timer_embed, view=view)
+                last_update = current_time
+            except:
+                pass
+        
+        # Milestone notifications
+        if total_seconds in [300, 180, 60, 30, 10, 5, 3, 2, 1]:
+            milestone_messages = {}
+            if total_seconds == 300:
+                milestone_messages = {
+                    'en': ':yellow_circle: **5 minutes LEFT** {}',
+                    'fr': ':yellow_circle: **5 minutes RESTANTES** {}'
+                }
+            elif total_seconds == 180:
+                milestone_messages = {
+                    'en': ':orange_circle: **3 minutes LEFT** {}',
+                    'fr': ':orange_circle: **3 minutes RESTANTES** {}'
+                }
+            elif total_seconds == 60:
+                milestone_messages = {
+                    'en': ':orange_circle: **1 minute LEFT** {}',
+                    'fr': ':orange_circle: **1 minute RESTANTE** {}'
+                }
+            elif total_seconds == 30:
+                milestone_messages = {
+                    'en': ':red_circle: **30 seconds LEFT** {}',
+                    'fr': ':red_circle: **30 secondes RESTANTES** {}'
+                }
+            elif total_seconds <= 10:
+                milestone_messages = {
+                    'en': f':rotating_light: **{total_seconds} seconds LEFT** {{}}',
+                    'fr': f':rotating_light: **{total_seconds} secondes RESTANTES** {{}}'
+                }
+            
+            if milestone_messages:
+                try:
+                    await interaction.followup.send(milestone_messages[lang].format(interaction.user.mention))
+                except:
+                    pass
+        
+        await asyncio.sleep(1)
+        total_seconds -= 1
+    
+    # Timer completion
+    if total_seconds <= 0 and timer_id in l:
+        for item in view.children:
+            item.disabled = True
+        
+        end_messages = {
+            'en': ":red_circle: **Time's UP!** {} 🎉",
+            'fr': ":red_circle: **Le temps est ÉCOULÉ!** {} 🎉"
+        }
+        
+        try:
+            final_embed = discord.Embed(
+                title="🎉 Timer Completed!",
+                description="```\n🚨  00:00  🚨\n```",
+                color=0xff0000
+            )
+            final_embed.add_field(name="👤 Timer Owner", value=interaction.user.mention, inline=True)
+            final_embed.add_field(name="🎯 Status", value="✅ **FINISHED!**", inline=True)
+            final_embed.add_field(name="📍 Channel", value=interaction.channel.mention, inline=True)
+            final_embed.add_field(name="🎊 Result", value="**TIME'S UP!** 🎉", inline=False)
+            final_embed.set_footer(text="Timer completed successfully!")
+            
+            await msg.edit(embed=final_embed, view=view)
+            await interaction.followup.send(end_messages[lang].format(interaction.user.mention))
+        except:
+            pass
+        
+        # Cleanup
+        if timer_id in l:
+            del l[timer_id]
+        if timer_id in active_timers:
+            del active_timers[timer_id]
+
+# ========== SLASH COMMANDS ==========
+
+@client.tree.command(name="getmotion", description="Get a random debate motion")
+async def slash_getmotion(interaction: discord.Interaction):
+    """Get a random debate motion"""
+    if not db:
+        await interaction.response.send_message("Database not available.", ephemeral=True)
+        return
+    
+    lang = await get_language(interaction.guild.id)
+    
+    try:
+        collection = db['motions']
+        motions = list(collection.find())
+        
+        if not motions:
+            no_motions_messages = {
+                'en': 'No motions found in database. Use `/addmotion` to add some!',
+                'fr': 'Aucune motion trouvée dans la base de données. Utilisez `/addmotion` pour en ajouter!'
+            }
+            await interaction.response.send_message(no_motions_messages.get(lang, no_motions_messages['en']))
+            return
+        
+        motion = random.choice(motions)
+        
+        format_messages = {
+            'en': f'**Random Motion:** {motion["text"]}',
+            'fr': f'**Motion Aléatoire:** {motion["text"]}'
+        }
+        
+        await interaction.response.send_message(format_messages.get(lang, format_messages['en']))
+        
+    except Exception as e:
+        await interaction.response.send_message(f"Error getting motion: {e}")
+
+@client.tree.command(name="addmotion", description="Add a motion to the database")
+@app_commands.describe(motion_text="The motion text to add to the database")
+async def slash_addmotion(interaction: discord.Interaction, motion_text: str):
+    """Add a motion to the database"""
+    if not db:
+        await interaction.response.send_message("Database not available.", ephemeral=True)
+        return
+    
+    lang = await get_language(interaction.guild.id)
+    
+    if len(motion_text) < 10:
+        error_messages = {
+            'en': 'Motion too short. Please provide a detailed motion.',
+            'fr': 'Motion trop courte. Veuillez fournir une motion détaillée.'
+        }
+        await interaction.response.send_message(error_messages.get(lang, error_messages['en']), ephemeral=True)
+        return
+    
+    try:
+        collection = db['motions']
+        
+        # Check if motion already exists
+        existing = collection.find_one({'text': motion_text})
+        if existing:
+            duplicate_messages = {
+                'en': 'This motion already exists in the database!',
+                'fr': 'Cette motion existe déjà dans la base de données!'
+            }
+            await interaction.response.send_message(duplicate_messages.get(lang, duplicate_messages['en']), ephemeral=True)
+            return
+        
+        # Add new motion
+        motion_doc = {
+            'text': motion_text,
+            'added_by': str(interaction.user.id),
+            'added_at': time.time(),
+            'guild_id': str(interaction.guild.id)
+        }
+        
+        collection.insert_one(motion_doc)
+        
+        success_messages = {
+            'en': f'Motion added successfully: **{motion_text}**',
+            'fr': f'Motion ajoutée avec succès: **{motion_text}**'
+        }
+        
+        await interaction.response.send_message(success_messages.get(lang, success_messages['en']))
+        
+    except Exception as e:
+        await interaction.response.send_message(f"Error adding motion: {e}")
+
+@client.tree.command(name="matchup", description="Get a debate position assignment")
+@app_commands.describe(position="Choose your position (AP = Affirmative, BP = Negative) or leave empty for random")
+@app_commands.choices(position=[
+    app_commands.Choice(name="Affirmative (AP)", value="AP"),
+    app_commands.Choice(name="Negative (BP)", value="BP"),
+    app_commands.Choice(name="Random", value="random")
+])
+async def slash_matchup(interaction: discord.Interaction, position: app_commands.Choice[str] = None):
+    """Get a debate matchup"""
+    lang = await get_language(interaction.guild.id)
+    
+    teams = {
+        'en': {
+            'AP': 'Affirmative (Pro)',
+            'BP': 'Negative (Con)', 
+            'sides': ['Affirmative (Pro)', 'Negative (Con)']
+        },
+        'fr': {
+            'AP': 'Affirmatif (Pour)',
+            'BP': 'Négatif (Contre)',
+            'sides': ['Affirmatif (Pour)', 'Négatif (Contre)']
+        }
+    }
+    
+    if position and position.value in ['AP', 'BP']:
+        side = teams[lang][position.value]
+        result_messages = {
+            'en': f'**Your assigned position:** {side}',
+            'fr': f'**Votre position assignée:** {side}'
+        }
+        await interaction.response.send_message(result_messages.get(lang, result_messages['en']))
+    else:
+        side = random.choice(teams[lang]['sides'])
+        result_messages = {
+            'en': f'**Random matchup for {interaction.user.mention}:** {side}',
+            'fr': f'**Appariement aléatoire pour {interaction.user.mention}:** {side}'
+        }
+        await interaction.response.send_message(result_messages.get(lang, result_messages['en']))
+
+@client.tree.command(name="toss", description="Coin toss for debate position")
+async def slash_toss(interaction: discord.Interaction):
+    """Coin toss for debate position"""
+    lang = await get_language(interaction.guild.id)
+    
+    teams = {
+        'en': ['Affirmative (Pro)', 'Negative (Con)'],
+        'fr': ['Affirmatif (Pour)', 'Négatif (Contre)']
+    }
+    
+    result = random.choice(teams[lang])
+    
+    toss_messages = {
+        'en': f'**Coin toss result for {interaction.user.mention}:** {result}',
+        'fr': f'**Résultat du tirage pour {interaction.user.mention}:** {result}'
+    }
+    
+    await interaction.response.send_message(toss_messages.get(lang, toss_messages['en']))
+
+@client.tree.command(name="8ball", description="Ask the magic 8-ball a question")
+@app_commands.describe(question="The question you want to ask the magic 8-ball")
+async def slash_8ball(interaction: discord.Interaction, question: str):
+    """Ask the magic 8-ball a question"""
+    lang = await get_language(interaction.guild.id)
+    
+    responses = {
+        'en': ['Of course!', 'Yes, obviously!', 'Most likely', 'It must happen', 'Why not?', 
+               'Hear! Hear!', 'Maybe?', "Better you don't find out", 'No prediction', 
+               "Don't count on it", 'Very doubtful', 'Not so good'],
+        'fr': ["Bien sûr!", "Oui, évidemment!", "Très probablement", "Tu peux compter là-dessus",
+               "Pourquoi pas ?", "Hear ! Hear !", "Peut-être ?", "Il vaut mieux ne pas le savoir",
+               "Aucune prévision", "N'y compte pas", 'Peu probable', 'Passable']
+    }
+    
+    response = random.choice(responses.get(lang, responses['en']))
+    
+    format_strings = {
+        'en': '*Question from {}:* {}\n*Answer:* {}',
+        'fr': '*Question par {}:* {}\n*Réponse:* {}'
+    }
+    
+    await interaction.response.send_message(format_strings[lang].format(interaction.user.mention, question, response))
+
+@client.tree.command(name="coinflip", description="Flip a coin")
+async def slash_coinflip(interaction: discord.Interaction):
+    """Flip a coin"""
+    lang = await get_language(interaction.guild.id)
+    
+    coins = {
+        'en': ['Head', 'Tail'],
+        'fr': ['Face', 'Pile']
+    }
+    
+    result = random.choice(coins.get(lang, coins['en']))
+    
+    format_strings = {
+        'en': 'The coin shows **{}!**',
+        'fr': 'La pièce montre **{}!**'
+    }
+    
+    await interaction.response.send_message(format_strings[lang].format(result))
+
+@client.tree.command(name="hello", description="Get a greeting from the bot")
+async def slash_hello(interaction: discord.Interaction):
+    """Greet the user"""
+    lang = await get_language(interaction.guild.id)
+    
+    greetings_list = {
+        'en': ['Hey there,', 'Hello,', "What's up?"],
+        'fr': ['Bonjour', 'Salut', 'Aloha', 'Hey', 'Salut toi', 'Quoi de neuf ?']
+    }
+    
+    greeting = random.choice(greetings_list.get(lang, greetings_list['en']))
+    await interaction.response.send_message(f'{greeting} {interaction.user.mention}')
+
+@client.tree.command(name="ping", description="Check bot latency")
+async def slash_ping(interaction: discord.Interaction):
+    """Check bot latency"""
+    await interaction.response.send_message(f'Ping: ***{round(client.latency*1000)}*** ms')
+
+@client.tree.command(name="setlang", description="Set the server language (Admin only)")
+@app_commands.describe(language="Choose the server language")
+@app_commands.choices(language=[
+    app_commands.Choice(name="English", value="en"),
+    app_commands.Choice(name="Français", value="fr")
+])
+async def slash_setlang(interaction: discord.Interaction, language: app_commands.Choice[str]):
+    """Set the server language"""
+    # Check if user has administrator permissions
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("You need Administrator permissions to use this command.", ephemeral=True)
+        return
+        
+    if not db:
+        await interaction.response.send_message("Database not available.", ephemeral=True)
+        return
+
+    try:
+        guild = str(interaction.guild.id)
+        collection = db['language']
+        post = {'_id': guild, 'ln': language.value}
+        
+        # Use upsert to update or insert
+        collection.replace_one({'_id': guild}, post, upsert=True)
+        
+        messages = {
+            'en': f'Default language for this server was set to ***English (EN)***',
+            'fr': f'La langue par défaut pour ce serveur est réglée à : ***Français (FR)***'
+        }
+        
+        await interaction.response.send_message(messages.get(language.value, messages['en']))
+    except Exception as e:
+        await interaction.response.send_message(f"Error setting language: {e}")
+
+@client.tree.command(name="autorole", description="Set auto-role for new members (Admin only)")
+@app_commands.describe(role="The role to automatically assign to new members")
+async def slash_autorole(interaction: discord.Interaction, role: discord.Role):
+    """Set autorole for new members"""
+    # Check if user has administrator permissions
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("You need Administrator permissions to use this command.", ephemeral=True)
+        return
+        
+    if not db:
+        await interaction.response.send_message("Database not available.", ephemeral=True)
+        return
+
+    try:
+        guild = str(interaction.guild.id)
+        collection = db['autorole']
+        post = {'_id': guild, 'rol': role.name}
+        
+        collection.replace_one({'_id': guild}, post, upsert=True)
+        
+        lang = await get_language(interaction.guild.id)
+        
+        messages = {
+            'en': f'Auto-role set to **{role.name}**. To disable autorole, use the disable command.',
+            'fr': f"Rôle automatique défini à **{role.name}**. Pour le désactiver, utilisez la commande de désactivation."
+        }
+        
+        await interaction.response.send_message(messages.get(lang, messages['en']))
+    except Exception as e:
+        await interaction.response.send_message(f"Error setting autorole: {e}")
+
+@client.tree.command(name="clear", description="Delete messages from channel (Manage Messages permission required)")
+@app_commands.describe(amount="Number of messages to delete (1-100)")
+async def slash_clear(interaction: discord.Interaction, amount: int):
+    """Clear messages from channel"""
+    # Check if user has manage_messages permission
+    if not interaction.user.guild_permissions.manage_messages:
+        await interaction.response.send_message("You need Manage Messages permissions to use this command.", ephemeral=True)
+        return
+        
+    lang = await get_language(interaction.guild.id)
+    
+    if amount < 1:
+        await interaction.response.send_message("Amount must be at least 1.", ephemeral=True)
+        return
+    
+    if amount > 100:
+        await interaction.response.send_message("Cannot delete more than 100 messages at once.", ephemeral=True)
+        return
+    
+    try:
+        # Defer the response since purging might take time
+        await interaction.response.defer(ephemeral=True)
+        
+        deleted = await interaction.channel.purge(limit=amount)
+        count = len(deleted)
+        
+        messages = {
+            'en': f'Cleared **{count}** message(s) by {interaction.user.mention}',
+            'fr': f'**{count}** message(s) effacé(s) par {interaction.user.mention}'
+        }
+        
+        await interaction.followup.send(messages.get(lang, messages['en']))
+    except discord.Forbidden:
+        await interaction.followup.send("I don't have permission to delete messages.")
+    except Exception as e:
+        await interaction.followup.send(f"An error occurred: {e}")
+
+@client.tree.command(name="unmute", description="Unmute a voice-muted member (Manage Roles permission required)")
+@app_commands.describe(member="The member to unmute")
+async def slash_unmute(interaction: discord.Interaction, member: discord.Member):
+    """Unmute a member"""
+    # Check if user has manage_roles permission
+    if not interaction.user.guild_permissions.manage_roles:
+        await interaction.response.send_message("You need Manage Roles permissions to use this command.", ephemeral=True)
+        return
+        
+    try:
+        await member.edit(mute=False)
+        
+        lang = await get_language(interaction.guild.id)
+        
+        messages = {
+            'en': f"> {member.mention} was unmuted successfully!",
+            'fr': f"> {member.mention} a été réactivé avec succès!"
+        }
+        
+        await interaction.response.send_message(messages.get(lang, messages['en']))
+    except discord.Forbidden:
+        await interaction.response.send_message("I don't have permission to unmute this member.")
+    except Exception as e:
+        await interaction.response.send_message(f"An error occurred: {e}")
+
+@client.tree.command(name="undeafen", description="Undeafen a voice-deafened member (Manage Roles permission required)")
+@app_commands.describe(member="The member to undeafen")
+async def slash_undeafen(interaction: discord.Interaction, member: discord.Member):
+    """Undeafen a member"""
+    # Check if user has manage_roles permission
+    if not interaction.user.guild_permissions.manage_roles:
+        await interaction.response.send_message("You need Manage Roles permissions to use this command.", ephemeral=True)
+        return
+        
+    try:
+        await member.edit(deafen=False)
+        await interaction.response.send_message(f"> {member.mention} was undeafened successfully")
+    except discord.Forbidden:
+        await interaction.response.send_message("I don't have permission to undeafen this member.")
+    except Exception as e:
+        await interaction.response.send_message(f"An error occurred: {e}")
+
+@client.tree.command(name="time", description="Get current Unix timestamp")
+async def slash_time(interaction: discord.Interaction):
+    """Get current Unix timestamp"""
+    current_time = int(time.time())
+    await interaction.response.send_message(f'{current_time}')
+
+@client.tree.command(name="about", description="Show information about the bot")
+async def slash_about(interaction: discord.Interaction):
+    """Show information about the bot"""
+    lang = await get_language(interaction.guild.id)
+    
+    if lang == 'fr':
+        about_text = """```Ceci est un bot utilitaire dédié aux débatteurs. Ce bot permet de chronométrer vos débats à l'aide d'un affichage de chronomètre et d'alertes.
+
+Développé par         : Tasdid Tahsin
+Avatar                : Sharaf Ahmed
+Traduction française  : Victor Babin, Étienne Beaulé, Thierry Jean, Nuzaba Tasannum
+Support communautaire : Bangla Online Debate Platform
+
+</> Programmé en Python3 utilisant Discord.py & pymongo```"""
+    else:
+        about_text = """```This is a productivity bot dedicated to debaters. This bot can time your debates with on-screen timer and give you reminders.
+
+Developed by       : Tasdid Tahsin
+Avatar             : Sharaf Ahmed  
+French Translation : Victor Babin, Étienne Beaulé, Thierry Jean, Nuzaba Tasannum
+Community Support  : Bangla Online Debate Platform
+
+</> Coded in Python3 using Discord.py & pymongo```"""
+    
+    await interaction.response.send_message(about_text)
+
+@client.tree.command(name="help", description="Show all available commands")
+async def slash_help(interaction: discord.Interaction):
+    """Show help message"""
+    lang = await get_language(interaction.guild.id)
+    
+    if lang == 'fr':
+        help_text = """**Toutes les commandes de Hear! Hear! :**
+
+**Débat**
+```
+~ /getmotion - obtenir une motion aléatoire
+~ /addmotion [texte] - ajouter une motion à la base de données
+~ /matchup [position] - obtenir un appariement
+~ /toss - tirage au sort pour la position
+```
+
+**Chronométrage**
+```
+~ /timer [durée] [secondes] - régler un chronomètre à l'écran
+```
+
+**Utilitaire**
+```
+~ /setlang [langue] - définir la langue du serveur
+~ /coinflip - pile ou face
+~ /ping - voir la latence du bot
+~ /time - afficher le temps Unix
+~ /about - informations sur le bot
+```
+
+**Modération**
+```
+~ /clear [nombre] - supprimer le nombre spécifié de messages
+~ /unmute [@membre] - réactiver un membre
+~ /undeafen [@membre] - désactiver la sourdine d'un membre
+~ /autorole [@rôle] - définir le rôle automatique
+```
+
+**Amusement**
+```
+~ /hello - salutation
+~ /8ball [question] - poser une question à la boule magique
+```
+
+*Les commandes préfixe (.) sont également disponibles*"""
+    else:
+        help_text = """**Hear! Hear! bot slash commands:**
+
+**Debate**
+```
+~ /getmotion - get a random motion
+~ /addmotion [text] - add a motion to the database
+~ /matchup [position] - get debate position assignment
+~ /toss - coin toss for debate position
+```
+
+**Time Keeping**
+```
+~ /timer [duration] [seconds] - set an on-screen timer
+```
+
+**Utility**
+```
+~ /setlang [language] - set server language
+~ /coinflip - heads or tails
+~ /ping - see bot latency
+~ /time - show Unix time
+~ /about - bot information
+```
+
+**Moderation**
+```
+~ /clear [amount] - delete specified number of messages
+~ /unmute [@member] - unmute a voice-muted member
+~ /undeafen [@member] - undeafen a voice-deafened member
+~ /autorole [@role] - set automatic role for new members
+```
+
+**Fun**
+```
+~ /hello - get a greeting
+~ /8ball [question] - ask the magic 8-ball a question
+```
+
+*Prefix commands (.) are also available*"""
+    
+    await interaction.response.send_message(help_text)
 
 @client.command()
 async def pause(ctx):
@@ -770,14 +1550,15 @@ async def help(ctx):
 
 **Débat**
 ```
-~ getmotion   : obtenir une motion aléatoire
-~ addmotion   : ajouter une motion à la base de données
-~ matchup     : .matchup AP | .toss BP - obtenir un appariement
+~ getmotion   : /getmotion OU .getmotion - obtenir une motion aléatoire
+~ addmotion   : /addmotion [texte] OU .addmotion - ajouter une motion à la base de données
+~ matchup     : /matchup [position] OU .matchup AP | .toss BP - obtenir un appariement
+~ toss        : /toss OU .toss - tirage au sort pour la position
 ```
 
 **Chronométrage**
 ```
-~ timer       : .t | .timer - régler un chronomètre à l'écran
+~ timer       : /timer [durée] [secondes] OU .t | .timer - régler un chronomètre à l'écran
 ~ reminder    : .reminder - régler un rappel en arrière-plan
 ~ pause       : mettre le chronomètre sur pause
 ~ resume      : reprendre le chronomètre
@@ -786,39 +1567,42 @@ async def help(ctx):
 
 **Utilitaire**
 ```
-~ setlang     : .setlang fr | .setlang en
-~ coinflip    : pile ou face
-~ ping        : voir la latence du bot
-~ time        : afficher le temps Unix
+~ setlang     : /setlang [langue] OU .setlang fr | .setlang en
+~ coinflip    : /coinflip OU .coinflip - pile ou face
+~ ping        : /ping OU .ping - voir la latence du bot
+~ time        : /time OU .time - afficher le temps Unix
+~ about       : /about OU .about - informations sur le bot
 ```
 
 **Modération**
 ```
-~ clear       : supprimer le nombre spécifié de messages
-~ unmute      : .unmute @mention
-~ undeafen    : .undeafen @mention
+~ clear       : /clear [nombre] OU .clear - supprimer le nombre spécifié de messages
+~ unmute      : /unmute [@membre] OU .unmute @mention
+~ undeafen    : /undeafen [@membre] OU .undeafen @mention
+~ autorole    : /autorole [@rôle] OU .autorole - définir le rôle automatique
 ```
 
 **Amusement**
 ```
-~ greetings   : .hello | .hi | .hola
-~ 8ball       : poser une question à la boule magique
+~ greetings   : /hello OU .hello | .hi | .hola
+~ 8ball       : /8ball [question] OU .8ball - poser une question à la boule magique
 ```
 
-***Veuillez utiliser un point `.` avant les commandes***"""
+***Utilisez `/` pour les commandes slash ou `.` pour les commandes préfixe***"""
     else:
         help_text = """**Hear! Hear! bot all commands:**
 
 **Debate**
 ```
-~ getmotion   : get a random motion
-~ addmotion   : add a motion to the database
-~ matchup     : .matchup AP | .toss BP - get matchup
+~ getmotion   : /getmotion OR .getmotion - get a random motion
+~ addmotion   : /addmotion [text] OR .addmotion - add a motion to the database
+~ matchup     : /matchup [position] OR .matchup AP | .toss BP - get matchup
+~ toss        : /toss OR .toss - coin toss for debate position
 ```
 
 **Time Keeping**
 ```
-~ timer       : .t | .timer - set an on-screen timer
+~ timer       : /timer [duration] [seconds] OR .t | .timer - set an on-screen timer
 ~ reminder    : .reminder - set a background reminder
 ~ pause       : pause the timer
 ~ resume      : resume the timer
@@ -827,26 +1611,28 @@ async def help(ctx):
 
 **Utility**
 ```
-~ setlang     : .setlang en | .setlang fr
-~ coinflip    : heads or tails
-~ ping        : see bot latency
-~ time        : show Unix time
+~ setlang     : /setlang [language] OR .setlang en | .setlang fr
+~ coinflip    : /coinflip OR .coinflip - heads or tails
+~ ping        : /ping OR .ping - see bot latency
+~ time        : /time OR .time - show Unix time
+~ about       : /about OR .about - bot information
 ```
 
 **Moderation**
 ```
-~ clear       : delete specified number of messages
-~ unmute      : .unmute @mention
-~ undeafen    : .undeafen @mention
+~ clear       : /clear [amount] OR .clear - delete specified number of messages
+~ unmute      : /unmute [@member] OR .unmute @mention
+~ undeafen    : /undeafen [@member] OR .undeafen @mention
+~ autorole    : /autorole [@role] OR .autorole - set automatic role
 ```
 
 **Fun**
 ```
-~ greetings   : .hello | .hi | .hola
-~ 8ball       : ask the magic 8-ball a question
+~ greetings   : /hello OR .hello | .hi | .hola
+~ 8ball       : /8ball [question] OR .8ball - ask the magic 8-ball a question
 ```
 
-***Please use a dot `.` before commands***"""
+***Use `/` for slash commands or `.` for prefix commands***"""
     
     await ctx.send(help_text)
 
