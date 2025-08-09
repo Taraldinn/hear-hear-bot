@@ -21,7 +21,6 @@ import logging
 import time
 from config.settings import Config
 from src.database.connection import database
-from src.utils.timer import timer_manager
 
 # Set up logging
 logging.basicConfig(
@@ -48,7 +47,6 @@ class HearHearBot(commands.AutoShardedBot):
         )
         
         self.database = database
-        self.timer_manager = timer_manager
         self.start_time = time.time()  # Track bot start time
         self.web_server = None  # Will be set up later
         
@@ -96,11 +94,15 @@ class HearHearBot(commands.AutoShardedBot):
     
     async def on_ready(self):
         """Called when bot is ready"""
-        logger.info(f"Bot logged in as {self.user}")
-        logger.info(f"Bot ID: {self.user.id}")
-        logger.info(f"Connected to {len(self.guilds)} guilds")
-        logger.info(f"Serving {sum(guild.member_count for guild in self.guilds)} users")
-        logger.info("=" * 50)
+        if self.user:
+            logger.info(f"Bot logged in as {self.user}")
+            logger.info(f"Bot ID: {self.user.id}")
+            logger.info(f"Connected to {len(self.guilds)} guilds")
+            
+            # Safe member count calculation
+            total_users = sum(guild.member_count or 0 for guild in self.guilds)
+            logger.info(f"Serving {total_users} users")
+            logger.info("=" * 50)
     
     async def update_presence(self):
         """Update bot presence periodically"""
@@ -200,10 +202,6 @@ class HearHearBot(commands.AutoShardedBot):
                 logger.info("Web server stopped")
             except Exception as e:
                 logger.error(f"Error stopping web server: {e}")
-        
-        # Clean up timers
-        if hasattr(self, 'timer_manager') and self.timer_manager:
-            self.timer_manager.cleanup_timers()
         
         # Close database connection
         if hasattr(self, 'database') and self.database:

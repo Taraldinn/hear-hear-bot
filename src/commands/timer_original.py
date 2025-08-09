@@ -125,8 +125,9 @@ class Timer(commands.Cog):
                     
                     if timer_id in outer_self.l:
                         outer_self.l[timer_id] = 1
-                        # Disable all buttons by clearing view
-                        self.clear_items()
+                        # Disable all buttons
+                        for item in self.children:
+                            item.disabled = True
                         await interaction.response.edit_message(view=self)
                     else:
                         await interaction.response.send_message("❌ No timer to stop.", ephemeral=True)
@@ -314,8 +315,9 @@ class Timer(commands.Cog):
                 total_seconds -= 1
             
             if total_seconds <= 0 and timer_id in self.l:
-                # Disable all buttons by clearing the view
-                view.clear_items()
+                # Disable all buttons
+                for item in view.children:
+                    item.disabled = True
                 
                 end_messages = {
                     'en': ":red_circle: **Time's UP!** {} 🎉\nhttps://tenor.com/view/wrap-it-up-kowalski-game-awards-finish-already-penguin-gif-9878765111777341683",
@@ -379,19 +381,6 @@ class Timer(commands.Cog):
             await ctx.send("⏸️ Your timer is already paused.")
         else:
             await ctx.send("❌ You don't have an active timer in this channel.")
-    
-    @commands.command()
-    async def resume(self, ctx):
-        """Resume your paused timer"""
-        timer_id = f"{ctx.author.id}_{ctx.channel.id}"
-        
-        if timer_id in self.l and self.l[timer_id] == 2:
-            self.l[timer_id] = 0
-            await ctx.send(f"▶️ Timer resumed by {ctx.author.mention}!")
-        elif timer_id in self.l and self.l[timer_id] == 0:
-            await ctx.send("⏸️ Your timer is already running.")
-        else:
-            await ctx.send("❌ You don't have a paused timer in this channel.")
     
     @commands.command(aliases=['cleartimers'])
     async def resettimers(self, ctx):

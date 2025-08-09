@@ -1,5 +1,5 @@
 """
-Utility Commands
+Utility Commands - Restored Original Functionality
 Author: Tasdid Tahsin
 Email: tasdidtahsin@gmail.com
 """
@@ -7,15 +7,29 @@ Email: tasdidtahsin@gmail.com
 import discord
 from discord.ext import commands
 import logging
+import random
 from config.settings import Config
 
 logger = logging.getLogger(__name__)
 
 class UtilityCommands(commands.Cog):
-    """General utility commands"""
+    """General utility commands with original pybot.py functionality"""
     
     def __init__(self, bot):
         self.bot = bot
+    
+    async def get_language(self, guild_id):
+        """Get language setting for a guild"""
+        try:
+            if self.bot.database and self.bot.database.db:
+                collection = self.bot.database.get_collection('language')
+                if collection:
+                    find = collection.find_one({'_id': str(guild_id)})
+                    if find:
+                        return find.get('ln', 'en')
+        except Exception as e:
+            logger.error(f"Error getting language: {e}")
+        return 'en'
     
     @commands.command()
     async def help(self, ctx, command_name=None):
@@ -269,6 +283,55 @@ class UtilityCommands(commands.Cog):
         embed.set_footer(text=f"Developed by {Config.BOT_AUTHOR}")
         
         await ctx.send(embed=embed)
+    
+    @commands.command(aliases=['8ball', 'test'])
+    async def _8ball(self, ctx, *, question):
+        """Ask the magic 8-ball a question"""
+        lang = await self.get_language(ctx.guild.id)
+        
+        responses = {
+            'en': ['Of course!', 'Yes, obviously!', 'Most likely', 'It must happen', 'Why not?', 
+                   'Hear! Hear!', 'Maybe?', "Better you don't find out", 'No prediction', 
+                   "Don't count on it", 'Very doubtful', 'Not so good'],
+            'fr': ["Bien sûr!", "Oui, évidemment!", "Très probablement", "Tu peux compter là-dessus",
+                   "Pourquoi pas ?", "Hear ! Hear !", "Peut-être ?", "Il vaut mieux ne pas le savoir",
+                   "Aucune prévision", "N'y compte pas", 'Peu probable', 'Passable']
+        }
+        
+        response = random.choice(responses.get(lang, responses['en']))
+        
+        format_strings = {
+            'en': '*Question from {}:* {}\n*Answer:* {}',
+            'fr': '*Question par {}:* {}\n*Réponse:* {}'
+        }
+        
+        await ctx.send(format_strings[lang].format(ctx.author.mention, question, response))
+    
+    @commands.command(aliases=['hello', 'hi', 'hola', 'hey', 'bonjour', 'salut', 'aloha'])
+    async def greetings(self, ctx):
+        """Greet the user"""
+        lang = await self.get_language(ctx.guild.id)
+        
+        greetings_list = {
+            'en': ['Hey there,', 'Hello,', "What's up?"],
+            'fr': ['Bonjour', 'Salut', 'Aloha', 'Hey', 'Salut toi', 'Quoi de neuf ?']
+        }
+        
+        greeting = random.choice(greetings_list.get(lang, greetings_list['en']))
+        await ctx.send(f'{greeting} {ctx.author.mention}')
+    
+    @commands.command()
+    async def coinflip(self, ctx):
+        """Flip a coin"""
+        lang = await self.get_language(ctx.guild.id)
+        
+        coins = {
+            'en': ['Head', 'Tail'],
+            'fr': ['Face', 'Pile']
+        }
+        
+        result = random.choice(coins.get(lang, coins['en']))
+        await ctx.send(f"🪙 {result}!")
 
 async def setup(bot):
     await bot.add_cog(UtilityCommands(bot))
