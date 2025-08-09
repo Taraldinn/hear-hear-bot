@@ -97,7 +97,7 @@ class TabbyCommands(commands.Cog):
             await ctx.send(f"❌ An error occurred: {str(e)}")
             logger.error(f"Error in sync command: {e}")
     
-    @commands.command(aliases=['register'])
+    @commands.command()
     async def register(self, ctx, key):
         """Register with tournament using your identification key
         
