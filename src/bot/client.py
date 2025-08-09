@@ -18,6 +18,7 @@ from discord.ext import commands
 from discord import app_commands
 import asyncio
 import logging
+import time
 from config.settings import Config
 from src.database.connection import database
 from src.utils.timer import timer_manager
@@ -48,6 +49,8 @@ class HearHearBot(commands.AutoShardedBot):
         
         self.database = database
         self.timer_manager = timer_manager
+        self.start_time = time.time()  # Track bot start time
+        self.web_server = None  # Will be set up later
         
     async def setup_hook(self):
         """Called when the bot is starting up"""
@@ -67,6 +70,10 @@ class HearHearBot(commands.AutoShardedBot):
         # Start background tasks
         self.loop.create_task(self.update_presence())
         self.loop.create_task(self.keep_alive_ping())
+        
+        # Start web server
+        if Config.KEEP_ALIVE_PORT:
+            self.loop.create_task(self.start_web_server())
         
     async def load_extensions(self):
         """Load all command extensions"""
@@ -165,9 +172,28 @@ class HearHearBot(commands.AutoShardedBot):
             logger.error(f"Error setting language for guild {guild_id}: {e}")
             return False
     
+    async def start_web_server(self):
+        """Start the web server for the bot homepage"""
+        try:
+            from web.server import WebServer
+            
+            web_server = WebServer(self)
+            self.web_server_runner = await web_server.start_server(Config.KEEP_ALIVE_PORT)
+            logger.info(f"Web server started on port {Config.KEEP_ALIVE_PORT}")
+        except Exception as e:
+            logger.error(f"Failed to start web server: {e}")
+    
     async def close(self):
         """Clean shutdown"""
         logger.info("Shutting down bot...")
+        
+        # Clean up web server
+        if hasattr(self, 'web_server_runner'):
+            try:
+                await self.web_server_runner.cleanup()
+                logger.info("Web server stopped")
+            except Exception as e:
+                logger.error(f"Error stopping web server: {e}")
         
         # Clean up timers
         self.timer_manager.cleanup_timers()
