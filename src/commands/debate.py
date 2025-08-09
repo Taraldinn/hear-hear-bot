@@ -19,7 +19,7 @@ class DebateCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
-    @commands.command(aliases=['motion'])
+    @commands.command()
     async def randommotion(self, ctx, language=None):
         """Get a random debate motion
         
