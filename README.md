@@ -261,9 +261,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👨‍💻 Author
 
-**Tasdid Tahsin**
-- Email: tasdidtahsin@gmail.com
-- Discord: tasdidtahsin#7276
+**aldinn**
+- Email: kferdoush617@gmail.com
+- GitHub: [https://github.com/aldinn](https://github.com/aldinn)
 
 ## 🙏 Credits
 
@@ -275,7 +275,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Join our [Support Server](https://discord.gg/your-invite)
 - Create an [Issue](https://github.com/your-repo/issues)
-- Email: tasdidtahsin@gmail.com
+- Email: kferdoush617@gmail.com
 
 ---
 

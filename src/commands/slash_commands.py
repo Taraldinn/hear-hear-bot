@@ -1,7 +1,7 @@
 """
 Slash Commands - Discord Application Commands
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 import discord

@@ -1,7 +1,7 @@
 """
-Tabby Commands - Tournament Management
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Tabbycat Integration Commands for Hear! Hear! Bot
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 import discord

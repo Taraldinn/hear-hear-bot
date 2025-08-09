@@ -1,7 +1,7 @@
 """
-Admin Commands
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Admin Commands for Hear! Hear! Bot
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 import discord

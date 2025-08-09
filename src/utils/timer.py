@@ -1,7 +1,7 @@
 """
-Timer utilities for debate timing
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Timer utilities for Hear! Hear! Bot
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 import asyncio

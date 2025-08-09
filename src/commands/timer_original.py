@@ -1,7 +1,7 @@
 """
 Timer Commands - Restored Original Functionality from pybot.py
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Author: aldinn
+Email: kferdoush617@gmail.com
 
 Full restoration of the original pybot.py timer system
 """

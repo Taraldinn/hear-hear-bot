@@ -1,7 +1,7 @@
 """
-Bot Configuration Settings
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Configuration Settings
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 import os
@@ -29,8 +29,9 @@ class Config:
     
     # Bot metadata
     BOT_NAME = "Hear! Hear!"
-    BOT_AUTHOR = "Tasdid Tahsin"
-    BOT_EMAIL = "tasdidtahsin@gmail.com"
+    BOT_AUTHOR = "aldinn"
+    BOT_EMAIL = "kferdoush617@gmail.com"
+    BOT_GITHUB = "https://github.com/Taraldinn"
     BOT_VERSION = "2.0.0"
     
     # Server settings

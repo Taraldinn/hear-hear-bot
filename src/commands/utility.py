@@ -1,7 +1,7 @@
 """
-Utility Commands - Restored Original Functionality
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Utility Commands for Hear! Hear! Bot
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 import discord

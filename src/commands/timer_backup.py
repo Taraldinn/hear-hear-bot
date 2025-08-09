@@ -1,7 +1,7 @@
 """
-Timer Commands
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Timer Commands Backup
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 import discord

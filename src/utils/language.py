@@ -1,7 +1,7 @@
 """
 Language and localization utilities
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 import random

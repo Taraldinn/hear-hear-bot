@@ -1,7 +1,7 @@
 """
 Web Server for Hear! Hear! Bot
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Author: aldinn
+Email: kferdoush617@gmail.com
 
 A beautiful landing page for the Discord bot
 """

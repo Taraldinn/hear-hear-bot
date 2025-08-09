@@ -1,7 +1,7 @@
 """
-Debate Commands
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Debate Commands for Hear! Hear! Bot
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 import discord

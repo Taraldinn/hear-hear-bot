@@ -1,6 +1,7 @@
 # TabbyBot
-# Developed by Tasdid Tahsin
-# Email: tasdidtahsin@gmail.com
+# Developed by aldinn
+# Email: kferdoush617@gmail.com
+# Email: kferdoush617@gmail.com
 
 import discord
 from discord.ext import commands
@@ -888,7 +889,7 @@ async def _help(ctx, page=1):
 
 ~ checkout      : Checkout yourself if you are going to be AFK
 
-~ feedback      : Submit feedback on adjudicators ~ ?feedback <Round Abdreviation> <@Mention adj> <score> ~ IE: ?feedback R2 @tasdidtahsin 9
+~ feedback      : Submit feedback on adjudicators ~ ?feedback <Round Abdreviation> <@Mention adj> <score> ~ IE: ?feedback R2 @adjudicator 9
 
 ~ motion        : Get motion for any round ~ ?motion <Round Abbreviation>
 
@@ -939,7 +940,7 @@ async def about(ctx):
     await ctx.send("""```TabbyBot is the first ever virtual assistant tab director made using the new Tabbycat API. This bot is for the tab directors and debaters to make tabbing online tournaments more easier. It basically syncs your tournament discord guild with the TabbyCat tab-system and give various automation features. It can create venues and do magic in any server, no template required! (Forked from BubunBot and upgraded later). The bot requires Tabbycat version 2.4 or later. 
 
 
-  Developed by   : Tasdid Tahsin [tasdidtahsin#7276]
+  Developed by   : aldinn
   Project Mentor : Étienne Beaulé [Étienne#7236]
   Credits        : Irhum [adorablemonk#4060] & Najib Hayder [Najib#7917]
  
@@ -963,7 +964,7 @@ Thanks for adding me to your server. I'm free of charge, but **you have to credi
 
 The release of Tabbycat 2.4 will be in a few days. Till then, stay tuned!
 
-  Developed by   : Tasdid Tahsin [tasdidtahsin#7276]
+  Developed by   : aldinn
   Project Mentor : Étienne Beaulé [Étienne#7236]
   Credits        : Irhum [adorablemonk#4060] & Najib Hayder [Najib#7917]
  

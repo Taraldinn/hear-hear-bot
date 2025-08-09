@@ -1,7 +1,7 @@
 """
-Member Events
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Member Events for Hear! Hear! Bot
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 import discord

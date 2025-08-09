@@ -1,7 +1,7 @@
 """
-Image generation utilities for feedback and ballots
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Image generation utilities for Hear! Hear! Bot
+Author: aldinn
+Email: kferdoush617@gmail.com
 """
 
 from PIL import Image, ImageFont, ImageDraw

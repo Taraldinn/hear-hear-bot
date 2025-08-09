@@ -1,7 +1,7 @@
 """
 Main Bot Entry Point
-Author: Tasdid Tahsin
-Email: tasdidtahsin@gmail.com
+Author: aldinn
+Email: kferdoush617@gmail.com
 
 Hear! Hear! Bot - A comprehensive debate bot with timing, motions, and tournament features
 """

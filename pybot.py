@@ -1,6 +1,7 @@
 #Bot Name: Hear! Hear! 
-#Email: tasdidtahsin@gmail.com
-#Developed by Tasdid Tahsin
+#Email: kferdoush617@gmail.com
+#Developed by aldinn
+#GitHub: https://github.com/aldinn
 
 import discord
 from discord.ext import commands
@@ -1273,7 +1274,7 @@ async def slash_about(interaction: discord.Interaction):
     if lang == 'fr':
         about_text = """```Ceci est un bot utilitaire dédié aux débatteurs. Ce bot permet de chronométrer vos débats à l'aide d'un affichage de chronomètre et d'alertes.
 
-Développé par         : Tasdid Tahsin
+Développé par         : aldinn
 Avatar                : Sharaf Ahmed
 Traduction française  : Victor Babin, Étienne Beaulé, Thierry Jean, Nuzaba Tasannum
 Support communautaire : Bangla Online Debate Platform
@@ -1282,7 +1283,7 @@ Support communautaire : Bangla Online Debate Platform
     else:
         about_text = """```This is a productivity bot dedicated to debaters. This bot can time your debates with on-screen timer and give you reminders.
 
-Developed by       : Tasdid Tahsin
+Developed by       : aldinn
 Avatar             : Sharaf Ahmed  
 French Translation : Victor Babin, Étienne Beaulé, Thierry Jean, Nuzaba Tasannum
 Community Support  : Bangla Online Debate Platform
@@ -1844,7 +1845,7 @@ async def about(ctx):
     if lang == 'fr':
         about_text = """```Ceci est un bot utilitaire dédié aux débatteurs. Ce bot permet de chronométrer vos débats à l'aide d'un affichage de chronomètre et d'alertes.
 
-Développé par         : Tasdid Tahsin
+Développé par         : aldinn
 Avatar                : Sharaf Ahmed
 Traduction française  : Victor Babin, Étienne Beaulé, Thierry Jean, Nuzaba Tasannum
 Support communautaire : Bangla Online Debate Platform
@@ -1853,7 +1854,7 @@ Support communautaire : Bangla Online Debate Platform
     else:
         about_text = """```This is a productivity bot dedicated to debaters. This bot can time your debates with on-screen timer and give you reminders.
 
-Developed by       : Tasdid Tahsin
+Developed by       : aldinn
 Avatar             : Sharaf Ahmed  
 French Translation : Victor Babin, Étienne Beaulé, Thierry Jean, Nuzaba Tasannum
 Community Support  : Bangla Online Debate Platform
