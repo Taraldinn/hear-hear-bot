@@ -6,6 +6,7 @@ Email: kferdoush617@gmail.com
 
 import discord
 from discord.ext import commands
+from discord import app_commands
 import logging
 import random
 from config.settings import Config
@@ -332,6 +333,82 @@ class UtilityCommands(commands.Cog):
         
         result = random.choice(coins.get(lang, coins['en']))
         await ctx.send(f"🪙 {result}!")
+
+    # Slash Command Versions
+    @app_commands.command(name="coinflip", description="Flip a coin for random decisions")
+    async def slash_coinflip(self, interaction: discord.Interaction):
+        """Slash command version of coinflip"""
+        lang = await self.get_language(interaction.guild.id)
+        
+        coins = {
+            'en': ['Heads', 'Tails'],
+            'fr': ['Face', 'Pile']
+        }
+        
+        result = random.choice(coins.get(lang, coins['en']))
+        
+        embed = discord.Embed(
+            title="🪙 Coin Flip",
+            description=f"**{result}**",
+            color=discord.Color.orange(),
+            timestamp=interaction.created_at
+        )
+        
+        embed.set_footer(
+            text=f"Flipped by {interaction.user.display_name}",
+            icon_url=interaction.user.display_avatar.url
+        )
+        
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="diceroll", description="Roll a dice")
+    @app_commands.describe(sides="Number of sides on the dice (default: 6)")
+    async def slash_diceroll(self, interaction: discord.Interaction, sides: int = 6):
+        """Slash command version of diceroll"""
+        if sides < 2 or sides > 100:
+            await interaction.response.send_message("❌ Dice must have between 2 and 100 sides.", ephemeral=True)
+            return
+        
+        result = random.randint(1, sides)
+        
+        embed = discord.Embed(
+            title="🎲 Dice Roll",
+            description=f"**{result}** (out of {sides})",
+            color=discord.Color.purple(),
+            timestamp=interaction.created_at
+        )
+        
+        embed.set_footer(
+            text=f"Rolled by {interaction.user.display_name}",
+            icon_url=interaction.user.display_avatar.url
+        )
+        
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="ping", description="Check bot latency")
+    async def slash_ping(self, interaction: discord.Interaction):
+        """Slash command version of ping"""
+        embed = discord.Embed(
+            title="🏓 Pong!",
+            color=discord.Color.green(),
+            timestamp=interaction.created_at
+        )
+        
+        # Bot latency
+        latency = round(self.bot.latency * 1000)
+        embed.add_field(name="Bot Latency", value=f"{latency}ms", inline=True)
+        
+        # Status indicator
+        if latency < 100:
+            status = "🟢 Excellent"
+        elif latency < 200:
+            status = "🟡 Good"
+        else:
+            status = "🔴 Poor"
+        
+        embed.add_field(name="Status", value=status, inline=True)
+        
+        await interaction.response.send_message(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(UtilityCommands(bot))

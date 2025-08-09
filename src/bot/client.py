@@ -63,7 +63,7 @@ class HearHearBot(commands.AutoShardedBot):
             'src.commands.timer',
             'src.commands.tabby',
             'src.commands.utility',
-            'src.commands.slash_commands',  # Modern slash commands
+            # 'src.commands.slash_commands',  # Disabled to avoid duplicate command registration
             'src.events.member',
             'src.events.error'
         ]

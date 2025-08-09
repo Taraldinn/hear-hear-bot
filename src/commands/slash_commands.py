@@ -18,46 +18,7 @@ class SlashCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
-    # Debate Commands
-    @app_commands.command(name="randommotion", description="Get a random debate motion")
-    @app_commands.describe(language="Language for the motion")
-    @app_commands.choices(language=[
-        app_commands.Choice(name="English", value="english"),
-        app_commands.Choice(name="Bangla", value="bangla")
-    ])
-    async def randommotion(self, interaction: discord.Interaction, language: str = "english"):
-        """Get a random debate motion"""
-        # Validate language
-        if language not in language_manager.get_available_languages():
-            available = ", ".join(language_manager.get_available_languages())
-            await interaction.response.send_message(f"❌ Language not supported. Available: {available}", ephemeral=True)
-            return
-        
-        # Get random motion
-        motion = language_manager.get_random_motion(language)
-        
-        # Create embed
-        embed = discord.Embed(
-            title="🎯 Random Debate Motion",
-            description=motion,
-            color=discord.Color.gold(),
-            timestamp=interaction.created_at
-        )
-        
-        embed.add_field(name="Language", value=language.title(), inline=True)
-        embed.add_field(
-            name="Total Motions", 
-            value=language_manager.get_motion_count(language), 
-            inline=True
-        )
-        
-        embed.set_footer(
-            text=f"Requested by {interaction.user.display_name}", 
-            icon_url=interaction.user.display_avatar.url
-        )
-        
-        await interaction.response.send_message(embed=embed)
-    
+    # Utility Commands - Non-duplicate slash commands
     @app_commands.command(name="coinflip", description="Flip a coin for random decisions")
     async def coinflip(self, interaction: discord.Interaction):
         """Flip a coin"""
@@ -104,38 +65,7 @@ class SlashCommands(commands.Cog):
         
         await interaction.response.send_message(embed=embed)
     
-    # Admin Commands
-    @app_commands.command(name="unmute", description="Unmute a member in voice chat")
-    @app_commands.describe(member="The member to unmute")
-    @app_commands.default_permissions(manage_roles=True)
-    async def unmute(self, interaction: discord.Interaction, member: discord.Member):
-        """Unmute a member"""
-        try:
-            await member.edit(mute=False)
-            await interaction.response.send_message(f"> {member.mention} was unmuted successfully")
-            logger.info(f"Unmuted {member} in {interaction.guild}")
-        except discord.Forbidden:
-            await interaction.response.send_message("❌ I don't have permission to unmute members.", ephemeral=True)
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Error unmuting member: {str(e)}", ephemeral=True)
-            logger.error(f"Error unmuting {member}: {e}")
-    
-    @app_commands.command(name="undeafen", description="Undeafen a member in voice chat")
-    @app_commands.describe(member="The member to undeafen")
-    @app_commands.default_permissions(manage_roles=True)
-    async def undeafen(self, interaction: discord.Interaction, member: discord.Member):
-        """Undeafen a member"""
-        try:
-            await member.edit(deafen=False)
-            await interaction.response.send_message(f"> {member.mention} was undeafened successfully")
-            logger.info(f"Undeafened {member} in {interaction.guild}")
-        except discord.Forbidden:
-            await interaction.response.send_message("❌ I don't have permission to undeafen members.", ephemeral=True)
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Error undeafening member: {str(e)}", ephemeral=True)
-            logger.error(f"Error undeafening {member}: {e}")
-    
-    # Utility Commands
+    # Additional Utility Commands  
     @app_commands.command(name="ping", description="Check bot latency")
     async def ping(self, interaction: discord.Interaction):
         """Check bot latency"""
@@ -173,11 +103,11 @@ class SlashCommands(commands.Cog):
         # Slash commands
         slash_cmds = [
             "`/timer` - Interactive debate timer with buttons",
-            "`/randommotion [lang]` - Get random motion",
+            "`/randommotion [lang]` - Get random motion (in debate commands)",
             "`/coinflip` - Flip a coin",
-            "`/diceroll [sides]` - Roll a dice",
-            "`/unmute <member>` - Unmute member (Admin)",
-            "`/undeafen <member>` - Undeafen member (Admin)",
+            "`/diceroll [sides]` - Roll a dice", 
+            "`/unmute <member>` - Unmute member (in admin commands)",
+            "`/undeafen <member>` - Undeafen member (in admin commands)",
             "`/ping` - Check bot latency"
         ]
         
