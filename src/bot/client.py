@@ -50,10 +50,27 @@ class HearHearBot(commands.AutoShardedBot):
         
         # Sync slash commands
         try:
+            # Clear existing commands first to avoid conflicts
+            self.tree.clear_commands(guild=None)
+            
+            # Sync globally
             synced = await self.tree.sync()
-            logger.info(f"Synced {len(synced)} slash commands")
+            logger.info(f"Successfully synced {len(synced)} global slash commands")
+            
+            # Also log the command names for debugging
+            command_names = [cmd.name for cmd in synced]
+            logger.info(f"Synced commands: {', '.join(command_names)}")
+            
         except Exception as e:
             logger.error(f"Failed to sync slash commands: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            # Try to continue without slash commands
+            try:
+                # Get current commands to see what's registered
+                current_commands = await self.tree.fetch_commands()
+                logger.info(f"Current registered commands: {[cmd.name for cmd in current_commands]}")
+            except Exception as fetch_error:
+                logger.error(f"Could not fetch current commands: {fetch_error}")
     
     async def load_extensions(self):
         """Load all command extensions"""
@@ -63,7 +80,7 @@ class HearHearBot(commands.AutoShardedBot):
             'src.commands.timer',
             'src.commands.tabby',
             'src.commands.utility',
-            # 'src.commands.slash_commands',  # Disabled to avoid duplicate command registration
+            'src.commands.slash_commands',  # Re-enabled for additional slash commands
             'src.events.member',
             'src.events.error'
         ]

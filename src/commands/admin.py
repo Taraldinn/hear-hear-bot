@@ -212,5 +212,40 @@ class AdminCommands(commands.Cog):
         
         await ctx.send(embed=embed)
 
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def sync(self, ctx):
+        """Manually sync slash commands (Admin only)"""
+        try:
+            # Clear and sync commands
+            self.bot.tree.clear_commands(guild=None)
+            synced = await self.bot.tree.sync()
+            
+            embed = discord.Embed(
+                title="✅ Commands Synced",
+                description=f"Successfully synced {len(synced)} slash commands",
+                color=discord.Color.green(),
+                timestamp=ctx.message.created_at
+            )
+            
+            if synced:
+                command_names = [cmd.name for cmd in synced]
+                embed.add_field(
+                    name="Synced Commands",
+                    value=", ".join(f"`/{name}`" for name in command_names),
+                    inline=False
+                )
+            
+            await ctx.send(embed=embed)
+            
+        except Exception as e:
+            embed = discord.Embed(
+                title="❌ Sync Failed",
+                description=f"Failed to sync slash commands: {str(e)}",
+                color=discord.Color.red(),
+                timestamp=ctx.message.created_at
+            )
+            await ctx.send(embed=embed)
+
 async def setup(bot):
     await bot.add_cog(AdminCommands(bot))

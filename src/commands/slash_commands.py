@@ -39,32 +39,6 @@ class SlashCommands(commands.Cog):
         
         await interaction.response.send_message(embed=embed)
     
-    @app_commands.command(name="diceroll", description="Roll a dice")
-    @app_commands.describe(sides="Number of sides on the dice (default: 6)")
-    async def diceroll(self, interaction: discord.Interaction, sides: int = 6):
-        """Roll a dice"""
-        import random
-        
-        if sides < 2 or sides > 100:
-            await interaction.response.send_message("❌ Dice must have between 2 and 100 sides.", ephemeral=True)
-            return
-        
-        result = random.randint(1, sides)
-        
-        embed = discord.Embed(
-            title="🎲 Dice Roll",
-            description=f"**{result}** (out of {sides})",
-            color=discord.Color.purple(),
-            timestamp=interaction.created_at
-        )
-        
-        embed.set_footer(
-            text=f"Rolled by {interaction.user.display_name}",
-            icon_url=interaction.user.display_avatar.url
-        )
-        
-        await interaction.response.send_message(embed=embed)
-    
     # Additional Utility Commands  
     @app_commands.command(name="ping", description="Check bot latency")
     async def ping(self, interaction: discord.Interaction):
