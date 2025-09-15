@@ -85,6 +85,10 @@ class DebateCommands(commands.Cog):
         self, interaction: discord.Interaction, language: str = "english"
     ):
         """Slash command version of randommotion"""
+        # Defer to avoid interaction timeout and allow time for data fetch/processing
+        # Try to defer; if already responded, ignore
+        if not interaction.response.is_done():
+            await interaction.response.defer(thinking=True)
         # Get guild language if not specified
         if not language:
             language = await self.bot.get_language(interaction.guild.id)
@@ -133,26 +137,10 @@ class DebateCommands(commands.Cog):
             icon_url=interaction.user.display_avatar.url,
         )
 
-        await interaction.response.send_message(embed=embed)
-
-    @commands.command(aliases=["flip", "coin"])
-    async def coinflip(self, ctx):
-        """Flip a coin for random decisions"""
-        result = random.choice(["Heads", "Tails"])
-
-        embed = discord.Embed(
-            title="🪙 Coin Flip",
-            description=f"**{result}**",
-            color=discord.Color.orange(),
-            timestamp=ctx.message.created_at,
-        )
-
-        embed.set_footer(
-            text=f"Flipped by {ctx.author.display_name}",
-            icon_url=ctx.author.display_avatar.url,
-        )
-
-        await ctx.send(embed=embed)
+        if interaction.followup:
+            await interaction.followup.send(embed=embed)
+        else:
+            await interaction.channel.send(embed=embed)
 
     @commands.command(aliases=["dice", "roll"])
     async def diceroll(self, ctx, sides: int = 6):
