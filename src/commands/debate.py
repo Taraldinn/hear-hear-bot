@@ -173,9 +173,11 @@ class DebateCommands(commands.Cog):
             inline=True,
         )
 
-        # Include Info Slide if present
+        # Include Info Slide if present (truncate if too long for Discord)
         if info:
-            embed.add_field(name="Info Slide", value=info, inline=False)
+            # Discord embed field values have a 1024 character limit
+            info_text = info if len(info) <= 1020 else info[:1017] + "..."
+            embed.add_field(name="Info Slide", value=info_text, inline=False)
 
         embed.set_footer(
             text=f"Requested by {interaction.user.display_name}",
