@@ -86,9 +86,16 @@ class DebateCommands(commands.Cog):
     ):
         """Slash command version of randommotion"""
         # Defer to avoid interaction timeout and allow time for data fetch/processing
-        # Try to defer; if already responded, ignore
+        # Try to defer; if token already expired (cold start) use channel fallback
+        deferred = False
+        use_channel_fallback = False
         if not interaction.response.is_done():
-            await interaction.response.defer(thinking=True)
+            try:
+                await interaction.response.defer(thinking=True)
+                deferred = True
+            except discord.NotFound:
+                # Unknown interaction (token expired). We'll fallback to channel send.
+                use_channel_fallback = True
         # Get guild language if not specified
         if not language:
             language = await self.bot.get_language(interaction.guild.id)
@@ -98,17 +105,27 @@ class DebateCommands(commands.Cog):
         # Validate language
         if language not in language_manager.get_available_languages():
             available = ", ".join(language_manager.get_available_languages())
-            await interaction.response.send_message(
-                f"❌ Language not supported. Available: {available}", ephemeral=True
-            )
+            error_msg = f"❌ Language not supported. Available: {available}"
+            if use_channel_fallback:
+                await interaction.channel.send(error_msg)
+            else:
+                if deferred:
+                    await interaction.followup.send(error_msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(error_msg, ephemeral=True)
             return
 
         # Get random motion (with optional info slide)
         entry = language_manager.get_random_motion_entry(language)
         if not entry:
-            await interaction.response.send_message(
-                "No motions available for this language.", ephemeral=True
-            )
+            msg = "No motions available for this language."
+            if use_channel_fallback:
+                await interaction.channel.send(msg)
+            else:
+                if deferred:
+                    await interaction.followup.send(msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(msg, ephemeral=True)
             return
         motion = entry.get("text")
         info = entry.get("info")
@@ -137,10 +154,13 @@ class DebateCommands(commands.Cog):
             icon_url=interaction.user.display_avatar.url,
         )
 
-        if interaction.followup:
-            await interaction.followup.send(embed=embed)
-        else:
+        if use_channel_fallback:
             await interaction.channel.send(embed=embed)
+        else:
+            if deferred:
+                await interaction.followup.send(embed=embed)
+            else:
+                await interaction.response.send_message(embed=embed)
 
     @commands.command(aliases=["dice", "roll"])
     async def diceroll(self, ctx, sides: int = 6):
