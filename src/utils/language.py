@@ -22,14 +22,33 @@ class LanguageManager:
         self.load_motions()
 
     def load_motions(self):
-        """Load motions from Google Sheets CSV if configured; otherwise fall back to local files"""
-        # Try Google Sheets sources first
+        """Load motions from local CSVs (English.csv, Bangla.csv) if present, else fallback to Google Sheets or txt."""
+        project_root = Path(__file__).parent.parent.parent
+        csv_files = {
+            "english": project_root / "data" / "English.csv",
+            "bangla": project_root / "data" / "Bangla.csv",
+        }
+        loaded_any = False
+        for lang, path in csv_files.items():
+            if path.exists():
+                with open(path, "r", encoding="utf-8") as f:
+                    reader = csv.DictReader(f)
+                    motions = []
+                    for row in reader:
+                        motion = (row.get("MOTION") or "").strip()
+                        info = (
+                            row.get("INFO SLIDE (IF APPLICABLE)") or ""
+                        ).strip() or None
+                        if motion:
+                            motions.append({"text": motion, "info": info})
+                    self.motions[lang] = motions
+                    loaded_any = True
+        if loaded_any:
+            return
+        # Fallback to Google Sheets or txt as before
         combined = getattr(Config, "MOTIONS_CSV_URL_COMBINED", None)
         en_url = getattr(Config, "MOTIONS_CSV_URL_ENGLISH", None)
         bn_url = getattr(Config, "MOTIONS_CSV_URL_BANGLA", None)
-
-        loaded_any = False
-
         if combined:
             try:
                 data = self._fetch_csv(combined)
@@ -41,8 +60,6 @@ class LanguageManager:
                 print(f"⚠️ Failed to fetch combined CSV: {e}")
             except ValueError as e:
                 print(f"⚠️ Failed to parse combined CSV: {e}")
-
-        # If not using combined or combined failed/empty, attempt per-language URLs
         if not loaded_any and (en_url or bn_url):
             try:
                 if en_url:
@@ -62,15 +79,11 @@ class LanguageManager:
                 print(f"⚠️ Failed to fetch per-language CSVs: {e}")
             except ValueError as e:
                 print(f"⚠️ Failed to parse per-language CSVs: {e}")
-
-        # Fallback to local files
         if not loaded_any:
-            project_root = Path(__file__).parent.parent.parent
             for language in self.supported_languages:
                 file_path = project_root / "data" / f"{language}.txt"
                 if file_path.exists():
                     with open(file_path, "r", encoding="utf-8") as f:
-                        # Local files contain only motion text (no info slide)
                         self.motions[language] = [
                             {"text": line.strip(), "info": None}
                             for line in f.readlines()

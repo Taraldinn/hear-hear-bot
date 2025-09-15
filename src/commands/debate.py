@@ -106,27 +106,55 @@ class DebateCommands(commands.Cog):
         if language not in language_manager.get_available_languages():
             available = ", ".join(language_manager.get_available_languages())
             error_msg = f"❌ Language not supported. Available: {available}"
+            sent = False
             if use_channel_fallback:
                 await interaction.channel.send(error_msg)
+                sent = True
             else:
                 if deferred:
-                    await interaction.followup.send(error_msg, ephemeral=True)
+                    try:
+                        await interaction.followup.send(error_msg, ephemeral=True)
+                        sent = True
+                    except discord.NotFound:
+                        await interaction.channel.send(error_msg)
+                        sent = True
                 else:
-                    await interaction.response.send_message(error_msg, ephemeral=True)
-            return
+                    try:
+                        await interaction.response.send_message(
+                            error_msg, ephemeral=True
+                        )
+                        sent = True
+                    except discord.NotFound:
+                        await interaction.channel.send(error_msg)
+                        sent = True
+            if sent:
+                return
 
         # Get random motion (with optional info slide)
         entry = language_manager.get_random_motion_entry(language)
         if not entry:
             msg = "No motions available for this language."
+            sent = False
             if use_channel_fallback:
                 await interaction.channel.send(msg)
+                sent = True
             else:
                 if deferred:
-                    await interaction.followup.send(msg, ephemeral=True)
+                    try:
+                        await interaction.followup.send(msg, ephemeral=True)
+                        sent = True
+                    except discord.NotFound:
+                        await interaction.channel.send(msg)
+                        sent = True
                 else:
-                    await interaction.response.send_message(msg, ephemeral=True)
-            return
+                    try:
+                        await interaction.response.send_message(msg, ephemeral=True)
+                        sent = True
+                    except discord.NotFound:
+                        await interaction.channel.send(msg)
+                        sent = True
+            if sent:
+                return
         motion = entry.get("text")
         info = entry.get("info")
 
@@ -154,13 +182,25 @@ class DebateCommands(commands.Cog):
             icon_url=interaction.user.display_avatar.url,
         )
 
+        sent = False
         if use_channel_fallback:
             await interaction.channel.send(embed=embed)
+            sent = True
         else:
             if deferred:
-                await interaction.followup.send(embed=embed)
+                try:
+                    await interaction.followup.send(embed=embed)
+                    sent = True
+                except discord.NotFound:
+                    await interaction.channel.send(embed=embed)
+                    sent = True
             else:
-                await interaction.response.send_message(embed=embed)
+                try:
+                    await interaction.response.send_message(embed=embed)
+                    sent = True
+                except discord.NotFound:
+                    await interaction.channel.send(embed=embed)
+                    sent = True
 
     @commands.command(aliases=["dice", "roll"])
     async def diceroll(self, ctx, sides: int = 6):
