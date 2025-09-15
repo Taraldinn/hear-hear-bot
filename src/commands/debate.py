@@ -361,6 +361,245 @@ class DebateCommands(commands.Cog):
                 except discord.NotFound:
                     await interaction.channel.send(embed=embed)
 
+    @commands.command(aliases=["ap-toss", "aptoss"])
+    async def ap_toss(self, ctx, team1: str = "Team 1", team2: str = "Team 2"):
+        """Asian Parliamentary toss for 2 teams and Gov/Opp sides
+
+        Usage: .ap_toss [team1] [team2]
+        """
+        # Randomly assign teams to sides
+        teams = [team1, team2]
+        sides = ["Government", "Opposition"]
+
+        # Shuffle teams to randomize assignment
+        random.shuffle(teams)
+
+        embed = discord.Embed(
+            title="🏛️ Asian Parliamentary Toss",
+            color=discord.Color.blue(),
+            timestamp=ctx.message.created_at,
+        )
+
+        embed.add_field(name="🏛️ Government Side", value=f"**{teams[0]}**", inline=True)
+
+        embed.add_field(name="⚖️ Opposition Side", value=f"**{teams[1]}**", inline=True)
+
+        embed.add_field(
+            name="🎯 Format", value="Asian Parliamentary (2 teams)", inline=False
+        )
+
+        embed.set_footer(
+            text=f"Tossed by {ctx.author.display_name}",
+            icon_url=ctx.author.display_avatar.url,
+        )
+
+        await ctx.send(embed=embed)
+
+    @commands.command(aliases=["bp-toss", "bptoss"])
+    async def bp_toss(
+        self,
+        ctx,
+        team1: str = "Team 1",
+        team2: str = "Team 2",
+        team3: str = "Team 3",
+        team4: str = "Team 4",
+    ):
+        """British Parliamentary toss for 4 teams and OG/OO/CG/CO sides
+
+        Usage: .bp_toss [team1] [team2] [team3] [team4]
+        """
+        # Randomly assign teams to sides
+        teams = [team1, team2, team3, team4]
+        sides = [
+            "Opening Government (OG)",
+            "Opening Opposition (OO)",
+            "Closing Government (CG)",
+            "Closing Opposition (CO)",
+        ]
+
+        # Shuffle teams to randomize assignment
+        random.shuffle(teams)
+
+        embed = discord.Embed(
+            title="🏆 British Parliamentary Toss",
+            color=discord.Color.gold(),
+            timestamp=ctx.message.created_at,
+        )
+
+        embed.add_field(
+            name="🏛️ Opening Government (OG)", value=f"**{teams[0]}**", inline=True
+        )
+
+        embed.add_field(
+            name="⚖️ Opening Opposition (OO)", value=f"**{teams[1]}**", inline=True
+        )
+
+        embed.add_field(
+            name="📊 Room Layout", value="OG ↔️ OO\n⬇️      ⬇️\nCG ↔️ CO", inline=False
+        )
+
+        embed.add_field(
+            name="🏛️ Closing Government (CG)", value=f"**{teams[2]}**", inline=True
+        )
+
+        embed.add_field(
+            name="⚖️ Closing Opposition (CO)", value=f"**{teams[3]}**", inline=True
+        )
+
+        embed.add_field(
+            name="🎯 Format", value="British Parliamentary (4 teams)", inline=False
+        )
+
+        embed.set_footer(
+            text=f"Tossed by {ctx.author.display_name}",
+            icon_url=ctx.author.display_avatar.url,
+        )
+
+        await ctx.send(embed=embed)
+
+    # Slash command versions for AP and BP toss
+    @app_commands.command(
+        name="ap-toss", description="Asian Parliamentary toss for 2 teams (Gov/Opp)"
+    )
+    @app_commands.describe(team1="First team name", team2="Second team name")
+    async def slash_ap_toss(
+        self,
+        interaction: discord.Interaction,
+        team1: str = "Team 1",
+        team2: str = "Team 2",
+    ):
+        """Slash command version of AP toss"""
+        # Handle interaction token expiry
+        deferred = False
+        use_channel_fallback = False
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.defer(thinking=True)
+                deferred = True
+            except discord.NotFound:
+                use_channel_fallback = True
+
+        # Randomly assign teams to sides
+        teams = [team1, team2]
+        random.shuffle(teams)
+
+        embed = discord.Embed(
+            title="🏛️ Asian Parliamentary Toss",
+            color=discord.Color.blue(),
+            timestamp=interaction.created_at,
+        )
+
+        embed.add_field(name="🏛️ Government Side", value=f"**{teams[0]}**", inline=True)
+
+        embed.add_field(name="⚖️ Opposition Side", value=f"**{teams[1]}**", inline=True)
+
+        embed.add_field(
+            name="🎯 Format", value="Asian Parliamentary (2 teams)", inline=False
+        )
+
+        embed.set_footer(
+            text=f"Tossed by {interaction.user.display_name}",
+            icon_url=interaction.user.display_avatar.url,
+        )
+
+        # Send response with fallback handling
+        if use_channel_fallback:
+            await interaction.channel.send(embed=embed)
+        else:
+            if deferred:
+                try:
+                    await interaction.followup.send(embed=embed)
+                except discord.NotFound:
+                    await interaction.channel.send(embed=embed)
+            else:
+                try:
+                    await interaction.response.send_message(embed=embed)
+                except discord.NotFound:
+                    await interaction.channel.send(embed=embed)
+
+    @app_commands.command(
+        name="bp-toss",
+        description="British Parliamentary toss for 4 teams (OG/OO/CG/CO)",
+    )
+    @app_commands.describe(
+        team1="First team name",
+        team2="Second team name",
+        team3="Third team name",
+        team4="Fourth team name",
+    )
+    async def slash_bp_toss(
+        self,
+        interaction: discord.Interaction,
+        team1: str = "Team 1",
+        team2: str = "Team 2",
+        team3: str = "Team 3",
+        team4: str = "Team 4",
+    ):
+        """Slash command version of BP toss"""
+        # Handle interaction token expiry
+        deferred = False
+        use_channel_fallback = False
+        if not interaction.response.is_done():
+            try:
+                await interaction.response.defer(thinking=True)
+                deferred = True
+            except discord.NotFound:
+                use_channel_fallback = True
+
+        # Randomly assign teams to sides
+        teams = [team1, team2, team3, team4]
+        random.shuffle(teams)
+
+        embed = discord.Embed(
+            title="🏆 British Parliamentary Toss",
+            color=discord.Color.gold(),
+            timestamp=interaction.created_at,
+        )
+
+        embed.add_field(
+            name="🏛️ Opening Government (OG)", value=f"**{teams[0]}**", inline=True
+        )
+
+        embed.add_field(
+            name="⚖️ Opening Opposition (OO)", value=f"**{teams[1]}**", inline=True
+        )
+
+        embed.add_field(
+            name="📊 Room Layout", value="OG ↔️ OO\n⬇️      ⬇️\nCG ↔️ CO", inline=False
+        )
+
+        embed.add_field(
+            name="🏛️ Closing Government (CG)", value=f"**{teams[2]}**", inline=True
+        )
+
+        embed.add_field(
+            name="⚖️ Closing Opposition (CO)", value=f"**{teams[3]}**", inline=True
+        )
+
+        embed.add_field(
+            name="🎯 Format", value="British Parliamentary (4 teams)", inline=False
+        )
+
+        embed.set_footer(
+            text=f"Tossed by {interaction.user.display_name}",
+            icon_url=interaction.user.display_avatar.url,
+        )
+
+        # Send response with fallback handling
+        if use_channel_fallback:
+            await interaction.channel.send(embed=embed)
+        else:
+            if deferred:
+                try:
+                    await interaction.followup.send(embed=embed)
+                except discord.NotFound:
+                    await interaction.channel.send(embed=embed)
+            else:
+                try:
+                    await interaction.response.send_message(embed=embed)
+                except discord.NotFound:
+                    await interaction.channel.send(embed=embed)
+
     @commands.command()
     async def positions(self, ctx):
         """Show debate positions and speaking order"""
