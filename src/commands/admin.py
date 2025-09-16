@@ -253,11 +253,33 @@ class AdminCommands(commands.Cog):
             )
             sync_msg = await ctx.send(embed=embed)
 
+            # Check if bot has a valid token
+            if not self.bot.user:
+                embed = discord.Embed(
+                    title="⚠️ Bot Not Connected",
+                    description="Bot is not connected to Discord. Please check your bot token.",
+                    color=discord.Color.orange(),
+                    timestamp=ctx.message.created_at,
+                )
+                embed.add_field(
+                    name="Troubleshooting",
+                    value="• Make sure DISCORD_BOT_TOKEN is set correctly\n• Check if the bot token is valid\n• Ensure bot has proper permissions",
+                    inline=False,
+                )
+                await sync_msg.edit(embed=embed)
+                return
+
             # Use the improved sync method
             await self.bot.force_sync_commands()
 
             # Get the synced commands
-            synced = await self.bot.tree.fetch_commands()
+            try:
+                synced = await self.bot.tree.fetch_commands()
+            except Exception as fetch_error:
+                # Fallback to show loaded commands if fetch fails
+                logger.warning(f"Could not fetch synced commands: {fetch_error}")
+                loaded_commands = self.bot.tree.get_commands()
+                synced = loaded_commands
 
             embed = discord.Embed(
                 title="✅ Global Commands Synced Successfully",
