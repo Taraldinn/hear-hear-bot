@@ -18,6 +18,8 @@ sys.path.insert(0, str(src_path))
 
 from config.settings import Config
 from src.bot.client import create_bot
+from web.server import WebServer
+import os
 
 # Set up logging
 logging.basicConfig(
@@ -54,6 +56,17 @@ async def main():
     # Setup signal handlers
     setup_signal_handlers(bot)
     
+    # Start web server for Render.com deployment
+    web_server = None
+    try:
+        web_server = WebServer(bot)
+        port = int(os.environ.get('PORT', 8080))
+        web_runner = await web_server.start_server(port)
+        logger.info(f"Web server started on port {port}")
+    except Exception as e:
+        logger.warning(f"Failed to start web server: {e}")
+        logger.info("Continuing without web server...")
+    
     try:
         # Start the bot
         async with bot:
@@ -64,6 +77,10 @@ async def main():
         logger.error(f"Fatal error: {e}")
         raise
     finally:
+        # Clean up web server
+        if web_server and 'web_runner' in locals():
+            await web_runner.cleanup()
+            logger.info("Web server stopped")
         logger.info("Bot shutdown complete")
 
 if __name__ == "__main__":

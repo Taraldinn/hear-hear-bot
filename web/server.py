@@ -245,7 +245,7 @@ class WebServer:
             ]
             
             prefix_commands = [
-                {'name': '.sync', 'description': 'Connect to Tabbycat tournament (Admin)'},
+                {'name': '.tabsync', 'description': 'Connect to Tabbycat tournament (Admin)'},
                 {'name': '.register', 'description': 'Register for tournament'},
                 {'name': '.checkin', 'description': 'Check in to tournament'},
                 {'name': '.motion', 'description': 'Get round motion'},
@@ -313,7 +313,7 @@ class WebServer:
                                     <h2 class="text-2xl font-bold mb-4">📝 Prefix Commands</h2>
                                     <div class="space-y-3">
                                         <div class="border-l-4 border-yellow-500 pl-4">
-                                            <code class="text-yellow-600">.sync &lt;url&gt; &lt;token&gt;</code>
+                                            <code class="text-yellow-600">.tabsync &lt;url&gt; &lt;token&gt;</code>
                                             <p class="text-gray-600">Connect to Tabbycat</p>
                                         </div>
                                         <div class="border-l-4 border-yellow-500 pl-4">

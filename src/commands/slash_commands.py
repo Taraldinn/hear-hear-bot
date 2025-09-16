@@ -91,7 +91,7 @@ class SlashCommands(commands.Cog):
 
         # Legacy prefix commands
         prefix_cmds = [
-            "`.sync <url> <token>` - Sync with Tabbycat (Admin)",
+            "`.tabsync <url> <token>` - Sync with Tabbycat (Admin)",
             "`.register <key>` - Register for tournament",
             "`.checkin/.checkout` - Tournament attendance",
             "`.motion <round>` - Get round motion",

@@ -103,7 +103,7 @@ PORT=8080
 
 ### 📝 Prefix Commands (Legacy Support)
 **Tournament Commands (Tabbycat Integration)**
-- `.sync <url> <token>` - Connect server to Tabbycat tournament
+- `.tabsync <url> <token>` - Connect server to Tabbycat tournament
 - `.register <key>` - Register with tournament using identification key
 - `.checkin` - Check in to tournament
 - `.checkout` - Check out from tournament

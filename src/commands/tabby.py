@@ -20,12 +20,12 @@ class TabbyCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
-    @commands.command()
+    @commands.command(name="tabsync")
     @commands.has_permissions(administrator=True)
-    async def sync(self, ctx, url, token):
+    async def tabsync(self, ctx, url, token):
         """Sync server with Tabbycat tournament
         
-        Usage: .sync <TABBYCAT_URL> <API_TOKEN>
+        Usage: .tabsync <TABBYCAT_URL> <API_TOKEN>
         Get the API token from your Tabbycat site settings.
         """
         try:
@@ -460,7 +460,7 @@ class TabbyCommands(commands.Cog):
                 )
                 embed.add_field(
                     name="💡 Setup Required",
-                    value="Use `.sync <url> <token>` to connect to a tournament",
+                    value="Use `.tabsync <url> <token>` to connect to a tournament",
                     inline=False
                 )
             else:
