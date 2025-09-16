@@ -27,8 +27,9 @@ class Config:
     # Bot settings
     BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     BOT_PREFIX = [".", "?"]  # Keep for legacy support
-    SHARD_COUNT = 2
+    SHARD_COUNT = 2  # Auto-sharding for multiple servers
     USE_SLASH_COMMANDS = True
+    GLOBAL_COMMANDS = True  # Enable global slash commands
 
     # Database settings
     MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")

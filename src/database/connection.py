@@ -18,18 +18,17 @@ class Database:
     def connect(self):
         """Establish database connection with SSL configuration"""
         try:
-            # Configure SSL options for MongoDB Atlas
+            # Check if MongoDB connection string is provided
             connection_string = Config.MONGODB_CONNECTION_STRING
+            
+            if not connection_string:
+                logger.warning("MONGODB_CONNECTION_STRING not provided - database features disabled")
+                self.client = None
+                self.db = None
+                self.tabby_db = None
+                return
 
-            # If the connection string doesn't include SSL options, add them
-            if connection_string and "ssl=" not in connection_string.lower():
-                # Add SSL parameters for Atlas compatibility
-                if "?" in connection_string:
-                    connection_string += "&ssl=true&tlsInsecure=true"
-                else:
-                    connection_string += "?ssl=true&tlsInsecure=true"
-
-            # Create client with additional SSL configuration
+            # Create client with appropriate configuration
             self.client = MongoClient(
                 connection_string,
                 serverSelectionTimeoutMS=5000,  # Shorter timeout
@@ -37,9 +36,6 @@ class Database:
                 socketTimeoutMS=5000,
                 maxPoolSize=10,
                 retryWrites=True,
-                # SSL options
-                ssl=True,
-                tlsInsecure=True,  # Allow insecure TLS
             )
 
             self.db = self.client[Config.DATABASE_NAME]

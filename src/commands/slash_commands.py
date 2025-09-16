@@ -8,6 +8,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import logging
+import random
 from src.utils.language import language_manager
 
 logger = logging.getLogger(__name__)
@@ -19,14 +20,11 @@ class SlashCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    # Utility Commands - Non-duplicate slash commands
     @app_commands.command(
         name="coinflip", description="Flip a coin for random decisions"
     )
     async def coinflip(self, interaction: discord.Interaction):
         """Flip a coin"""
-        import random
-
         result = random.choice(["Heads", "Tails"])
 
         embed = discord.Embed(
@@ -43,7 +41,7 @@ class SlashCommands(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
-    # Additional Utility Commands
+
     @app_commands.command(name="ping", description="Check bot latency")
     async def ping(self, interaction: discord.Interaction):
         """Check bot latency"""
@@ -81,12 +79,13 @@ class SlashCommands(commands.Cog):
         # Slash commands
         slash_cmds = [
             "`/timer` - Interactive debate timer with buttons",
-            "`/randommotion [lang]` - Get random motion (in debate commands)",
+            "`/randommotion [lang]` - Get random motion",
             "`/coinflip` - Flip a coin",
             "`/diceroll [sides]` - Roll a dice",
-            "`/unmute <member>` - Unmute member (in admin commands)",
-            "`/undeafen <member>` - Undeafen member (in admin commands)",
+            "`/unmute <member>` - Unmute member (Admin)",
+            "`/undeafen <member>` - Undeafen member (Admin)",
             "`/ping` - Check bot latency",
+            "`/help` - Show this help",
         ]
 
         # Legacy prefix commands

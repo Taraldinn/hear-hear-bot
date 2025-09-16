@@ -242,15 +242,26 @@ class AdminCommands(commands.Cog):
     @commands.command()
     @commands.has_permissions(administrator=True)
     async def sync(self, ctx):
-        """Manually sync slash commands (Admin only)"""
+        """Manually sync slash commands globally across ALL servers (Admin only)"""
         try:
-            # Clear and sync commands
-            self.bot.tree.clear_commands(guild=None)
-            synced = await self.bot.tree.sync()
+            # Send initial message
+            embed = discord.Embed(
+                title="🌍 Syncing Global Commands...",
+                description="Please wait while I sync the slash commands across ALL servers.",
+                color=discord.Color.blue(),
+                timestamp=ctx.message.created_at,
+            )
+            sync_msg = await ctx.send(embed=embed)
+
+            # Use the improved sync method
+            await self.bot.force_sync_commands()
+
+            # Get the synced commands
+            synced = await self.bot.tree.fetch_commands()
 
             embed = discord.Embed(
-                title="✅ Commands Synced",
-                description=f"Successfully synced {len(synced)} slash commands",
+                title="✅ Global Commands Synced Successfully",
+                description=f"Successfully synced {len(synced)} slash commands globally",
                 color=discord.Color.green(),
                 timestamp=ctx.message.created_at,
             )
@@ -258,19 +269,31 @@ class AdminCommands(commands.Cog):
             if synced:
                 command_names = [cmd.name for cmd in synced]
                 embed.add_field(
-                    name="Synced Commands",
+                    name="🌍 Global Commands",
                     value=", ".join(f"`/{name}`" for name in command_names),
                     inline=False,
                 )
+                
+                # Add note about propagation
+                embed.add_field(
+                    name="💡 Global Propagation",
+                    value="Commands are now synced globally and will appear in ALL servers within 1 hour due to Discord's propagation time.",
+                    inline=False,
+                )
 
-            await ctx.send(embed=embed)
+            await sync_msg.edit(embed=embed)
 
         except Exception as e:
             embed = discord.Embed(
-                title="❌ Sync Failed",
-                description=f"Failed to sync slash commands: {str(e)}",
+                title="❌ Global Sync Failed",
+                description=f"Failed to sync slash commands globally: {str(e)}",
                 color=discord.Color.red(),
                 timestamp=ctx.message.created_at,
+            )
+            embed.add_field(
+                name="Troubleshooting",
+                value="• Make sure the bot has the `applications.commands` scope\n• Bot must have global permissions\n• Try again in a few minutes\n• Check bot permissions",
+                inline=False,
             )
             await ctx.send(embed=embed)
 

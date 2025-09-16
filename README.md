@@ -1,6 +1,6 @@
 # 🎤 Hear! Hear! Bot
 
-A comprehensive Discord bot for debate tournaments, featuring debate timing, motion generation, Tabbycat integration, and tournament management tools.
+A comprehensive Discord bot for debate tournaments, featuring debate timing, motion generation, Tabbycat integration, and tournament management tools. **Optimized for global deployment across multiple Discord servers.**
 
 ## ✨ Features
 
@@ -33,6 +33,12 @@ A comprehensive Discord bot for debate tournaments, featuring debate timing, mot
 - **English & Bangla**: Full support for both languages
 - **Expandable**: Easy to add more languages
 - **Localized Messages**: All bot responses adapt to server language
+
+### 🌍 Global Deployment
+- **Multi-Server Support**: Works across ALL Discord servers simultaneously
+- **Global Slash Commands**: Commands available in every server the bot joins
+- **Auto-Sharding**: Optimized for handling thousands of servers
+- **Scalable Architecture**: Designed for global tournament management
 
 ## 🚀 Quick Start
 
