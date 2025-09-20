@@ -295,7 +295,7 @@ class AdminCommands(commands.Cog):
                     value=", ".join(f"`/{name}`" for name in command_names),
                     inline=False,
                 )
-                
+
                 # Add note about propagation
                 embed.add_field(
                     name="💡 Global Propagation",
@@ -315,6 +315,72 @@ class AdminCommands(commands.Cog):
             embed.add_field(
                 name="Troubleshooting",
                 value="• Make sure the bot has the `applications.commands` scope\n• Bot must have global permissions\n• Try again in a few minutes\n• Check bot permissions",
+                inline=False,
+            )
+            await ctx.send(embed=embed)
+
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def guild_sync(self, ctx):
+        """Sync slash commands to THIS server only for instant access (Admin only)"""
+        try:
+            # Send initial message
+            embed = discord.Embed(
+                title="⚡ Syncing Guild Commands...",
+                description=f"Syncing slash commands to {ctx.guild.name} for instant access.",
+                color=discord.Color.green(),
+                timestamp=ctx.message.created_at,
+            )
+            sync_msg = await ctx.send(embed=embed)
+
+            # Use the guild-specific sync method
+            await self.bot.sync_commands(guild_id=ctx.guild.id)
+
+            # Get the synced commands for this guild
+            try:
+                synced = await self.bot.tree.fetch_commands(
+                    guild=discord.Object(id=ctx.guild.id)
+                )
+            except Exception as fetch_error:
+                # Fallback to show loaded commands if fetch fails
+                logger.warning(f"Could not fetch guild synced commands: {fetch_error}")
+                loaded_commands = self.bot.tree.get_commands()
+                synced = loaded_commands
+
+            embed = discord.Embed(
+                title="⚡ Guild Commands Synced Successfully",
+                description=f"Successfully synced {len(synced)} slash commands to {ctx.guild.name}",
+                color=discord.Color.green(),
+                timestamp=ctx.message.created_at,
+            )
+
+            if synced:
+                command_names = [cmd.name for cmd in synced]
+                embed.add_field(
+                    name="⚡ Guild Commands (Instant Access)",
+                    value=", ".join(f"`/{name}`" for name in command_names),
+                    inline=False,
+                )
+
+                # Add note about instant access
+                embed.add_field(
+                    name="💡 Instant Access",
+                    value="Commands are now available IMMEDIATELY in this server! Try typing `/` to see them.",
+                    inline=False,
+                )
+
+            await sync_msg.edit(embed=embed)
+
+        except Exception as e:
+            embed = discord.Embed(
+                title="❌ Guild Sync Failed",
+                description=f"Failed to sync slash commands to this guild: {str(e)}",
+                color=discord.Color.red(),
+                timestamp=ctx.message.created_at,
+            )
+            embed.add_field(
+                name="Troubleshooting",
+                value="• Make sure the bot has the `applications.commands` scope\n• Bot must have permissions in this server\n• Try the global sync command instead\n• Check bot permissions",
                 inline=False,
             )
             await ctx.send(embed=embed)

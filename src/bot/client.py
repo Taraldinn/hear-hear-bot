@@ -54,20 +54,47 @@ class HearHearBot(commands.AutoShardedBot):
         # Sync slash commands with better error handling
         await self.sync_commands()
 
-    async def sync_commands(self):
-        """Sync slash commands globally across all servers with comprehensive error handling"""
+    async def sync_commands(self, guild_id=None):
+        """Sync slash commands globally or to a specific guild with comprehensive error handling"""
         try:
             # Wait a bit for Discord API to be ready
             await asyncio.sleep(2)
-            
-            # Clear existing commands first to avoid conflicts (GLOBAL CLEAR)
+
+            # If guild_id is provided, sync to that guild for instant testing
+            if guild_id:
+                guild = discord.Object(id=guild_id)
+                logger.info(
+                    f"Syncing commands to guild {guild_id} for instant testing..."
+                )
+
+                # Clear existing guild commands first
+                self.tree.clear_commands(guild=guild)
+
+                # Copy all global commands to this guild
+                self.tree.copy_global_to(guild=guild)
+
+                # Sync to the specific guild
+                synced = await self.tree.sync(guild=guild)
+                logger.info(
+                    f"Successfully synced {len(synced)} commands to guild {guild_id}"
+                )
+                logger.info("⚡ Commands are now INSTANTLY available in this server!")
+
+                # Log command names for debugging
+                command_names = [cmd.name for cmd in synced]
+                logger.info(f"Guild synced commands: {', '.join(command_names)}")
+                return
+
+            # Global sync logic
             logger.info("Clearing existing global commands...")
             self.tree.clear_commands(guild=None)  # guild=None means global scope
-            
+
             # Get all registered commands before syncing
             try:
                 existing_commands = await self.tree.fetch_commands()
-                logger.info(f"Found {len(existing_commands)} existing global commands to clear")
+                logger.info(
+                    f"Found {len(existing_commands)} existing global commands to clear"
+                )
             except Exception as fetch_error:
                 logger.warning(f"Could not fetch existing commands: {fetch_error}")
 
@@ -75,25 +102,48 @@ class HearHearBot(commands.AutoShardedBot):
             max_retries = 3
             for attempt in range(max_retries):
                 try:
-                    logger.info(f"Syncing commands globally (attempt {attempt + 1}/{max_retries})...")
+                    logger.info(
+                        f"Syncing commands globally (attempt {attempt + 1}/{max_retries})..."
+                    )
                     synced = await self.tree.sync()  # No guild parameter = global sync
-                    
-                    logger.info(f"Successfully synced {len(synced)} GLOBAL slash commands")
-                    logger.info("🌍 Commands will be available in ALL servers within 1 hour")
-                    
+
+                    logger.info(
+                        f"Successfully synced {len(synced)} GLOBAL slash commands"
+                    )
+                    logger.info(
+                        "🌍 Commands will be available in ALL servers within 1 hour"
+                    )
+
                     # Log command names for debugging
                     command_names = [cmd.name for cmd in synced]
                     logger.info(f"Synced commands: {', '.join(command_names)}")
-                    
+
                     # Verify sync by fetching commands again
                     await asyncio.sleep(1)
                     verified_commands = await self.tree.fetch_commands()
-                    logger.info(f"Verified {len(verified_commands)} commands are registered globally")
-                    
+                    logger.info(
+                        f"Verified {len(verified_commands)} commands are registered globally"
+                    )
+
+                    # Also sync to test guild if TEST_GUILD_ID is set
+                    if hasattr(Config, "TEST_GUILD_ID") and Config.TEST_GUILD_ID:
+                        logger.info(
+                            f"Also syncing to test guild {Config.TEST_GUILD_ID} for instant testing..."
+                        )
+                        test_guild = discord.Object(id=Config.TEST_GUILD_ID)
+                        self.tree.clear_commands(guild=test_guild)
+                        self.tree.copy_global_to(guild=test_guild)
+                        test_synced = await self.tree.sync(guild=test_guild)
+                        logger.info(
+                            f"⚡ Also synced {len(test_synced)} commands to test guild for instant access!"
+                        )
+
                     break  # Success, exit retry loop
-                    
+
                 except Exception as sync_error:
-                    logger.error(f"Global sync attempt {attempt + 1} failed: {sync_error}")
+                    logger.error(
+                        f"Global sync attempt {attempt + 1} failed: {sync_error}"
+                    )
                     if attempt < max_retries - 1:
                         wait_time = (attempt + 1) * 5  # Exponential backoff
                         logger.info(f"Retrying in {wait_time} seconds...")
@@ -103,19 +153,21 @@ class HearHearBot(commands.AutoShardedBot):
                         raise sync_error
 
         except Exception as e:
-            logger.error(f"Failed to sync global slash commands: {e}")
+            logger.error(f"Failed to sync slash commands: {e}")
             logger.error(f"Error type: {type(e).__name__}")
-            
+
             # Try to continue and show what commands are available
             try:
                 current_commands = await self.tree.fetch_commands()
                 if current_commands:
-                    logger.info(f"Current registered global commands: {[cmd.name for cmd in current_commands]}")
+                    logger.info(
+                        f"Current registered global commands: {[cmd.name for cmd in current_commands]}"
+                    )
                 else:
                     logger.warning("No commands are currently registered globally")
             except Exception as fetch_error:
                 logger.error(f"Could not fetch current global commands: {fetch_error}")
-                
+
             # Don't raise the error - let the bot continue without slash commands
 
     async def load_extensions(self):
@@ -127,6 +179,11 @@ class HearHearBot(commands.AutoShardedBot):
             "src.commands.tabby",
             "src.commands.utility",
             "src.commands.slash_commands",  # Re-enabled for additional slash commands
+            "src.commands.reaction_roles",  # Carl-bot style reaction roles
+            "src.commands.logging",  # Comprehensive logging system
+            "src.commands.moderation",  # Advanced moderation system
+            "src.commands.configuration",  # Server configuration commands
+            "src.commands.help",  # Enhanced help system
             "src.events.member",
             "src.events.error",
         ]
@@ -263,7 +320,11 @@ class HearHearBot(commands.AutoShardedBot):
 
         # Close web server if running
         if self.web_server:
-            await self.web_server.close()
+            try:
+                # Web server closing is handled elsewhere
+                logger.info("Web server cleanup handled separately")
+            except Exception as e:
+                logger.error(f"Error with web server: {e}")
 
         # Close database connection
         if self.database:
@@ -273,7 +334,7 @@ class HearHearBot(commands.AutoShardedBot):
         if not self.is_closed():
             await super().close()
         logger.info("Bot shutdown complete")
-    
+
     async def force_sync_commands(self):
         """Force sync commands - useful for manual sync"""
         logger.info("Force syncing commands...")

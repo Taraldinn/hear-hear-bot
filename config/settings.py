@@ -30,6 +30,7 @@ class Config:
     SHARD_COUNT = 2  # Auto-sharding for multiple servers
     USE_SLASH_COMMANDS = True
     GLOBAL_COMMANDS = True  # Enable global slash commands
+    TEST_GUILD_ID = os.getenv("TEST_GUILD_ID")  # Guild ID for instant command testing
 
     # Database settings
     MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
