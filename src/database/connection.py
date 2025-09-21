@@ -20,9 +20,11 @@ class Database:
         try:
             # Check if MongoDB connection string is provided
             connection_string = Config.MONGODB_CONNECTION_STRING
-            
+
             if not connection_string:
-                logger.warning("MONGODB_CONNECTION_STRING not provided - database features disabled")
+                logger.warning(
+                    "MONGODB_CONNECTION_STRING not provided - database features disabled"
+                )
                 self.client = None
                 self.db = None
                 self.tabby_db = None
@@ -65,6 +67,10 @@ class Database:
         except Exception as e:
             logger.error(f"Error getting collection {collection_name}: {e}")
             return None
+
+    def get_database(self):
+        """Get the main database instance"""
+        return self.db
 
     def close_connection(self):
         """Close database connection"""
