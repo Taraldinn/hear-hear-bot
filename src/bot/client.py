@@ -67,10 +67,10 @@ class HearHearBot(commands.AutoShardedBot):
                     f"Syncing commands to guild {guild_id} for instant testing..."
                 )
 
-                # Clear existing guild commands first
+                # Clear existing guild commands first (this is OK for guild-specific sync)
                 self.tree.clear_commands(guild=guild)
 
-                # Copy all global commands to this guild
+                # Copy all loaded commands to this guild for instant access
                 self.tree.copy_global_to(guild=guild)
 
                 # Sync to the specific guild
@@ -86,8 +86,9 @@ class HearHearBot(commands.AutoShardedBot):
                 return
 
             # Global sync logic
-            logger.info("Clearing existing global commands...")
-            self.tree.clear_commands(guild=None)  # guild=None means global scope
+            logger.info("Preparing to sync global commands...")
+            # Don't clear commands - we want to sync what we have loaded
+            # self.tree.clear_commands(guild=None)  # This was clearing all our loaded commands!
 
             # Get all registered commands before syncing
             try:
