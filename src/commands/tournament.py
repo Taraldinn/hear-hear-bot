@@ -1,0 +1,676 @@
+"""
+Tournament Setup System for Hear! Hear! Bot
+Author: aldinn
+Email: kferdoush617@gmail.com
+
+Creates tournament venues, roles, and channels for debate tournaments
+"""
+
+import discord
+from discord.ext import commands
+from discord import app_commands
+import asyncio
+import logging
+from typing import Dict, List, Optional, Literal
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+
+class TournamentSetup(commands.Cog):
+    """Tournament venue and role creation system"""
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(
+        name="create_tournament",
+        description="Create tournament venues and channels for debate competition",
+    )
+    @app_commands.describe(
+        tournament_type="Type of debate format (AP = Asian Parliamentary, BP = British Parliamentary)",
+        venues="Number of venues to create (1-20)",
+        setup_roles="Whether to create tournament roles (Debater, Adjudicator, Spectator)",
+        setup_role_assignment="Whether to setup role assignment channel with reactions",
+    )
+    @app_commands.choices(
+        tournament_type=[
+            app_commands.Choice(name="Asian Parliamentary (AP)", value="AP"),
+            app_commands.Choice(name="British Parliamentary (BP)", value="BP"),
+        ]
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def create_tournament(
+        self,
+        interaction: discord.Interaction,
+        tournament_type: Literal["AP", "BP"],
+        venues: int,
+        setup_roles: bool = True,
+        setup_role_assignment: bool = True,
+    ):
+        """Create tournament setup with venues, roles, and channels"""
+
+        if not 1 <= venues <= 20:
+            await interaction.response.send_message(
+                "❌ Number of venues must be between 1 and 20!", ephemeral=True
+            )
+            return
+
+        await interaction.response.defer()
+
+        try:
+            guild = interaction.guild
+            embed = discord.Embed(
+                title="🏆 Creating Tournament Setup",
+                description=f"Setting up {tournament_type} tournament with {venues} venues...",
+                color=discord.Color.blue(),
+                timestamp=datetime.now(),
+            )
+
+            progress_msg = await interaction.followup.send(embed=embed)
+
+            # Step 1: Create roles if requested
+            roles = {}
+            if setup_roles:
+                embed.add_field(
+                    name="📝 Step 1/5",
+                    value="Creating tournament roles...",
+                    inline=False,
+                )
+                await progress_msg.edit(embed=embed)
+                roles = await self.create_tournament_roles(guild)
+
+            # Step 2: Create general tournament channels
+            embed.add_field(
+                name="📁 Step 2/5", value="Creating general channels...", inline=False
+            )
+            await progress_msg.edit(embed=embed)
+            general_channels = await self.create_general_channels(guild, roles)
+
+            # Step 3: Create venue channels
+            embed.add_field(
+                name="🏟️ Step 3/5", value=f"Creating {venues} venues...", inline=False
+            )
+            await progress_msg.edit(embed=embed)
+            venue_channels = await self.create_venue_channels(
+                guild, tournament_type, venues, roles
+            )
+
+            # Step 4: Setup permissions
+            embed.add_field(
+                name="🔒 Step 4/5", value="Configuring permissions...", inline=False
+            )
+            await progress_msg.edit(embed=embed)
+            await self.setup_permissions(guild, roles, general_channels, venue_channels)
+
+            # Step 5: Setup role assignment if requested
+            role_assignment_msg = None
+            if setup_role_assignment and setup_roles:
+                embed.add_field(
+                    name="🎭 Step 5/5",
+                    value="Setting up role assignment...",
+                    inline=False,
+                )
+                await progress_msg.edit(embed=embed)
+                role_assignment_msg = await self.setup_role_assignment(
+                    guild, roles, general_channels
+                )
+
+            # Final success message
+            success_embed = discord.Embed(
+                title="✅ Tournament Setup Complete!",
+                description=f"Successfully created {tournament_type} tournament with {venues} venues",
+                color=discord.Color.green(),
+                timestamp=datetime.now(),
+            )
+
+            success_embed.add_field(
+                name="🎭 Roles Created",
+                value=f"• {roles.get('debater', 'N/A').mention if roles.get('debater') else 'N/A'}\n"
+                f"• {roles.get('adjudicator', 'N/A').mention if roles.get('adjudicator') else 'N/A'}\n"
+                f"• {roles.get('spectator', 'N/A').mention if roles.get('spectator') else 'N/A'}",
+                inline=True,
+            )
+
+            success_embed.add_field(
+                name="🏟️ Venues Created",
+                value=f"{venues} venues with {tournament_type} format",
+                inline=True,
+            )
+
+            if role_assignment_msg:
+                success_embed.add_field(
+                    name="📋 Role Assignment",
+                    value=f"Check {general_channels.get('role_assignment', '#role-assignment')} to get your role!",
+                    inline=False,
+                )
+
+            success_embed.set_footer(
+                text="Tournament is ready! Good luck to all participants!"
+            )
+
+            await progress_msg.edit(embed=success_embed)
+
+        except Exception as e:
+            logger.error(f"Failed to create tournament: {e}")
+            error_embed = discord.Embed(
+                title="❌ Tournament Setup Failed",
+                description=f"Error: {str(e)}",
+                color=discord.Color.red(),
+            )
+            await interaction.followup.send(embed=error_embed, ephemeral=True)
+
+    async def create_tournament_roles(
+        self, guild: discord.Guild
+    ) -> Dict[str, discord.Role]:
+        """Create tournament roles if they don't exist"""
+        roles = {}
+
+        role_configs = {
+            "debater": {
+                "name": "Debater",
+                "color": discord.Color.blue(),
+                "permissions": discord.Permissions(
+                    read_messages=True,
+                    send_messages=True,
+                    connect=True,
+                    speak=True,
+                    use_voice_activation=True,
+                ),
+            },
+            "adjudicator": {
+                "name": "Adjudicator",
+                "color": discord.Color.gold(),
+                "permissions": discord.Permissions(
+                    read_messages=True,
+                    send_messages=True,
+                    connect=True,
+                    speak=True,
+                    use_voice_activation=True,
+                    mute_members=True,
+                    deafen_members=True,
+                ),
+            },
+            "spectator": {
+                "name": "Spectator",
+                "color": discord.Color.light_grey(),
+                "permissions": discord.Permissions(
+                    read_messages=True, send_messages=False, connect=False, speak=False
+                ),
+            },
+        }
+
+        for role_key, config in role_configs.items():
+            # Check if role already exists
+            existing_role = discord.utils.get(guild.roles, name=config["name"])
+            if existing_role:
+                roles[role_key] = existing_role
+                logger.info(f"Role {config['name']} already exists")
+            else:
+                # Create new role
+                role = await guild.create_role(
+                    name=config["name"],
+                    color=config["color"],
+                    permissions=config["permissions"],
+                    reason="Tournament setup - creating tournament roles",
+                )
+                roles[role_key] = role
+                logger.info(f"Created role: {config['name']}")
+
+                # Small delay to avoid rate limiting
+                await asyncio.sleep(0.5)
+
+        return roles
+
+    async def create_general_channels(
+        self, guild: discord.Guild, roles: Dict[str, discord.Role]
+    ) -> Dict[str, discord.TextChannel]:
+        """Create general tournament channels"""
+        channels = {}
+
+        # Channel categories and their channels
+        channel_structure = {
+            "Welcome": {
+                "channels": [
+                    ("welcome", "Welcome to the tournament!"),
+                    (
+                        "instructions-for-teams",
+                        "Important instructions for team members",
+                    ),
+                    ("instructions-for-adjudicators", "Guidelines for adjudicators"),
+                    ("equity-policy", "Tournament equity and safety policies"),
+                    ("report-problems", "Report any issues here"),
+                    ("role-assignment", "React to get your tournament role"),
+                ]
+            },
+            "Info Desk": {
+                "channels": [
+                    ("bot-commands", "Use bot commands here"),
+                    ("schedules", "Tournament schedules and timing"),
+                    ("tech-support", "Technical assistance"),
+                ]
+            },
+            "Feedback & Check-in": {
+                "channels": [
+                    ("feedback-submission", "Submit feedback and evaluations"),
+                    ("check-in", "Check in for rounds"),
+                    ("check-out", "Check out after rounds"),
+                ]
+            },
+            "Grand Auditorium": {
+                "channels": [
+                    ("announcements", "Official tournament announcements"),
+                    ("motion-clarifications", "Motion clarifications and questions"),
+                    ("draws-and-motion-release", "Round draws and motion releases"),
+                    ("equity-announcements", "Equity and safety announcements"),
+                    ("music-control", "Music and entertainment"),
+                    ("important-links", "Important links and resources"),
+                    ("auditorium-text", "General auditorium chat"),
+                ]
+            },
+        }
+
+        for category_name, category_data in channel_structure.items():
+            # Create category if it doesn't exist
+            category = discord.utils.get(guild.categories, name=category_name)
+            if not category:
+                category = await guild.create_category(
+                    name=category_name,
+                    reason="Tournament setup - creating general channels",
+                )
+                logger.info(f"Created category: {category_name}")
+                await asyncio.sleep(0.5)
+
+            # Create channels in category
+            for channel_name, description in category_data["channels"]:
+                existing_channel = discord.utils.get(
+                    guild.text_channels, name=channel_name
+                )
+                if not existing_channel:
+                    channel = await guild.create_text_channel(
+                        name=channel_name,
+                        category=category,
+                        topic=description,
+                        reason="Tournament setup - creating general channels",
+                    )
+                    channels[channel_name.replace("-", "_")] = channel
+                    logger.info(f"Created channel: #{channel_name}")
+                    await asyncio.sleep(0.5)
+                else:
+                    channels[channel_name.replace("-", "_")] = existing_channel
+
+        return channels
+
+    async def create_venue_channels(
+        self,
+        guild: discord.Guild,
+        tournament_type: str,
+        venues: int,
+        roles: Dict[str, discord.Role],
+    ) -> List[Dict]:
+        """Create venue-specific channels"""
+        venue_channels = []
+
+        for venue_num in range(1, venues + 1):
+            venue_data = {}
+
+            # Create venue category
+            category_name = f"Venue {venue_num}"
+            category = await guild.create_category(
+                name=category_name,
+                reason=f"Tournament setup - creating venue {venue_num}",
+            )
+            await asyncio.sleep(0.5)
+
+            # Create debate text channel
+            debate_text = await guild.create_text_channel(
+                name=f"venue-{venue_num}-debate",
+                category=category,
+                topic=f"Debate discussion for venue {venue_num}",
+                reason=f"Tournament setup - venue {venue_num} text channel",
+            )
+            venue_data["debate_text"] = debate_text
+            await asyncio.sleep(0.5)
+
+            # Create main debate voice channel
+            debate_voice = await guild.create_voice_channel(
+                name=f"Venue-{venue_num}-Debate",
+                category=category,
+                reason=f"Tournament setup - venue {venue_num} main voice",
+            )
+            venue_data["debate_voice"] = debate_voice
+            await asyncio.sleep(0.5)
+
+            # Create prep rooms based on tournament type
+            if tournament_type == "AP":
+                # Asian Parliamentary: Gov and Opp prep rooms
+                prep_rooms = [
+                    (f"Venue-{venue_num}-Gov-Prep", 3),
+                    (f"Venue-{venue_num}-Opp-Prep", 3),
+                ]
+            else:  # BP
+                # British Parliamentary: OG, OO, CG, CO prep rooms
+                prep_rooms = [
+                    (f"Venue-{venue_num}-OG-Prep", 2),
+                    (f"Venue-{venue_num}-OO-Prep", 2),
+                    (f"Venue-{venue_num}-CG-Prep", 2),
+                    (f"Venue-{venue_num}-CO-Prep", 2),
+                ]
+
+            venue_data["prep_rooms"] = []
+            for room_name, user_limit in prep_rooms:
+                prep_room = await guild.create_voice_channel(
+                    name=room_name,
+                    category=category,
+                    user_limit=user_limit,
+                    reason=f"Tournament setup - {room_name}",
+                )
+                venue_data["prep_rooms"].append(prep_room)
+                await asyncio.sleep(0.5)
+
+            # Create result discussion room
+            result_room = await guild.create_voice_channel(
+                name=f"Venue-{venue_num}-Result-Discussion",
+                category=category,
+                reason=f"Tournament setup - venue {venue_num} result discussion",
+            )
+            venue_data["result_room"] = result_room
+            await asyncio.sleep(0.5)
+
+            venue_channels.append(venue_data)
+            logger.info(f"Created venue {venue_num} with {len(prep_rooms)} prep rooms")
+
+        return venue_channels
+
+    async def setup_permissions(
+        self,
+        guild: discord.Guild,
+        roles: Dict[str, discord.Role],
+        general_channels: Dict,
+        venue_channels: List[Dict],
+    ):
+        """Setup permissions for all channels and roles"""
+
+        if not roles:
+            return  # Skip if no roles were created
+
+        debater_role = roles.get("debater")
+        adjudicator_role = roles.get("adjudicator")
+        spectator_role = roles.get("spectator")
+
+        # Setup permissions for venue channels
+        for venue_data in venue_channels:
+            # Prep rooms - only debaters can join
+            for prep_room in venue_data["prep_rooms"]:
+                await prep_room.set_permissions(
+                    guild.default_role, connect=False, view_channel=True
+                )
+                if debater_role:
+                    await prep_room.set_permissions(
+                        debater_role,
+                        connect=True,
+                        speak=True,
+                        use_voice_activation=True,
+                    )
+                await asyncio.sleep(0.3)
+
+            # Result discussion - only adjudicators can join
+            result_room = venue_data["result_room"]
+            await result_room.set_permissions(
+                guild.default_role, connect=False, view_channel=True
+            )
+            if adjudicator_role:
+                await result_room.set_permissions(
+                    adjudicator_role,
+                    connect=True,
+                    speak=True,
+                    use_voice_activation=True,
+                )
+            await asyncio.sleep(0.3)
+
+        # Setup permissions for general channels
+        # Make role-assignment channel visible to everyone but only allow reactions
+        if "role_assignment" in general_channels and spectator_role:
+            role_channel = general_channels["role_assignment"]
+            await role_channel.set_permissions(
+                guild.default_role,
+                send_messages=False,
+                add_reactions=True,
+                read_messages=True,
+            )
+            await asyncio.sleep(0.3)
+
+        logger.info("Permissions setup completed")
+
+    async def setup_role_assignment(
+        self, guild: discord.Guild, roles: Dict[str, discord.Role], channels: Dict
+    ) -> Optional[discord.Message]:
+        """Setup role assignment with reactions"""
+
+        if not roles or "role_assignment" not in channels:
+            return None
+
+        role_channel = channels["role_assignment"]
+
+        embed = discord.Embed(
+            title="🎭 Tournament Role Assignment",
+            description="React with the appropriate emoji to get your tournament role!\n\n"
+            "**Note:** Until you select a role, most channels will be hidden from you.",
+            color=discord.Color.blue(),
+        )
+
+        role_info = []
+        emoji_roles = []
+
+        if roles.get("debater"):
+            role_info.append(
+                f"🥊 **Debater** - Participate in debates, access prep rooms"
+            )
+            emoji_roles.append(("🥊", roles["debater"]))
+
+        if roles.get("adjudicator"):
+            role_info.append(
+                f"⚖️ **Adjudicator** - Judge debates, access result discussions"
+            )
+            emoji_roles.append(("⚖️", roles["adjudicator"]))
+
+        if roles.get("spectator"):
+            role_info.append(
+                f"👀 **Spectator** - Watch the tournament, read-only access"
+            )
+            emoji_roles.append(("👀", roles["spectator"]))
+
+        embed.add_field(
+            name="Available Roles", value="\n".join(role_info), inline=False
+        )
+
+        embed.add_field(
+            name="How to get your role",
+            value="1. React with the emoji for your desired role\n"
+            "2. Channels will become visible based on your role\n"
+            "3. You can change your role by reacting with a different emoji",
+            inline=False,
+        )
+
+        embed.set_footer(text="Role assignment powered by Hear! Hear! Bot")
+
+        # Send the role assignment message
+        role_msg = await role_channel.send(embed=embed)
+
+        # Add reactions
+        for emoji, role in emoji_roles:
+            await role_msg.add_reaction(emoji)
+            await asyncio.sleep(0.5)
+
+        logger.info(
+            f"Created role assignment message with {len(emoji_roles)} role options"
+        )
+        return role_msg
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        """Handle role assignment reactions"""
+        if payload.user_id == self.bot.user.id:
+            return
+
+        guild = self.bot.get_guild(payload.guild_id)
+        if not guild:
+            return
+
+        member = guild.get_member(payload.user_id)
+        if not member:
+            return
+
+        channel = guild.get_channel(payload.channel_id)
+        if not channel or channel.name != "role-assignment":
+            return
+
+        # Define emoji to role mapping
+        emoji_roles = {"🥊": "Debater", "⚖️": "Adjudicator", "👀": "Spectator"}
+
+        emoji = str(payload.emoji)
+        if emoji not in emoji_roles:
+            return
+
+        # Get the role
+        role_name = emoji_roles[emoji]
+        role = discord.utils.get(guild.roles, name=role_name)
+        if not role:
+            return
+
+        try:
+            # Remove other tournament roles first
+            tournament_roles = [
+                discord.utils.get(guild.roles, name="Debater"),
+                discord.utils.get(guild.roles, name="Adjudicator"),
+                discord.utils.get(guild.roles, name="Spectator"),
+            ]
+            tournament_roles = [r for r in tournament_roles if r and r in member.roles]
+
+            if tournament_roles:
+                await member.remove_roles(
+                    *tournament_roles, reason="Role assignment - removing old roles"
+                )
+
+            # Add new role
+            await member.add_roles(
+                role, reason=f"Role assignment - assigned {role_name}"
+            )
+
+            logger.info(f"Assigned {role_name} role to {member.display_name}")
+
+        except discord.Forbidden:
+            logger.error(f"No permission to assign roles to {member.display_name}")
+        except Exception as e:
+            logger.error(f"Error assigning role to {member.display_name}: {e}")
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
+        """Handle role removal when reaction is removed"""
+        if payload.user_id == self.bot.user.id:
+            return
+
+        guild = self.bot.get_guild(payload.guild_id)
+        if not guild:
+            return
+
+        member = guild.get_member(payload.user_id)
+        if not member:
+            return
+
+        channel = guild.get_channel(payload.channel_id)
+        if not channel or channel.name != "role-assignment":
+            return
+
+        # Define emoji to role mapping
+        emoji_roles = {"🥊": "Debater", "⚖️": "Adjudicator", "👀": "Spectator"}
+
+        emoji = str(payload.emoji)
+        if emoji not in emoji_roles:
+            return
+
+        # Get the role
+        role_name = emoji_roles[emoji]
+        role = discord.utils.get(guild.roles, name=role_name)
+        if not role or role not in member.roles:
+            return
+
+        try:
+            await member.remove_roles(
+                role, reason=f"Role assignment - removed {role_name}"
+            )
+            logger.info(f"Removed {role_name} role from {member.display_name}")
+
+        except discord.Forbidden:
+            logger.error(f"No permission to remove roles from {member.display_name}")
+        except Exception as e:
+            logger.error(f"Error removing role from {member.display_name}: {e}")
+
+    @app_commands.command(
+        name="tournament_cleanup", description="Clean up tournament channels and roles"
+    )
+    @app_commands.describe(
+        confirm="Type 'DELETE' to confirm deletion of all tournament channels"
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def tournament_cleanup(self, interaction: discord.Interaction, confirm: str):
+        """Clean up all tournament-related channels and categories"""
+
+        if confirm.upper() != "DELETE":
+            await interaction.response.send_message(
+                "❌ Please type `DELETE` to confirm cleanup of tournament channels.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer()
+
+        try:
+            guild = interaction.guild
+            deleted_count = 0
+
+            # Categories to delete
+            categories_to_delete = []
+            for category in guild.categories:
+                if category.name.startswith("Venue ") or category.name in [
+                    "Welcome",
+                    "Info Desk",
+                    "Feedback & Check-in",
+                    "Grand Auditorium",
+                ]:
+                    categories_to_delete.append(category)
+
+            # Delete categories and their channels
+            for category in categories_to_delete:
+                for channel in category.channels:
+                    await channel.delete(reason="Tournament cleanup")
+                    deleted_count += 1
+                    await asyncio.sleep(0.5)
+
+                await category.delete(reason="Tournament cleanup")
+                await asyncio.sleep(0.5)
+
+            embed = discord.Embed(
+                title="✅ Tournament Cleanup Complete",
+                description=f"Deleted {deleted_count} channels and {len(categories_to_delete)} categories.",
+                color=discord.Color.green(),
+            )
+
+            embed.add_field(
+                name="Note",
+                value="Tournament roles (Debater, Adjudicator, Spectator) were preserved.\n"
+                "You can delete them manually if needed.",
+                inline=False,
+            )
+
+            await interaction.followup.send(embed=embed)
+
+        except Exception as e:
+            logger.error(f"Error during tournament cleanup: {e}")
+            await interaction.followup.send(
+                f"❌ Error during cleanup: {str(e)}", ephemeral=True
+            )
+
+
+async def setup(bot):
+    await bot.add_cog(TournamentSetup(bot))

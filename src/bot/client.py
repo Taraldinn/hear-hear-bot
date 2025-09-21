@@ -185,6 +185,7 @@ class HearHearBot(commands.AutoShardedBot):
             "src.commands.moderation",  # Advanced moderation system
             "src.commands.configuration",  # Server configuration commands
             "src.commands.help",  # Enhanced help system
+            "src.commands.tournament",  # Tournament setup system
             "src.events.member",
             "src.events.error",
         ]
