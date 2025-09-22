@@ -626,7 +626,7 @@ class WebServer:
                 status=503,
             )
 
-    async def start_server(self, port: int = 8080, host: str = "0.0.0.0") -> None:
+    async def start_server(self, port: int = 8080, host: str = "0.0.0.0"):
         """Start the web server"""
         try:
             runner = web.AppRunner(self.app)
@@ -636,6 +636,7 @@ class WebServer:
             await site.start()
 
             logger.info(f"Web server started on http://{host}:{port}")
+            return runner
         except Exception as e:
             logger.error(f"Failed to start web server: {e}")
             raise
