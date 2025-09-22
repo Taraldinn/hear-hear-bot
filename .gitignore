@@ -73,3 +73,6 @@ error.log*
 # Backup files
 *.bak
 *.backup
+
+# Legacy files (archived old code with credentials)
+legacy/

@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hear! Hear! Bot - Complete Documentation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #5865F2;
+            --secondary-color: #57F287;
+            --bg-color: #2C2F33;
+            --card-bg: #36393F;
+            --text-color: #DCDDDE;
+            --text-muted: #8E9297;
+            --border-color: #4F545C;
+            --success-color: #57F287;
+            --warning-color: #FEE75C;
+            --error-color: #ED4245;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #4752C4 100%);
+            padding: 2rem 0;
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .nav {
+            background-color: var(--card-bg);
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+        }
+
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .nav-link {
+            color: var(--text-color);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .section {
+            background-color: var(--card-bg);
+            margin-bottom: 2rem;
+            padding: 2rem;
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+        }
+
+        .section h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .section h3 {
+            color: var(--secondary-color);
+            font-size: 1.5rem;
+            margin: 1.5rem 0 1rem 0;
+        }
+
+        .command-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .command-card {
+            background-color: var(--bg-color);
+            padding: 1.5rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+        }
+
+        .command-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color);
+        }
+
+        .command-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--secondary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .command-description {
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .command-usage {
+            background-color: rgba(87, 242, 135, 0.1);
+            padding: 0.8rem;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            border-left: 3px solid var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .permission-tag {
+            display: inline-block;
+            background-color: var(--warning-color);
+            color: var(--bg-color);
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .feature-list li:before {
+            content: "✅";
+            position: absolute;
+            left: 0;
+            top: 0.5rem;
+        }
+
+        .code-block {
+            background-color: var(--bg-color);
+            padding: 1rem;
+            border-radius: 5px;
+            border-left: 3px solid var(--primary-color);
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+
+        .architecture-diagram {
+            background-color: var(--bg-color);
+            padding: 2rem;
+            border-radius: 10px;
+            margin: 1.5rem 0;
+            text-align: center;
+        }
+
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .tech-item {
+            background-color: var(--bg-color);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .tech-item h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-left: 0.5rem;
+        }
+
+        .status-active {
+            background-color: var(--success-color);
+            color: var(--bg-color);
+        }
+
+        .status-planned {
+            background-color: var(--warning-color);
+            color: var(--bg-color);
+        }
+
+        .toc {
+            background-color: var(--bg-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .toc h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 1rem;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: block;
+            padding: 0.3rem 0;
+            transition: color 0.3s ease;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .warning-box {
+            background-color: rgba(254, 231, 92, 0.1);
+            border: 1px solid var(--warning-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .warning-box h4 {
+            color: var(--warning-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box {
+            background-color: rgba(88, 101, 242, 0.1);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .info-box h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .command-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-links {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+            
+            .tech-stack {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">🎤 Hear! Hear! Bot</div>
+            <div class="subtitle">Complete Documentation & API Reference</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <nav class="nav">
+            <div class="nav-links">
+                <a href="#overview" class="nav-link">Overview</a>
+                <a href="#setup" class="nav-link">Setup</a>
+                <a href="#commands" class="nav-link">Commands</a>
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#architecture" class="nav-link">Architecture</a>
+                <a href="#api" class="nav-link">API Reference</a>
+                <a href="#deployment" class="nav-link">Deployment</a>
+            </div>
+        </nav>
+
+        <div class="toc">
+            <h3>📚 Table of Contents</h3>
+            <ul>
+                <li><a href="#overview">🎯 Overview</a></li>
+                <li><a href="#setup">⚙️ Setup & Installation</a></li>
+                <li><a href="#commands">🤖 Commands Reference</a>
+                    <ul style="padding-left: 1rem;">
+                        <li><a href="#tournament-commands">🏆 Tournament Commands</a></li>
+                        <li><a href="#tabby-commands">📊 Tabbycat Integration</a></li>
+                        <li><a href="#admin-commands">👑 Admin Commands</a></li>
+                        <li><a href="#utility-commands">🔧 Utility Commands</a></li>
+                        <li><a href="#timer-commands">⏰ Timer Commands</a></li>
+                        <li><a href="#moderation-commands">🛡️ Moderation Commands</a></li>
+                    </ul>
+                </li>
+                <li><a href="#features">✨ Features</a></li>
+                <li><a href="#architecture">🏗️ Architecture</a></li>
+                <li><a href="#api">📡 API Reference</a></li>
+                <li><a href="#deployment">🚀 Deployment</a></li>
+            </ul>
+        </div>
+
+        <section id="overview" class="section">
+            <h2>🎯 Overview</h2>
+            <p>Hear! Hear! Bot is a comprehensive Discord bot designed specifically for debate tournaments and parliamentary-style debating communities. Built with modern Discord.py features, it provides seamless integration with Tabbycat tournament management software and offers a complete suite of tools for tournament administrators, adjudicators, and debaters.</p>
+            
+            <h3>🎪 Key Capabilities</h3>
+            <ul class="feature-list">
+                <li><strong>Tournament Management:</strong> Complete tournament setup, role assignment, and channel creation</li>
+                <li><strong>Tabbycat Integration:</strong> Full synchronization with Tabbycat tournament software</li>
+                <li><strong>Participant Registration:</strong> Seamless registration system for debaters and adjudicators</li>
+                <li><strong>Timer System:</strong> Advanced debate timing with prep time, speeches, and POI management</li>
+                <li><strong>Feedback System:</strong> Adjudicator feedback submission and management</li>
+                <li><strong>Venue Management:</strong> Automated participant movement between prep and debate rooms</li>
+                <li><strong>Moderation Tools:</strong> Comprehensive moderation and announcement systems</li>
+                <li><strong>Modern UI:</strong> Discord's latest UI components including dropdowns and select menus</li>
+            </ul>
+
+            <div class="info-box">
+                <h4>🆕 Latest Updates</h4>
+                <p>The bot has been recently updated with modern Discord UI components, enhanced security features, and complete TabbyBot feature integration. All commands now support both traditional prefix commands and modern slash commands.</p>
+            </div>
+        </section>
+
+        <section id="setup" class="section">
+            <h2>⚙️ Setup & Installation</h2>
+            
+            <h3>📋 Prerequisites</h3>
+            <ul class="feature-list">
+                <li>Python 3.10 or higher</li>
+                <li>Discord Bot Token</li>
+                <li>MongoDB Database (local or cloud)</li>
+                <li>Tabbycat tournament instance (optional)</li>
+                <li>Server with appropriate permissions</li>
+            </ul>
+
+            <h3>🔧 Installation Steps</h3>
+            
+            <div class="code-block">
+                <h4>1. Clone the Repository</h4>
+                <pre><code class="language-bash">git clone https://github.com/Taraldinn/hear-hear-bot.git
+cd hear-hear-bot</code></pre>
+            </div>
+
+            <div class="code-block">
+                <h4>2. Install Dependencies</h4>
+                <pre><code class="language-bash"># Using pipenv (recommended)
+pipenv install
+
+# Or using pip
+pip install -r requirements.txt</code></pre>
+            </div>
+
+            <div class="code-block">
+                <h4>3. Environment Configuration</h4>
+                <pre><code class="language-bash"># Create .env file
+cp .env.example .env
+
+# Edit configuration
+nano .env</code></pre>
+            </div>
+
+            <h3>🔐 Environment Variables</h3>
+            <div class="code-block">
+                <pre><code class="language-bash"># Discord Configuration
+DISCORD_TOKEN=your_bot_token_here
+GUILD_ID=your_server_id
+COMMAND_PREFIX=.
+
+# Database Configuration
+MONGODB_CONNECTION_STRING=mongodb://localhost:27017/
+DATABASE_NAME=hear_hear_bot
+
+# Web Server Configuration
+PORT=8080
+HOST=0.0.0.0
+
+# Tabbycat Integration (Optional)
+TABBYCAT_URL=https://your-tabbycat-instance.com
+TABBYCAT_TOKEN=your_api_token
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FILE=bot.log</code></pre>
+            </div>
+
+            <div class="warning-box">
+                <h4>⚠️ Security Notice</h4>
+                <p>Never commit your .env file to version control. Keep your Discord token and database credentials secure. Use environment variables in production deployments.</p>
+            </div>
+
+            <h3>🚀 Running the Bot</h3>
+            <div class="code-block">
+                <pre><code class="language-bash"># Development mode
+python main.py
+
+# Production mode (with gunicorn)
+gunicorn -w 1 -k aiohttp.GunicornWebWorker main:app --bind 0.0.0.0:8080
+
+# Using Docker
+docker build -t hear-hear-bot .
+docker run -d --env-file .env -p 8080:8080 hear-hear-bot</code></pre>
+            </div>
+        </section>
+
+        <section id="commands" class="section">
+            <h2>🤖 Commands Reference</h2>
+            <p>Hear! Hear! Bot provides an extensive command set organized by functionality. Most commands support both traditional prefix (.) and modern slash (/) command formats.</p>
+
+            <div id="tournament-commands">
+                <h3>🏆 Tournament Commands</h3>
+                <div class="command-grid">
+                    <div class="command-card">
+                        <div class="permission-tag">Administrator</div>
+                        <div class="command-name">.setup-tournament</div>
+                        <div class="command-description">Complete tournament setup with roles, channels, and permissions</div>
+                        <div class="command-usage">.setup-tournament "Tournament Name"</div>
+                        <p><strong>Features:</strong></p>
+                        <ul>
+                            <li>Creates all necessary roles</li>
+                            <li>Sets up channel categories</li>
+                            <li>Configures permissions</li>
+                            <li>Generates onboarding message</li>
+                        </ul>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="permission-tag">Administrator</div>
+                        <div class="command-name">.create-venues</div>
+                        <div class="command-description">Create debate venues with prep rooms and debate channels</div>
+                        <div class="command-usage">.create-venues &lt;count&gt; [prefix]</div>
+                        <p><strong>Example:</strong> .create-venues 5 "Room"</p>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="permission-tag">Administrator</div>
+                        <div class="command-name">.assign-roles</div>
+                        <div class="command-description">Modern UI-based role assignment system</div>
+                        <div class="command-usage">.assign-roles</div>
+                        <p><strong>Features:</strong></p>
+                        <ul>
+                            <li>Dropdown role selection</li>
+                            <li>Automatic permission assignment</li>
+                            <li>Duplicate registration prevention</li>
+                        </ul>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="command-name">.tournament-info</div>
+                        <div class="command-description">Display current tournament information and statistics</div>
+                        <div class="command-usage">.tournament-info</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tabby-commands">
+                <h3>📊 Tabbycat Integration Commands</h3>
+                <div class="command-grid">
+                    <div class="command-card">
+                        <div class="permission-tag">Administrator</div>
+                        <div class="command-name">.tabsync</div>
+                        <div class="command-description">Synchronize server with Tabbycat tournament</div>
+                        <div class="command-usage">.tabsync &lt;TABBYCAT_URL&gt; &lt;API_TOKEN&gt;</div>
+                        <p><strong>Features:</strong></p>
+                        <ul>
+                            <li>Full tournament data sync</li>
+                            <li>Participant and adjudicator import</li>
+                            <li>Round and motion synchronization</li>
+                        </ul>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="command-name">.register</div>
+                        <div class="command-description">Register for tournament using registration key</div>
+                        <div class="command-usage">.register &lt;key&gt;</div>
+                        <p><strong>Supports:</strong> Both debaters and adjudicators</p>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="command-name">.checkin / .checkout</div>
+                        <div class="command-description">Check in/out for tournament rounds</div>
+                        <div class="command-usage">.checkin<br>.checkout</div>
+                        <p><strong>Note:</strong> Updates Tabbycat availability status</p>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="command-name">.status</div>
+                        <div class="command-description">View tournament status and next round information</div>
+                        <div class="command-usage">.status</div>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="command-name">.motion</div>
+                        <div class="command-description">Display motion for specified round</div>
+                        <div class="command-usage">.motion &lt;round_abbreviation&gt;</div>
+                        <p><strong>Example:</strong> .motion R1</p>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="command-name">.feedback</div>
+                        <div class="command-description">Submit feedback for adjudicators</div>
+                        <div class="command-usage">.feedback &lt;round&gt; &lt;@adjudicator&gt; &lt;score&gt;</div>
+                        <p><strong>Features:</strong></p>
+                        <ul>
+                            <li>Privacy protection (deletes command)</li>
+                            <li>Score validation (0-10)</li>
+                            <li>Optional feedback images</li>
+                        </ul>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="permission-tag">Administrator</div>
+                        <div class="command-name">.delete-data</div>
+                        <div class="command-description">Safely delete all tournament data</div>
+                        <div class="command-usage">.delete-data YES I AM 100% SURE</div>
+                        <p><strong>Warning:</strong> Irreversible action with confirmation required</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="timer-commands">
+                <h3>⏰ Timer Commands</h3>
+                <div class="command-grid">
+                    <div class="command-card">
+                        <div class="permission-tag">Adjudicator</div>
+                        <div class="command-name">.timer</div>
+                        <div class="command-description">Advanced debate timer with multiple modes</div>
+                        <div class="command-usage">.timer &lt;duration&gt; [type]</div>
+                        <p><strong>Types:</strong> prep, speech, poi, break</p>
+                        <p><strong>Example:</strong> .timer 8 speech</p>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="permission-tag">Adjudicator</div>
+                        <div class="command-name">.timer-stop</div>
+                        <div class="command-description">Stop current running timer</div>
+                        <div class="command-usage">.timer-stop</div>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="permission-tag">Adjudicator</div>
+                        <div class="command-name">.timer-pause</div>
+                        <div class="command-description">Pause/resume current timer</div>
+                        <div class="command-usage">.timer-pause</div>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="command-name">.timer-status</div>
+                        <div class="command-description">Check current timer status</div>
+                        <div class="command-usage">.timer-status</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="moderation-commands">
+                <h3>🛡️ Moderation & Venue Management</h3>
+                <div class="command-grid">
+                    <div class="command-card">
+                        <div class="permission-tag">Manage Messages</div>
+                        <div class="command-name">.announce</div>
+                        <div class="command-description">Send announcements to all debate channels</div>
+                        <div class="command-usage">.announce &lt;message&gt;</div>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="permission-tag">Manage Messages</div>
+                        <div class="command-name">.begin-debate</div>
+                        <div class="command-description">Move all participants from prep rooms to debate rooms</div>
+                        <div class="command-usage">.begin-debate</div>
+                        <p><strong>Features:</strong></p>
+                        <ul>
+                            <li>Global participant movement</li>
+                            <li>Automatic mute/unmute handling</li>
+                            <li>Venue-aware processing</li>
+                        </ul>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="permission-tag">Adjudicator</div>
+                        <div class="command-name">.call-to-venue</div>
+                        <div class="command-description">Move participants in current venue to debate room</div>
+                        <div class="command-usage">.call-to-venue</div>
+                        <p><strong>Note:</strong> Works only within venue categories</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-commands">
+                <h3>👑 Administrative Commands</h3>
+                <div class="command-grid">
+                    <div class="command-card">
+                        <div class="permission-tag">Administrator</div>
+                        <div class="command-name">.reload</div>
+                        <div class="command-description">Reload bot cogs and extensions</div>
+                        <div class="command-usage">.reload [cog_name]</div>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="permission-tag">Administrator</div>
+                        <div class="command-name">.sync</div>
+                        <div class="command-description">Synchronize slash commands</div>
+                        <div class="command-usage">.sync</div>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="permission-tag">Administrator</div>
+                        <div class="command-name">.logs</div>
+                        <div class="command-description">View recent bot logs</div>
+                        <div class="command-usage">.logs [lines]</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="utility-commands">
+                <h3>🔧 Utility Commands</h3>
+                <div class="command-grid">
+                    <div class="command-card">
+                        <div class="command-name">.help</div>
+                        <div class="command-description">Display help information</div>
+                        <div class="command-usage">.help [command]</div>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="command-name">.ping</div>
+                        <div class="command-description">Check bot latency and status</div>
+                        <div class="command-usage">.ping</div>
+                    </div>
+
+                    <div class="command-card">
+                        <div class="command-name">.about</div>
+                        <div class="command-description">Bot information and statistics</div>
+                        <div class="command-usage">.about</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="section">
+            <h2>✨ Key Features</h2>
+            
+            <h3>🎪 Tournament Management</h3>
+            <ul class="feature-list">
+                <li><strong>Automated Setup:</strong> One-command tournament initialization</li>
+                <li><strong>Role Management:</strong> Automatic role creation and assignment</li>
+                <li><strong>Channel Creation:</strong> Organized channel structure with proper permissions</li>
+                <li><strong>Venue Management:</strong> Automated prep and debate room creation</li>
+                <li><strong>Permission System:</strong> Granular permission control per role</li>
+            </ul>
+
+            <h3>📊 Tabbycat Integration</h3>
+            <ul class="feature-list">
+                <li><strong>Real-time Sync:</strong> Live synchronization with Tabbycat</li>
+                <li><strong>Participant Registration:</strong> Seamless key-based registration</li>
+                <li><strong>Check-in System:</strong> Availability tracking and updates</li>
+                <li><strong>Motion Display:</strong> Round-specific motion sharing</li>
+                <li><strong>Feedback Collection:</strong> Adjudicator feedback submission</li>
+                <li><strong>Data Management:</strong> Secure data handling and deletion</li>
+            </ul>
+
+            <h3>⏰ Advanced Timer System</h3>
+            <ul class="feature-list">
+                <li><strong>Multiple Timer Types:</strong> Prep, speech, POI, and break timers</li>
+                <li><strong>Visual Feedback:</strong> Real-time timer displays with progress bars</li>
+                <li><strong>Audio Alerts:</strong> Customizable notification sounds</li>
+                <li><strong>Pause/Resume:</strong> Full timer control capabilities</li>
+                <li><strong>Auto-cleanup:</strong> Automatic message management</li>
+            </ul>
+
+            <h3>🎨 Modern User Interface</h3>
+            <ul class="feature-list">
+                <li><strong>Discord UI Components:</strong> Dropdowns, buttons, and select menus</li>
+                <li><strong>Interactive Registration:</strong> User-friendly role selection</li>
+                <li><strong>Rich Embeds:</strong> Beautiful information displays</li>
+                <li><strong>Responsive Design:</strong> Optimized for all device types</li>
+                <li><strong>Accessibility:</strong> Screen reader friendly interfaces</li>
+            </ul>
+
+            <h3>🛡️ Security & Privacy</h3>
+            <ul class="feature-list">
+                <li><strong>Permission Validation:</strong> Strict command access control</li>
+                <li><strong>Data Encryption:</strong> Secure database storage</li>
+                <li><strong>Privacy Protection:</strong> Automatic sensitive message deletion</li>
+                <li><strong>Audit Logging:</strong> Comprehensive action tracking</li>
+                <li><strong>Rate Limiting:</strong> Abuse prevention mechanisms</li>
+            </ul>
+        </section>
+
+        <section id="architecture" class="section">
+            <h2>🏗️ Architecture & Technology Stack</h2>
+            
+            <div class="architecture-diagram">
+                <h3>🏛️ System Architecture</h3>
+                <div style="font-family: monospace; line-height: 2;">
+                    📱 Discord Client<br>
+                    ⬇️<br>
+                    🤖 Discord.py Bot Framework<br>
+                    ⬇️<br>
+                    🎯 Command Handlers & Cogs<br>
+                    ⬇️<br>
+                    🗄️ MongoDB Database ↔️ 📊 Tabbycat API<br>
+                    ⬇️<br>
+                    🌐 Web Server (aiohttp) ↔️ 📄 Documentation
+                </div>
+            </div>
+
+            <h3>💻 Technology Stack</h3>
+            <div class="tech-stack">
+                <div class="tech-item">
+                    <h4>🐍 Backend</h4>
+                    <p>Python 3.10+<br>discord.py 2.3+<br>asyncio</p>
+                </div>
+                <div class="tech-item">
+                    <h4>🗄️ Database</h4>
+                    <p>MongoDB<br>pymongo<br>GridFS</p>
+                </div>
+                <div class="tech-item">
+                    <h4>🌐 Web Server</h4>
+                    <p>aiohttp<br>Jinja2<br>Static Files</p>
+                </div>
+                <div class="tech-item">
+                    <h4>🔗 Integration</h4>
+                    <p>Tabbycat API<br>REST Endpoints<br>Webhooks</p>
+                </div>
+                <div class="tech-item">
+                    <h4>🚀 Deployment</h4>
+                    <p>Docker<br>Gunicorn<br>Environment Variables</p>
+                </div>
+                <div class="tech-item">
+                    <h4>📊 Monitoring</h4>
+                    <p>Logging<br>Error Tracking<br>Performance Metrics</p>
+                </div>
+            </div>
+
+            <h3>📁 Project Structure</h3>
+            <div class="code-block">
+                <pre><code>hear-hear-bot/
+├── src/
+│   ├── bot/
+│   │   ├── client.py          # Main bot client
+│   │   └── client_new.py      # Enhanced client features
+│   ├── commands/
+│   │   ├── admin.py           # Administrative commands
+│   │   ├── tabby.py          # Tabbycat integration
+│   │   ├── tournament.py     # Tournament management
+│   │   ├── timer.py          # Timer functionality
+│   │   ├── moderation.py     # Moderation tools
+│   │   └── utility.py        # Utility commands
+│   ├── database/
+│   │   ├── connection.py     # Database connection
+│   │   └── models.py         # Data models
+│   ├── events/
+│   │   ├── error.py          # Error handling
+│   │   └── member.py         # Member events
+│   └── utils/
+│       ├── image_generator.py # Image generation
+│       ├── language.py       # Language utilities
+│       └── timer.py          # Timer utilities
+├── web/
+│   ├── server.py             # Web server
+│   ├── templates/            # HTML templates
+│   └── static/               # CSS, JS, assets
+├── config/
+│   └── settings.py           # Configuration
+├── data/                     # Data files
+├── assets/                   # Bot assets
+├── main.py                   # Application entry point
+├── requirements.txt          # Python dependencies
+└── Dockerfile               # Container configuration</code></pre>
+            </div>
+
+            <h3>🔄 Data Flow</h3>
+            <ol class="feature-list">
+                <li><strong>Command Processing:</strong> Discord message → Command parser → Cog handler</li>
+                <li><strong>Database Operations:</strong> Handler → Database layer → MongoDB</li>
+                <li><strong>Tabbycat Sync:</strong> API calls → Data processing → Database update</li>
+                <li><strong>Response Generation:</strong> Data → Template rendering → Discord response</li>
+                <li><strong>Error Handling:</strong> Exception → Logger → User feedback</li>
+            </ol>
+        </section>
+
+        <section id="api" class="section">
+            <h2>📡 API Reference</h2>
+            
+            <h3>🌐 Web Endpoints</h3>
+            <div class="command-grid">
+                <div class="command-card">
+                    <div class="command-name">GET /</div>
+                    <div class="command-description">Bot homepage and status</div>
+                    <div class="command-usage">curl https://your-bot.com/</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">GET /docs</div>
+                    <div class="command-description">This documentation page</div>
+                    <div class="command-usage">curl https://your-bot.com/docs</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">GET /commands</div>
+                    <div class="command-description">Available commands list</div>
+                    <div class="command-usage">curl https://your-bot.com/commands</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">GET /health</div>
+                    <div class="command-description">Health check endpoint</div>
+                    <div class="command-usage">curl https://your-bot.com/health</div>
+                </div>
+
+                <div class="command-card">
+                    <div class="command-name">GET /stats</div>
+                    <div class="command-description">Bot statistics and metrics</div>
+                    <div class="command-usage">curl https://your-bot.com/stats</div>
+                </div>
+            </div>
+
+            <h3>🔗 Tabbycat API Integration</h3>
+            <div class="info-box">
+                <h4>📊 Supported Endpoints</h4>
+                <p>The bot integrates with the following Tabbycat API endpoints:</p>
+            </div>
+
+            <div class="code-block">
+                <pre><code class="language-json">{
+  "tournaments": "/api/v1/tournaments",
+  "institutions": "/api/v1/tournaments/{id}/institutions",
+  "teams": "/api/v1/tournaments/{id}/teams", 
+  "speakers": "/api/v1/tournaments/{id}/speakers",
+  "adjudicators": "/api/v1/tournaments/{id}/adjudicators",
+  "rounds": "/api/v1/tournaments/{id}/rounds",
+  "motions": "/api/v1/tournaments/{id}/rounds/{round}/motions",
+  "pairings": "/api/v1/tournaments/{id}/rounds/{round}/pairings",
+  "feedback": "/api/v1/tournaments/{id}/feedback",
+  "checkin": "/api/v1/tournaments/{id}/checkin/{type}/{id}"
+}</code></pre>
+            </div>
+
+            <h3>🔐 Authentication</h3>
+            <div class="code-block">
+                <pre><code class="language-python"># Tabbycat API Authentication
+headers = {
+    "Authorization": f"Token {api_token}",
+    "Content-Type": "application/json"
+}
+
+# Example API call
+response = requests.get(
+    f"{tabbycat_url}/api/v1/tournaments",
+    headers=headers,
+    timeout=10
+)</code></pre>
+            </div>
+
+            <h3>📝 Database Schema</h3>
+            <div class="code-block">
+                <pre><code class="language-json">{
+  "tournaments": {
+    "_id": "guild_id",
+    "tournament": "tournament_url",
+    "token": "api_token",
+    "name": "tournament_name",
+    "teams": [...],
+    "adjudicators": [...],
+    "rounds": [...],
+    "created_at": "timestamp",
+    "updated_at": "timestamp"
+  },
+  "timers": {
+    "_id": "timer_id",
+    "guild_id": "guild_id",
+    "channel_id": "channel_id",
+    "duration": 480,
+    "timer_type": "speech",
+    "start_time": "timestamp",
+    "status": "running"
+  }
+}</code></pre>
+            </div>
+        </section>
+
+        <section id="deployment" class="section">
+            <h2>🚀 Deployment Guide</h2>
+            
+            <h3>🐳 Docker Deployment</h3>
+            <div class="code-block">
+                <pre><code class="language-dockerfile"># Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+EXPOSE 8080
+
+CMD ["python", "main.py"]</code></pre>
+            </div>
+
+            <div class="code-block">
+                <pre><code class="language-yaml"># docker-compose.yml
+version: '3.8'
+services:
+  bot:
+    build: .
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - MONGODB_CONNECTION_STRING=${MONGODB_CONNECTION_STRING}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:5
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:</code></pre>
+            </div>
+
+            <h3>☁️ Cloud Deployment</h3>
+            
+            <h4>Heroku</h4>
+            <div class="code-block">
+                <pre><code class="language-bash"># Install Heroku CLI and login
+heroku login
+
+# Create application
+heroku create your-bot-name
+
+# Set environment variables
+heroku config:set DISCORD_TOKEN=your_token
+heroku config:set MONGODB_CONNECTION_STRING=your_mongodb_url
+
+# Deploy
+git push heroku main</code></pre>
+            </div>
+
+            <h4>Railway</h4>
+            <div class="code-block">
+                <pre><code class="language-bash"># Install Railway CLI
+npm install -g @railway/cli
+
+# Login and deploy
+railway login
+railway init
+railway up</code></pre>
+            </div>
+
+            <h3>🔧 Production Configuration</h3>
+            
+            <div class="warning-box">
+                <h4>⚠️ Security Checklist</h4>
+                <ul>
+                    <li>Use environment variables for all secrets</li>
+                    <li>Enable MongoDB authentication</li>
+                    <li>Configure firewall rules</li>
+                    <li>Set up SSL/TLS certificates</li>
+                    <li>Enable logging and monitoring</li>
+                    <li>Regular backup procedures</li>
+                </ul>
+            </div>
+
+            <h3>📊 Monitoring & Logging</h3>
+            <div class="code-block">
+                <pre><code class="language-python"># Logging Configuration
+LOGGING_CONFIG = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        },
+    },
+    'handlers': {
+        'default': {
+            'level': 'INFO',
+            'formatter': 'standard',
+            'class': 'logging.StreamHandler',
+        },
+        'file': {
+            'level': 'DEBUG',
+            'formatter': 'standard',
+            'class': 'logging.FileHandler',
+            'filename': 'bot.log',
+        },
+    },
+    'loggers': {
+        '': {
+            'handlers': ['default', 'file'],
+            'level': 'INFO',
+            'propagate': False
+        }
+    }
+}</code></pre>
+            </div>
+
+            <h3>🔄 Maintenance</h3>
+            <ul class="feature-list">
+                <li><strong>Regular Updates:</strong> Keep dependencies and Discord.py updated</li>
+                <li><strong>Database Backups:</strong> Automated daily MongoDB backups</li>
+                <li><strong>Log Rotation:</strong> Prevent log files from growing too large</li>
+                <li><strong>Performance Monitoring:</strong> Track response times and memory usage</li>
+                <li><strong>Error Tracking:</strong> Monitor and respond to bot errors</li>
+                <li><strong>Security Patches:</strong> Apply security updates promptly</li>
+            </ul>
+        </section>
+
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            <p>🎤 Hear! Hear! Bot - Comprehensive Discord Bot for Debate Tournaments</p>
+            <p>Built with ❤️ by aldinn | <a href="mailto:kferdoush617@gmail.com" style="color: var(--primary-color);">kferdoush617@gmail.com</a></p>
+            <p>Last Updated: September 2025</p>
+        </div>
+    </div>
+</body>
+</html>

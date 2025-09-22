@@ -1,0 +1,93 @@
+# =============================================================================
+# HEAR! HEAR! BOT - SYSTEMD SERVICE TEMPLATE
+# =============================================================================
+# Copy this file to /etc/systemd/system/hearhear-bot.service
+# Update the paths and user as needed for your setup
+
+[Unit]
+Description=Hear! Hear! Discord Bot - Tournament and Debate Bot
+Documentation=https://github.com/Taraldinn/hear-hear-bot
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+# Service configuration
+Type=simple
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=3
+
+# User and group (change to your user)
+User=aldinn
+Group=aldinn
+
+# Working directory (change to your bot directory)
+WorkingDirectory=/home/aldinn/Documents/code/tabbybot/hear-hear-bot
+
+# Environment
+Environment=PATH=/home/aldinn/Documents/code/tabbybot/hear-hear-bot/.venv/bin
+Environment=PYTHONPATH=/home/aldinn/Documents/code/tabbybot/hear-hear-bot
+Environment=PYTHONUNBUFFERED=1
+
+# Execution
+ExecStart=/home/aldinn/Documents/code/tabbybot/hear-hear-bot/.venv/bin/python main.py
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hearhear-bot
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/aldinn/Documents/code/tabbybot/hear-hear-bot/logs
+ReadWritePaths=/home/aldinn/Documents/code/tabbybot/hear-hear-bot/data
+
+# Resource limits
+MemoryHigh=512M
+MemoryMax=1G
+TasksMax=100
+
+[Install]
+WantedBy=multi-user.target
+
+# =============================================================================
+# INSTALLATION INSTRUCTIONS
+# =============================================================================
+#
+# 1. Copy this file to systemd directory:
+#    sudo cp hearhear-bot.service /etc/systemd/system/
+#
+# 2. Update the paths and user in the service file:
+#    sudo nano /etc/systemd/system/hearhear-bot.service
+#
+# 3. Reload systemd:
+#    sudo systemctl daemon-reload
+#
+# 4. Enable the service:
+#    sudo systemctl enable hearhear-bot
+#
+# 5. Start the service:
+#    sudo systemctl start hearhear-bot
+#
+# 6. Check status:
+#    sudo systemctl status hearhear-bot
+#
+# 7. View logs:
+#    sudo journalctl -u hearhear-bot -f
+#
+# =============================================================================
+# USEFUL COMMANDS
+# =============================================================================
+#
+# Start:     sudo systemctl start hearhear-bot
+# Stop:      sudo systemctl stop hearhear-bot
+# Restart:   sudo systemctl restart hearhear-bot
+# Status:    sudo systemctl status hearhear-bot
+# Logs:      sudo journalctl -u hearhear-bot -f
+# Enable:    sudo systemctl enable hearhear-bot
+# Disable:   sudo systemctl disable hearhear-bot
+#

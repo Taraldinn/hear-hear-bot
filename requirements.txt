@@ -1,9 +1,66 @@
-discord.py>=2.3.0
-pymongo>=4.0.0
-dnspython>=2.0.0
+# ==================== CORE DEPENDENCIES ====================
+# Discord.py - Modern Discord API wrapper
+discord.py>=2.4.0
+
+# Database and Data Handling
+pymongo>=4.6.0
+dnspython>=2.4.0
+
+# Environment and Configuration
 python-dotenv>=1.0.0
-aiohttp>=3.8.0
+
+# Web Server and HTTP
+aiohttp>=3.9.0
 aiohttp-jinja2>=1.5.0
-jinja2>=3.0.0
-Pillow>=9.0.0
-requests>=2.28.0
+jinja2>=3.1.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# ==================== PRODUCTION DEPENDENCIES ====================
+# Process monitoring and system info
+psutil>=5.9.0
+
+# Async utilities
+asyncio-throttle>=1.0.0
+
+# Date and time handling
+python-dateutil>=2.8.0
+
+# Data validation and parsing
+pydantic>=2.0.0
+
+# ==================== OPTIONAL DEPENDENCIES ====================
+# Enhanced logging (optional)
+colorlog>=6.7.0
+
+# Performance monitoring (optional)
+py-spy>=0.3.0
+
+# Environment validation (optional)
+environs>=10.0.0
+
+# ==================== DEVELOPMENT DEPENDENCIES (commented out for production) ====================
+# Uncomment these for development
+# pytest>=7.4.0
+# pytest-asyncio>=0.21.0
+# black>=23.0.0
+# flake8>=6.0.0
+# mypy>=1.5.0
+# pre-commit>=3.3.0
+
+# ==================== DEPLOYMENT DEPENDENCIES ====================
+# Web server (for production deployment)
+gunicorn>=21.2.0
+
+# Memory optimization
+orjson>=3.9.0
+
+# Security headers for web server
+aiohttp-security>=0.4.0
+
+# Rate limiting
+aiohttp-ratelimit>=1.0.0
