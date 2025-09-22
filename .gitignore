@@ -34,6 +34,7 @@ env/
 ENV/
 env.bak/
 venv.bak/
+.venv/
 
 # IDEs
 .vscode/
@@ -45,9 +46,44 @@ venv.bak/
 # Logs
 *.log
 logs/
+bot.log
 
 # Database
 *.db
+*.sqlite
+*.sqlite3
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Backup files
+*_old.py
+*_backup.py
+*_new.py
+*.bak
+
+# Test files (keep test structure but ignore temp test files)
+test_*.py
+*_test.py
+
+# Cache directories
+.cache/
+.pytest_cache/
+.mypy_cache/
+
+# Legacy files (archived)
+legacy/
 *.sqlite
 *.sqlite3
 
