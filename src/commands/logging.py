@@ -35,12 +35,14 @@ class LoggingSystem(commands.Cog):
 
     async def load_logging_configs(self):
         """Load all guild logging configurations"""
+        # Check if database is available
+        if self.db is None:
+            logger.warning("Database not available - skipping logging config load")
+            return
+            
         try:
-            configs = (
-                await self.db[COLLECTIONS["logging_configs"]]
-                .find()
-                .to_list(length=None)
-            )
+            cursor = self.db[COLLECTIONS["logging_configs"]].find()
+            configs = list(cursor)
             for config in configs:
                 self.logging_configs[config["guild_id"]] = config
             logger.info(
@@ -62,14 +64,23 @@ class LoggingSystem(commands.Cog):
 
     async def get_logging_config(self, guild_id: int) -> Optional[dict]:
         """Get logging configuration for a guild"""
+        # Check if database is available
+        if self.db is None:
+            logger.warning("Database not available - logging features disabled")
+            return None
+            
         if guild_id not in self.logging_configs:
             # Try to load from database
-            config = await self.db[COLLECTIONS["logging_configs"]].find_one(
-                {"guild_id": guild_id}
-            )
-            if config:
-                self.logging_configs[guild_id] = config
-            else:
+            try:
+                config = self.db[COLLECTIONS["logging_configs"]].find_one(
+                    {"guild_id": guild_id}
+                )
+                if config:
+                    self.logging_configs[guild_id] = config
+                else:
+                    return None
+            except Exception as e:
+                logger.error(f"Failed to get logging config for guild {guild_id}: {e}")
                 return None
         return self.logging_configs.get(guild_id)
 
@@ -584,9 +595,10 @@ class LoggingSystem(commands.Cog):
                 config["invite_tracking"] = invite_tracking
 
             # Save to database
-            await self.db[COLLECTIONS["logging_configs"]].replace_one(
-                {"guild_id": guild_id}, config, upsert=True
-            )
+            if self.db is not None:
+                self.db[COLLECTIONS["logging_configs"]].replace_one(
+                    {"guild_id": guild_id}, config, upsert=True
+                )
 
             # Update cache
             self.logging_configs[guild_id] = config

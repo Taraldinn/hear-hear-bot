@@ -638,6 +638,62 @@ class TournamentSetup(commands.Cog):
         adjudicator_role = roles.get("adjudicator")
         spectator_role = roles.get("spectator")
 
+        # Setup category permissions first
+        welcome_categories = ["Welcome"]
+        restricted_categories = ["Info Desk", "Feedback & Check-in", "Grand Auditorium"]
+        
+        for category in guild.categories:
+            if category.name in welcome_categories:
+                # Welcome categories: visible to everyone
+                await category.set_permissions(
+                    guild.default_role,
+                    read_messages=True,
+                    send_messages=False
+                )
+                logger.info(f"✅ Set welcome category permissions for {category.name}")
+                
+            elif category.name in restricted_categories:
+                # Restricted categories: hidden from @everyone, visible to role holders
+                await category.set_permissions(
+                    guild.default_role,
+                    read_messages=False
+                )
+                
+                # Grant access to role holders
+                for role in [debater_role, adjudicator_role, spectator_role]:
+                    if role:
+                        await category.set_permissions(
+                            role,
+                            read_messages=True,
+                            send_messages=True
+                        )
+                        
+                logger.info(f"✅ Set restricted category permissions for {category.name}")
+                
+            elif category.name and "venue" in category.name.lower():
+                # Venue categories: accessible to participants
+                await category.set_permissions(
+                    guild.default_role,
+                    view_channel=False
+                )
+                
+                for role in [debater_role, adjudicator_role]:
+                    if role:
+                        await category.set_permissions(
+                            role,
+                            view_channel=True
+                        )
+                        
+                if spectator_role:
+                    await category.set_permissions(
+                        spectator_role,
+                        view_channel=True
+                    )
+                    
+                logger.info(f"✅ Set venue category permissions for {category.name}")
+            
+            await asyncio.sleep(0.2)
+
         # Setup permissions for general channels
         for channel_key, channel in general_channels.items():
             if channel_key == "role_assignment":
@@ -967,6 +1023,9 @@ class TournamentSetup(commands.Cog):
 
             logger.info(f"Assigned {role_name} role to {member.display_name}")
 
+            # Send welcome message to welcome channel
+            await self.send_welcome_message(guild, member, role_name)
+
         except discord.Forbidden:
             logger.error(f"No permission to assign roles to {member.display_name}")
         except Exception as e:
@@ -1013,6 +1072,80 @@ class TournamentSetup(commands.Cog):
             logger.error(f"No permission to remove roles from {member.display_name}")
         except Exception as e:
             logger.error(f"Error removing role from {member.display_name}: {e}")
+
+    async def send_welcome_message(self, guild: discord.Guild, member: discord.Member, role_name: str):
+        """Send welcome message to the welcome channel when user gets a role"""
+        try:
+            # Find the welcome channel
+            welcome_channel = discord.utils.get(guild.text_channels, name="welcome")
+            if not welcome_channel:
+                logger.warning("Welcome channel not found for welcome message")
+                return
+
+            # Create role-specific welcome embed
+            embed = discord.Embed(
+                title="🎉 Welcome to the Tournament!",
+                color=discord.Color.green()
+            )
+
+            # Role-specific messages
+            role_messages = {
+                "Debater": {
+                    "description": f"Welcome {member.mention}! You've successfully registered as a **Debater**.",
+                    "fields": [
+                        ("🥊 What you can do:", "• Participate in debates\n• Access prep rooms\n• Submit feedback\n• Check in/out for rounds", False),
+                        ("📍 Next Steps:", "• Check the schedules channel for round timings\n• Join your assigned prep room when called\n• Follow equity guidelines", False)
+                    ]
+                },
+                "Adjudicator": {
+                    "description": f"Welcome {member.mention}! You've successfully registered as an **Adjudicator**.",
+                    "fields": [
+                        ("⚖️ What you can do:", "• Judge debates\n• Access result discussion rooms\n• Monitor prep rooms\n• Review feedback", False),
+                        ("📍 Next Steps:", "• Check the schedules channel for your assignments\n• Review adjudication guidelines\n• Join result rooms after rounds", False)
+                    ]
+                },
+                "Spectator": {
+                    "description": f"Welcome {member.mention}! You've successfully registered as a **Spectator**.",
+                    "fields": [
+                        ("👀 What you can do:", "• Watch debates\n• Submit feedback\n• Participate in general chat\n• Access tournament information", False),
+                        ("📍 Next Steps:", "• Check the schedules channel for round timings\n• Follow tournament updates in announcements\n• Enjoy the debates!", False)
+                    ]
+                }
+            }
+
+            message_data = role_messages.get(role_name, {
+                "description": f"Welcome {member.mention}! You've been assigned the **{role_name}** role.",
+                "fields": [("📍 Next Steps:", "Check the relevant channels for more information.", False)]
+            })
+
+            embed.description = message_data["description"]
+            
+            for field_name, field_value, inline in message_data["fields"]:
+                embed.add_field(name=field_name, value=field_value, inline=inline)
+
+            embed.add_field(
+                name="🔄 Need to change your role?",
+                value="Simply react with a different emoji in the role-assignment channel!",
+                inline=False
+            )
+
+            embed.add_field(
+                name="👀 Can't see new channels?",
+                value="• **Desktop**: Press `Ctrl+R` (Windows) or `Cmd+R` (Mac) to refresh\n• **Mobile**: Pull down to refresh or restart the app\n• New channels should appear in a few seconds!",
+                inline=False
+            )
+
+            embed.set_footer(text="Good luck in the tournament! 🏆")
+            embed.timestamp = discord.utils.utcnow()
+
+            await welcome_channel.send(embed=embed)
+            logger.info(f"Sent welcome message for {member.display_name} as {role_name}")
+
+        except Exception as e:
+            logger.error(f"Error sending welcome message: {e}")
+
+    @app_commands.command()
+    @app_commands.describe(confirmation="Type 'CONFIRM' to proceed with cleanup")
 
     @app_commands.command(
         name="tournament_cleanup", description="Clean up tournament channels and roles"
