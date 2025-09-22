@@ -37,7 +37,9 @@ class HearHearBot(commands.AutoShardedBot):
             help_command=None,  # We'll create a custom help command
             # Global deployment optimizations
             chunk_guilds_at_startup=False,  # Don't chunk all guilds at startup for better performance
-            member_cache_flags=discord.MemberCacheFlags.none(),  # Minimal member caching for global scale
+            member_cache_flags=discord.MemberCacheFlags.from_intents(
+                intents
+            ),  # Cache based on intents
         )
 
         self.database = database
