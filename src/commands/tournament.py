@@ -158,7 +158,8 @@ class TournamentSetup(commands.Cog):
                     value="Creating tournament roles...",
                     inline=False,
                 )
-                await progress_msg.edit(embed=embed)
+                if progress_msg:
+                    await progress_msg.edit(embed=embed)
                 roles = await self.create_tournament_roles(guild)
 
             # Step 2: Create general tournament channels
@@ -171,7 +172,8 @@ class TournamentSetup(commands.Cog):
             embed.add_field(
                 name="📁 Step 2/5", value="Creating general channels...", inline=False
             )
-            await progress_msg.edit(embed=embed)
+            if progress_msg:
+                await progress_msg.edit(embed=embed)
             general_channels = await self.create_general_channels(guild, roles)
 
             # Step 3: Create venue channels
@@ -184,7 +186,8 @@ class TournamentSetup(commands.Cog):
             embed.add_field(
                 name="🏟️ Step 3/5", value=f"Creating {venues} venues...", inline=False
             )
-            await progress_msg.edit(embed=embed)
+            if progress_msg:
+                await progress_msg.edit(embed=embed)
             venue_channels = await self.create_venue_channels(
                 guild, tournament_type, venues, roles
             )
@@ -199,7 +202,8 @@ class TournamentSetup(commands.Cog):
             embed.add_field(
                 name="🔒 Step 4/5", value="Configuring permissions...", inline=False
             )
-            await progress_msg.edit(embed=embed)
+            if progress_msg:
+                await progress_msg.edit(embed=embed)
             await self.setup_permissions(guild, roles, general_channels, venue_channels)
 
             # Step 5: Setup role assignment if requested
@@ -216,7 +220,8 @@ class TournamentSetup(commands.Cog):
                     value="Setting up role assignment...",
                     inline=False,
                 )
-                await progress_msg.edit(embed=embed)
+                if progress_msg:
+                    await progress_msg.edit(embed=embed)
                 role_assignment_msg = await self.setup_role_assignment(
                     guild, roles, general_channels
                 )
@@ -269,7 +274,8 @@ class TournamentSetup(commands.Cog):
                 text="Tournament is ready! Good luck to all participants!"
             )
 
-            await progress_msg.edit(embed=success_embed)
+            if progress_msg:
+                await progress_msg.edit(embed=success_embed)
 
         except discord.Forbidden as e:
             logger.error(f"Permission error during tournament setup: {e}")
@@ -1166,8 +1172,6 @@ class TournamentSetup(commands.Cog):
         except Exception as e:
             logger.error(f"Error sending welcome message: {e}")
 
-    @app_commands.command()
-    @app_commands.describe(confirmation="Type 'CONFIRM' to proceed with cleanup")
     @app_commands.command(
         name="tournament_cleanup", description="Clean up tournament channels and roles"
     )
