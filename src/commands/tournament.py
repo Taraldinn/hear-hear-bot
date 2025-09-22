@@ -498,6 +498,41 @@ class TournamentSetup(commands.Cog):
                     )
                     channels[channel_name.replace("-", "_")] = channel
                     logger.info(f"Created channel: #{channel_name}")
+
+                    # Set initial permissions for role-assignment channel
+                    if channel_name == "role-assignment":
+                        # Everyone can see and react in role-assignment channel
+                        await channel.set_permissions(
+                            guild.default_role,
+                            read_messages=True,
+                            send_messages=False,
+                            add_reactions=True,
+                            read_message_history=True,
+                        )
+                        logger.info(
+                            "Set role-assignment channel permissions for everyone"
+                        )
+                    elif category_name == "Welcome":
+                        # Welcome channels are visible to everyone but read-only
+                        await channel.set_permissions(
+                            guild.default_role,
+                            read_messages=True,
+                            send_messages=False,
+                            add_reactions=False,
+                        )
+                        logger.info(
+                            f"Set welcome channel permissions for #{channel_name}"
+                        )
+                    else:
+                        # Other channels are hidden until user gets a role
+                        await channel.set_permissions(
+                            guild.default_role, read_messages=False, send_messages=False
+                        )
+                        logger.info(
+                            f"Set hidden channel permissions for #{channel_name}"
+                        )
+
+                    await asyncio.sleep(0.5)
                     await asyncio.sleep(0.5)
                 else:
                     channels[channel_name.replace("-", "_")] = existing_channel
@@ -593,57 +628,227 @@ class TournamentSetup(commands.Cog):
         venue_channels: List[Dict],
     ):
         """Setup permissions for all channels and roles"""
+        logger.info("Setting up comprehensive channel permissions...")
 
         if not roles:
-            return  # Skip if no roles were created
+            logger.warning("No roles provided, skipping permission setup")
+            return
 
         debater_role = roles.get("debater")
         adjudicator_role = roles.get("adjudicator")
         spectator_role = roles.get("spectator")
 
-        # Setup permissions for venue channels
-        for venue_data in venue_channels:
-            # Prep rooms - only debaters can join
-            for prep_room in venue_data["prep_rooms"]:
-                await prep_room.set_permissions(
-                    guild.default_role, connect=False, view_channel=True
+        # Setup permissions for general channels
+        for channel_key, channel in general_channels.items():
+            if channel_key == "role_assignment":
+                # Role assignment: Visible to everyone, reactions only
+                await channel.set_permissions(
+                    guild.default_role,
+                    read_messages=True,
+                    send_messages=False,
+                    add_reactions=True,
+                    read_message_history=True,
                 )
+                # Bot can manage the channel
+                await channel.set_permissions(
+                    guild.me,
+                    read_messages=True,
+                    send_messages=True,
+                    manage_messages=True,
+                    add_reactions=True,
+                )
+                logger.info("✅ Set role-assignment channel permissions")
+
+            elif channel_key in [
+                "welcome",
+                "instructions_for_teams",
+                "instructions_for_adjudicators",
+                "equity_policy",
+            ]:
+                # Welcome channels: Everyone can read
+                await channel.set_permissions(
+                    guild.default_role,
+                    read_messages=True,
+                    send_messages=False,
+                    add_reactions=False,
+                )
+                logger.info(f"✅ Set welcome channel permissions for {channel_key}")
+
+            else:
+                # Other channels: Hidden from @everyone, visible to role holders
+                await channel.set_permissions(
+                    guild.default_role, read_messages=False, send_messages=False
+                )
+
+                # Debaters get access to most channels
                 if debater_role:
-                    await prep_room.set_permissions(
+                    await channel.set_permissions(
                         debater_role,
+                        read_messages=True,
+                        send_messages=True,
+                        add_reactions=True,
+                    )
+
+                # Adjudicators get access (no moderation powers)
+                if adjudicator_role:
+                    await channel.set_permissions(
+                        adjudicator_role,
+                        read_messages=True,
+                        send_messages=True,
+                        add_reactions=True,
+                    )
+
+                # Spectators get limited access
+                if spectator_role:
+                    can_send = channel_key in ["feedback_submission", "report_problems"]
+                    await channel.set_permissions(
+                        spectator_role,
+                        read_messages=True,
+                        send_messages=can_send,
+                        add_reactions=True,
+                    )
+
+                logger.info(f"✅ Set permissions for {channel_key}")
+
+            await asyncio.sleep(0.2)
+
+        # Setup permissions for venue channels
+        for i, venue_data in enumerate(venue_channels, 1):
+            logger.info(f"Setting permissions for Venue {i}...")
+
+            # Main debate text channel
+            if "text_channel" in venue_data:
+                text_channel = venue_data["text_channel"]
+                # Hide from @everyone
+                await text_channel.set_permissions(
+                    guild.default_role, read_messages=False
+                )
+
+                # Tournament participants can access
+                for role in [debater_role, adjudicator_role]:
+                    if role:
+                        await text_channel.set_permissions(
+                            role,
+                            read_messages=True,
+                            send_messages=True,
+                            add_reactions=True,
+                        )
+
+                # Spectators get read-only access
+                if spectator_role:
+                    await text_channel.set_permissions(
+                        spectator_role,
+                        read_messages=True,
+                        send_messages=False,
+                        add_reactions=True,
+                    )
+
+                logger.info(f"✅ Set text channel permissions for Venue {i}")
+                await asyncio.sleep(0.2)
+
+            # Main debate voice channel
+            if "debate_voice" in venue_data:
+                voice_channel = venue_data["debate_voice"]
+                # Hide from @everyone
+                await voice_channel.set_permissions(
+                    guild.default_role, view_channel=False, connect=False
+                )
+
+                # Debaters can join and speak
+                if debater_role:
+                    await voice_channel.set_permissions(
+                        debater_role,
+                        view_channel=True,
                         connect=True,
                         speak=True,
                         use_voice_activation=True,
                     )
-                await asyncio.sleep(0.3)
 
-            # Result discussion - only adjudicators can join
-            result_room = venue_data["result_room"]
-            await result_room.set_permissions(
-                guild.default_role, connect=False, view_channel=True
-            )
-            if adjudicator_role:
-                await result_room.set_permissions(
-                    adjudicator_role,
-                    connect=True,
-                    speak=True,
-                    use_voice_activation=True,
+                # Adjudicators can join and speak (no moderation powers)
+                if adjudicator_role:
+                    await voice_channel.set_permissions(
+                        adjudicator_role,
+                        view_channel=True,
+                        connect=True,
+                        speak=True,
+                        use_voice_activation=True,
+                    )
+
+                # Spectators can see but not join
+                if spectator_role:
+                    await voice_channel.set_permissions(
+                        spectator_role, view_channel=True, connect=False
+                    )
+
+                logger.info(f"✅ Set main voice channel permissions for Venue {i}")
+                await asyncio.sleep(0.2)
+
+            # Prep rooms - debaters and adjudicators only
+            prep_rooms = venue_data.get("prep_rooms", [])
+            for j, prep_room in enumerate(prep_rooms, 1):
+                # Hide from @everyone and spectators
+                await prep_room.set_permissions(
+                    guild.default_role, view_channel=False, connect=False
                 )
-            await asyncio.sleep(0.3)
 
-        # Setup permissions for general channels
-        # Make role-assignment channel visible to everyone but only allow reactions
-        if "role_assignment" in general_channels and spectator_role:
-            role_channel = general_channels["role_assignment"]
-            await role_channel.set_permissions(
-                guild.default_role,
-                send_messages=False,
-                add_reactions=True,
-                read_messages=True,
-            )
-            await asyncio.sleep(0.3)
+                # Debaters can access prep rooms
+                if debater_role:
+                    await prep_room.set_permissions(
+                        debater_role,
+                        view_channel=True,
+                        connect=True,
+                        speak=True,
+                        use_voice_activation=True,
+                    )
 
-        logger.info("Permissions setup completed")
+                # Adjudicators can access prep rooms (no moderation powers)
+                if adjudicator_role:
+                    await prep_room.set_permissions(
+                        adjudicator_role,
+                        view_channel=True,
+                        connect=True,
+                        speak=True,
+                        use_voice_activation=True,
+                    )
+
+                # Explicitly hide from spectators
+                if spectator_role:
+                    await prep_room.set_permissions(
+                        spectator_role, view_channel=False, connect=False
+                    )
+
+                logger.info(f"✅ Set prep room {j} permissions for Venue {i}")
+                await asyncio.sleep(0.2)
+
+            # Result discussion - adjudicators only
+            if "result_room" in venue_data:
+                result_room = venue_data["result_room"]
+                # Hide from everyone
+                await result_room.set_permissions(
+                    guild.default_role, view_channel=False, connect=False
+                )
+
+                # Only adjudicators can access
+                if adjudicator_role:
+                    await result_room.set_permissions(
+                        adjudicator_role,
+                        view_channel=True,
+                        connect=True,
+                        speak=True,
+                        use_voice_activation=True,
+                    )
+
+                # Explicitly deny access to others
+                for role in [debater_role, spectator_role]:
+                    if role:
+                        await result_room.set_permissions(
+                            role, view_channel=False, connect=False
+                        )
+
+                logger.info(f"✅ Set result discussion permissions for Venue {i}")
+                await asyncio.sleep(0.2)
+
+        logger.info("🎉 All channel permissions setup completed successfully!")
 
     async def setup_role_assignment(
         self, guild: discord.Guild, roles: Dict[str, discord.Role], channels: Dict
