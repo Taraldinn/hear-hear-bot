@@ -56,10 +56,85 @@ class TournamentSetup(commands.Cog):
             )
             return
 
+        # Check bot permissions BEFORE starting
+        guild = interaction.guild
+        if not guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server!", ephemeral=True
+            )
+            return
+
+        bot_member = guild.get_member(self.bot.user.id)
+        if not bot_member:
+            await interaction.response.send_message(
+                "❌ Bot member not found in server!", ephemeral=True
+            )
+            return
+
+        # Required permissions for tournament setup
+        required_permissions = [
+            ("manage_channels", "Manage Channels"),
+            ("manage_roles", "Manage Roles"),
+            ("manage_permissions", "Manage Permissions"),
+            ("send_messages", "Send Messages"),
+            ("add_reactions", "Add Reactions"),
+            ("read_message_history", "Read Message History"),
+        ]
+
+        missing_permissions = []
+        for perm_attr, perm_name in required_permissions:
+            if not getattr(bot_member.guild_permissions, perm_attr):
+                missing_permissions.append(perm_name)
+
+        if missing_permissions:
+            # Create detailed permission error embed
+            embed = discord.Embed(
+                title="❌ Missing Required Permissions",
+                description="I need the following permissions to create a tournament setup:",
+                color=discord.Color.red(),
+            )
+
+            embed.add_field(
+                name="🚫 Missing Permissions",
+                value="\n".join([f"• {perm}" for perm in missing_permissions]),
+                inline=False,
+            )
+
+            embed.add_field(
+                name="🔧 How to Fix This",
+                value=(
+                    "**Option 1: Give Administrator Permission (Recommended)**\n"
+                    "1. Go to **Server Settings** → **Roles**\n"
+                    "2. Find my role (Hear! Hear! Bot)\n"
+                    "3. Enable **Administrator** permission\n\n"
+                    "**Option 2: Give Specific Permissions**\n"
+                    "1. Go to **Server Settings** → **Roles**\n"
+                    "2. Find my role and enable the missing permissions above\n"
+                    "3. Make sure my role is **above** other roles in the hierarchy"
+                ),
+                inline=False,
+            )
+
+            embed.add_field(
+                name="⚠️ Important Notes",
+                value=(
+                    "• My role must be **higher** than the roles I need to create\n"
+                    "• I need these permissions in **all categories** I'll create\n"
+                    "• Re-run this command after fixing permissions"
+                ),
+                inline=False,
+            )
+
+            embed.set_footer(
+                text="Contact an administrator if you need help with permissions"
+            )
+
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
         await interaction.response.defer()
 
         try:
-            guild = interaction.guild
             embed = discord.Embed(
                 title="🏆 Creating Tournament Setup",
                 description=f"Setting up {tournament_type} tournament with {venues} venues...",
@@ -72,6 +147,12 @@ class TournamentSetup(commands.Cog):
             # Step 1: Create roles if requested
             roles = {}
             if setup_roles:
+                embed = discord.Embed(
+                    title="🏆 Creating Tournament Setup",
+                    description=f"Setting up {tournament_type} tournament with {venues} venues...",
+                    color=discord.Color.blue(),
+                    timestamp=datetime.now(),
+                )
                 embed.add_field(
                     name="📝 Step 1/5",
                     value="Creating tournament roles...",
@@ -81,6 +162,12 @@ class TournamentSetup(commands.Cog):
                 roles = await self.create_tournament_roles(guild)
 
             # Step 2: Create general tournament channels
+            embed = discord.Embed(
+                title="🏆 Creating Tournament Setup",
+                description=f"Setting up {tournament_type} tournament with {venues} venues...",
+                color=discord.Color.blue(),
+                timestamp=datetime.now(),
+            )
             embed.add_field(
                 name="📁 Step 2/5", value="Creating general channels...", inline=False
             )
@@ -88,6 +175,12 @@ class TournamentSetup(commands.Cog):
             general_channels = await self.create_general_channels(guild, roles)
 
             # Step 3: Create venue channels
+            embed = discord.Embed(
+                title="🏆 Creating Tournament Setup",
+                description=f"Setting up {tournament_type} tournament with {venues} venues...",
+                color=discord.Color.blue(),
+                timestamp=datetime.now(),
+            )
             embed.add_field(
                 name="🏟️ Step 3/5", value=f"Creating {venues} venues...", inline=False
             )
@@ -97,6 +190,12 @@ class TournamentSetup(commands.Cog):
             )
 
             # Step 4: Setup permissions
+            embed = discord.Embed(
+                title="🏆 Creating Tournament Setup",
+                description=f"Setting up {tournament_type} tournament with {venues} venues...",
+                color=discord.Color.blue(),
+                timestamp=datetime.now(),
+            )
             embed.add_field(
                 name="🔒 Step 4/5", value="Configuring permissions...", inline=False
             )
@@ -106,6 +205,12 @@ class TournamentSetup(commands.Cog):
             # Step 5: Setup role assignment if requested
             role_assignment_msg = None
             if setup_role_assignment and setup_roles:
+                embed = discord.Embed(
+                    title="🏆 Creating Tournament Setup",
+                    description=f"Setting up {tournament_type} tournament with {venues} venues...",
+                    color=discord.Color.blue(),
+                    timestamp=datetime.now(),
+                )
                 embed.add_field(
                     name="🎭 Step 5/5",
                     value="Setting up role assignment...",
@@ -124,11 +229,26 @@ class TournamentSetup(commands.Cog):
                 timestamp=datetime.now(),
             )
 
+            # Build role mentions safely
+            role_mentions = []
+            if roles.get("debater"):
+                role_mentions.append(f"• {roles['debater'].mention}")
+            else:
+                role_mentions.append("• Debater: Not created")
+
+            if roles.get("adjudicator"):
+                role_mentions.append(f"• {roles['adjudicator'].mention}")
+            else:
+                role_mentions.append("• Adjudicator: Not created")
+
+            if roles.get("spectator"):
+                role_mentions.append(f"• {roles['spectator'].mention}")
+            else:
+                role_mentions.append("• Spectator: Not created")
+
             success_embed.add_field(
                 name="🎭 Roles Created",
-                value=f"• {roles.get('debater', 'N/A').mention if roles.get('debater') else 'N/A'}\n"
-                f"• {roles.get('adjudicator', 'N/A').mention if roles.get('adjudicator') else 'N/A'}\n"
-                f"• {roles.get('spectator', 'N/A').mention if roles.get('spectator') else 'N/A'}",
+                value="\n".join(role_mentions),
                 inline=True,
             )
 
@@ -150,6 +270,89 @@ class TournamentSetup(commands.Cog):
             )
 
             await progress_msg.edit(embed=success_embed)
+
+        except discord.Forbidden as e:
+            logger.error(f"Permission error during tournament setup: {e}")
+
+            # Create detailed permission error embed
+            error_embed = discord.Embed(
+                title="❌ Permission Error During Setup",
+                description="I lost permissions while creating the tournament. This can happen if:",
+                color=discord.Color.red(),
+            )
+
+            error_embed.add_field(
+                name="🚫 Common Causes",
+                value=(
+                    "• My role was moved below other roles during setup\n"
+                    "• Permissions were changed while I was working\n"
+                    "• Channel category permissions conflict with my role\n"
+                    "• I reached Discord's rate limits"
+                ),
+                inline=False,
+            )
+
+            error_embed.add_field(
+                name="🔧 How to Fix This",
+                value=(
+                    "1. **Move my role to the TOP** of the role hierarchy\n"
+                    "2. Give me **Administrator** permission (recommended)\n"
+                    "3. Use `/tournament_cleanup confirmation:DELETE` to remove partial setup\n"
+                    "4. Try the tournament setup command again\n"
+                    "5. Create fewer venues at once if the problem persists"
+                ),
+                inline=False,
+            )
+
+            error_embed.add_field(
+                name="📋 Technical Details",
+                value=f"```Discord Error: {str(e)[:200]}```",
+                inline=False,
+            )
+
+            try:
+                await interaction.edit_original_response(embed=error_embed)
+            except:
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+
+        except discord.HTTPException as e:
+            logger.error(f"Discord API error during tournament setup: {e}")
+
+            error_embed = discord.Embed(
+                title="❌ Discord API Error",
+                description="A Discord API error occurred during tournament setup.",
+                color=discord.Color.red(),
+            )
+
+            if "rate limited" in str(e).lower():
+                error_embed.add_field(
+                    name="🚦 Rate Limited",
+                    value=(
+                        "Discord is rate limiting the bot due to too many requests.\n"
+                        "**Solution:** Wait a few minutes and try again with fewer venues."
+                    ),
+                    inline=False,
+                )
+            else:
+                error_embed.add_field(
+                    name="🔧 Possible Solutions",
+                    value=(
+                        "1. Try again with fewer venues\n"
+                        "2. Check if Discord is experiencing issues\n"
+                        "3. Wait a few minutes before retrying\n"
+                        "4. Use `/tournament_cleanup` if partially created"
+                    ),
+                    inline=False,
+                )
+
+            error_embed.add_field(
+                name="📋 Technical Details", value=f"```{str(e)[:500]}```", inline=False
+            )
+
+            try:
+                await interaction.edit_original_response(embed=error_embed)
+            except:
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
 
         except Exception as e:
             logger.error(f"Failed to create tournament: {e}")
@@ -627,6 +830,12 @@ class TournamentSetup(commands.Cog):
 
         try:
             guild = interaction.guild
+            if not guild:
+                await interaction.followup.send(
+                    "❌ This command can only be used in a server!", ephemeral=True
+                )
+                return
+
             deleted_count = 0
 
             # Categories to delete
