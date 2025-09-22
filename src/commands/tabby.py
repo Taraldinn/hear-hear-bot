@@ -798,12 +798,15 @@ class TabbyCommands(commands.Cog):
             )
             logger.error(f"Error in feedback command: {e}")
 
-    @commands.command(name="delete-data", aliases=["delete_data"])
+    @commands.command(
+        name="delete-tournament-data",
+        aliases=["delete_tournament_data", "clear-tournament"],
+    )
     @commands.has_permissions(administrator=True)
     async def delete_data(self, ctx, *, confirmation=""):
         """Delete all tournament data for this server
 
-        Usage: .delete-data YES I AM 100% SURE
+        Usage: .delete-tournament-data YES I AM 100% SURE
         This will permanently remove all synced tournament data.
         """
         if confirmation == "YES I AM 100% SURE":

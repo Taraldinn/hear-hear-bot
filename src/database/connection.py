@@ -89,6 +89,7 @@ class Database:
         self.connection_attempts = 0
         self.max_connection_attempts = 3
         self.is_connected = False
+        self._connection_initialized = False
 
         # Check for required dependencies
         if not ASYNCPG_AVAILABLE:
@@ -100,8 +101,60 @@ class Database:
             logger.warning("SQLAlchemy not available - ORM features disabled")
             logger.info("Install with: pip install sqlalchemy[asyncio]")
 
-        # Initialize connection
-        asyncio.create_task(self.connect())
+        # Don't initialize connection during import - wait for explicit call
+
+    def _parse_postgres_url(self, url: str) -> tuple:
+        """Parse PostgreSQL URL and extract connection parameters
+
+        Args:
+            url: PostgreSQL connection URL
+
+        Returns:
+            tuple: (clean_url, ssl_params) where clean_url has no query params
+        """
+        try:
+            from urllib.parse import urlparse, parse_qs
+
+            parsed = urlparse(url)
+
+            # Build clean URL without query parameters
+            clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+            # Extract SSL parameters
+            ssl_params = {}
+            if parsed.query:
+                query_params = parse_qs(parsed.query)
+
+                # Handle sslmode parameter
+                if "sslmode" in query_params:
+                    ssl_mode = query_params["sslmode"][0]
+                    if ssl_mode in ["require", "verify-full", "verify-ca"]:
+                        ssl_params["ssl"] = True
+                    elif ssl_mode == "prefer":
+                        ssl_params["ssl"] = "prefer"  # Let asyncpg decide
+                    # 'disable' or other values: no ssl param
+
+                # Handle channel_binding parameter (used by Neon)
+                if "channel_binding" in query_params:
+                    # Note: asyncpg handles this automatically when ssl=True
+                    # We just need to ensure SSL is enabled
+                    ssl_params["ssl"] = True
+
+            return clean_url, ssl_params
+        except Exception as e:
+            logger.warning(f"Failed to parse PostgreSQL URL: {e}")
+            return url, {}
+
+    async def ensure_connected(self) -> bool:
+        """Ensure database connection is established"""
+        if not self._connection_initialized:
+            self._connection_initialized = True
+            try:
+                return await self.connect()
+            except Exception as e:
+                logger.error("Failed to initialize database connection: %s", e)
+                return False
+        return self.is_connected
 
     async def connect(self) -> bool:
         """
@@ -135,27 +188,47 @@ class Database:
                     self.max_connection_attempts,
                 )
 
-                # Create asyncpg connection pool
-                self.pool = await asyncpg.create_pool(
-                    postgres_url,
-                    min_size=Config.DATABASE_MIN_POOL_SIZE,
-                    max_size=Config.DATABASE_MAX_POOL_SIZE,
-                    command_timeout=Config.DATABASE_TIMEOUT,
-                    server_settings={
-                        "application_name": f"{Config.BOT_NAME}-v{Config.BOT_VERSION}",
-                        "jit": "off",  # Disable JIT for better compatibility
-                    },
-                )
+                # Parse URL to handle SSL parameters
+                clean_url, ssl_params = self._parse_postgres_url(postgres_url)
+
+                # Create asyncpg connection pool if available
+                if ASYNCPG_AVAILABLE:
+                    connection_kwargs = {
+                        "dsn": clean_url,
+                        "min_size": Config.DATABASE_MIN_POOL_SIZE,
+                        "max_size": Config.DATABASE_MAX_POOL_SIZE,
+                        "command_timeout": Config.DATABASE_TIMEOUT,
+                        "server_settings": {
+                            "application_name": f"{Config.BOT_NAME}-v{Config.BOT_VERSION}",
+                            "jit": "off",  # Disable JIT for better compatibility
+                        },
+                    }
+
+                    # Add SSL parameters if present
+                    if ssl_params:
+                        connection_kwargs.update(ssl_params)
+                        logger.info(
+                            f"Using SSL configuration for asyncpg: {ssl_params}"
+                        )
+
+                    self.pool = await asyncpg.create_pool(**connection_kwargs)
 
                 # Create SQLAlchemy async engine if available
                 if SQLALCHEMY_AVAILABLE:
+                    # Use the clean URL for SQLAlchemy too
+                    sqlalchemy_url = clean_url.replace(
+                        "postgresql://", "postgresql+asyncpg://", 1
+                    )
                     self.engine = create_async_engine(
-                        Config.get_async_postgres_url(),
+                        sqlalchemy_url,
                         pool_size=Config.DATABASE_MAX_POOL_SIZE,
                         max_overflow=10,
                         pool_timeout=Config.DATABASE_TIMEOUT,
                         pool_recycle=3600,  # Recycle connections every hour
                         echo=Config.IS_DEVELOPMENT,  # Log SQL in development
+                        connect_args=(
+                            ssl_params if ssl_params else {}
+                        ),  # Pass SSL params to SQLAlchemy
                     )
 
                     # Create session factory
@@ -257,6 +330,8 @@ class Database:
         Returns:
             asyncpg.Connection or None if unavailable
         """
+        await self.ensure_connected()
+
         if not self.is_connected or not self.pool:
             logger.debug("Database not connected - connection unavailable")
             return None
@@ -274,6 +349,8 @@ class Database:
         Returns:
             AsyncSession or None if unavailable
         """
+        await self.ensure_connected()
+
         if not self.is_connected or not self.session_factory:
             logger.debug("Database not connected - session unavailable")
             return None
