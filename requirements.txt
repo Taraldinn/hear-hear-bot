@@ -62,5 +62,8 @@ orjson>=3.9.0
 # Security headers for web server
 aiohttp-security>=0.4.0
 
-# Rate limiting
-aiohttp-ratelimit>=1.0.0
+# Rate limiting (alternative approach - using slowapi for FastAPI-style rate limiting)
+# slowapi>=0.1.4
+
+# Alternative: Basic rate limiting can be implemented manually
+# No additional dependency required for basic rate limiting

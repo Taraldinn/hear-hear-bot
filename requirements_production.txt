@@ -1,0 +1,57 @@
+# ==================== CORE DEPENDENCIES ====================
+# Essential dependencies for the Discord bot
+
+# Discord.py - Modern Discord API wrapper
+discord.py>=2.4.0
+
+# Database and Data Handling
+pymongo>=4.6.0
+dnspython>=2.4.0
+
+# Environment and Configuration
+python-dotenv>=1.0.0
+
+# Web Server and HTTP
+aiohttp>=3.9.0
+aiohttp-jinja2>=1.5.0
+jinja2>=3.1.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# Date and time handling
+python-dateutil>=2.8.0
+
+# ==================== PRODUCTION DEPENDENCIES ====================
+# Process monitoring and system info
+psutil>=5.9.0
+
+# Enhanced logging
+colorlog>=6.7.0
+
+# Web server (for production deployment)
+gunicorn>=21.2.0
+
+# Memory optimization
+orjson>=3.9.0
+
+# Security headers for web server
+aiohttp-security>=0.4.0
+
+# ==================== OPTIONAL DEPENDENCIES ====================
+# Uncomment these if needed for your specific deployment
+
+# Environment validation
+# environs>=10.0.0
+
+# Data validation and parsing
+# pydantic>=2.0.0
+
+# Performance monitoring
+# py-spy>=0.3.0
+
+# Async utilities
+# asyncio-throttle>=1.0.0

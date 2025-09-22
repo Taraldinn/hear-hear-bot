@@ -1,0 +1,29 @@
+# ==================== MINIMAL DEPLOYMENT REQUIREMENTS ====================
+# Essential dependencies only - for deployment platforms with strict limits
+
+# Discord.py - Modern Discord API wrapper
+discord.py>=2.4.0
+
+# Database and Data Handling
+pymongo>=4.6.0
+dnspython>=2.4.0
+
+# Environment and Configuration
+python-dotenv>=1.0.0
+
+# Web Server and HTTP
+aiohttp>=3.9.0
+aiohttp-jinja2>=1.5.0
+jinja2>=3.1.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# Date and time handling
+python-dateutil>=2.8.0
+
+# Web server (for production deployment)
+gunicorn>=21.2.0
