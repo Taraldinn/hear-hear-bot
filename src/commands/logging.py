@@ -39,7 +39,7 @@ class LoggingSystem(commands.Cog):
         if self.db is None:
             logger.warning("Database not available - skipping logging config load")
             return
-            
+
         try:
             cursor = self.db[COLLECTIONS["logging_configs"]].find()
             configs = list(cursor)
@@ -68,7 +68,7 @@ class LoggingSystem(commands.Cog):
         if self.db is None:
             logger.warning("Database not available - logging features disabled")
             return None
-            
+
         if guild_id not in self.logging_configs:
             # Try to load from database
             try:
