@@ -9,6 +9,7 @@ connection pooling, and production optimizations.
 
 import asyncio
 import logging
+import ssl
 from typing import Optional, Dict, Any
 from pymongo import MongoClient
 from pymongo.collection import Collection
@@ -17,7 +18,9 @@ from pymongo.errors import (
     ConnectionFailure,
     ServerSelectionTimeoutError,
     OperationFailure,
-    ConfigurationError
+    ConfigurationError,
+    NetworkTimeout,
+    AutoReconnect
 )
 
 from config.settings import Config
@@ -91,7 +94,7 @@ class Database:
                 logger.info("🔌 Attempting database connection (attempt %d/%d)...", 
                           attempt, self.max_connection_attempts)
                 
-                # Create client with production-optimized settings
+                # Create client with enhanced SSL/TLS configuration for MongoDB Atlas
                 self.client = MongoClient(
                     connection_string,
                     # Connection timeouts
@@ -108,6 +111,15 @@ class Database:
                     retryWrites=True,
                     retryReads=True,
                     w="majority",
+                    
+                    # Enhanced SSL/TLS Configuration for MongoDB Atlas
+                    tls=True,
+                    tlsAllowInvalidCertificates=False,
+                    tlsAllowInvalidHostnames=False,
+                    
+                    # Additional connection stability settings
+                    heartbeatFrequencyMS=10000,
+                    waitQueueTimeoutMS=10000,
                     
                     # Application name for monitoring
                     appName=f"{Config.BOT_NAME}-v{Config.BOT_VERSION}",
@@ -126,14 +138,25 @@ class Database:
                 self.is_connected = True
                 self.connection_attempts = attempt
                 
-                logger.info("✅ Successfully connected to MongoDB!")
+                logger.info("✅ Successfully connected to MongoDB Atlas!")
                 logger.info("📊 Database: %s, Tabby Database: %s", 
                           Config.DATABASE_NAME, Config.TABBY_DATABASE_NAME)
                 
                 return True
 
-            except (ConnectionFailure, ServerSelectionTimeoutError) as e:
-                logger.warning("❌ Database connection failed (attempt %d): %s", attempt, str(e))
+            except (ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect) as e:
+                error_msg = str(e).lower()
+                if "ssl" in error_msg or "tls" in error_msg:
+                    logger.warning("❌ SSL/TLS connection failed (attempt %d): %s", attempt, str(e))
+                    logger.info("💡 Tip: Verify MongoDB Atlas network access list and SSL settings")
+                    
+                    # Try fallback connection on last attempt
+                    if attempt == self.max_connection_attempts:
+                        logger.info("🔄 Attempting alternative SSL configuration...")
+                        if self._try_alternative_ssl_connection(connection_string):
+                            return True
+                else:
+                    logger.warning("❌ Database connection failed (attempt %d): %s", attempt, str(e))
                 
             except ConfigurationError as e:
                 logger.error("⚙️  Database configuration error: %s", str(e))
@@ -142,6 +165,10 @@ class Database:
             except OperationFailure as e:
                 logger.error("🔐 Database authentication failed: %s", str(e))
                 break  # Don't retry auth failures
+                
+            except ssl.SSLError as e:
+                logger.error("🔒 SSL Certificate error (attempt %d): %s", attempt, str(e))
+                logger.info("💡 This might be due to network restrictions or outdated certificates")
                 
             except Exception as e:
                 logger.error("💥 Unexpected database error (attempt %d): %s", attempt, str(e))
@@ -156,9 +183,168 @@ class Database:
         # All connection attempts failed
         logger.error("❌ Failed to establish database connection after %d attempts", 
                     self.max_connection_attempts)
-        logger.info("🔄 Bot will continue without database functionality")
+        logger.warning("🔄 This is likely due to Python 3.13+ and OpenSSL 3.0+ compatibility issues with MongoDB Atlas")
+        logger.info("� The bot will continue in database-free mode with reduced functionality:")
+        logger.info("   ✅ Discord commands will work normally")
+        logger.info("   ✅ Timer functionality will work")
+        logger.info("   ❌ User preferences won't be saved")
+        logger.info("   ❌ Persistent data features disabled")
+        logger.info("   ❌ Analytics and logging reduced")
+        
+        logger.info("🔧 To fix this issue:")
+        logger.info("   1. Use Python 3.11 or 3.12 instead of 3.13+")
+        logger.info("   2. Update to a newer pymongo version when available")
+        logger.info("   3. Check MongoDB Atlas network access whitelist")
+        logger.info("   4. Verify your connection string is correct")
         
         self._set_disconnected_state()
+        return False
+
+    def _try_alternative_ssl_connection(self, connection_string: str) -> bool:
+        """
+        Try connection with alternative SSL configuration for OpenSSL compatibility
+        Uses different approaches to handle Python 3.13+ and OpenSSL 3.0+ compatibility issues
+        """
+        
+        # Strategy 1: Force older TLS version by modifying connection string
+        try:
+            logger.info("🔄 Trying connection with TLS 1.2 enforcement...")
+            
+            # Add TLS version parameter to connection string if not present
+            if "tlsVersion=" not in connection_string:
+                separator = "&" if "?" in connection_string else "?"
+                modified_connection = f"{connection_string}{separator}tlsVersion=1.2"
+            else:
+                modified_connection = connection_string
+            
+            self.client = MongoClient(
+                modified_connection,
+                serverSelectionTimeoutMS=30000,
+                connectTimeoutMS=30000,
+                maxPoolSize=5,
+                retryWrites=True,
+            )
+            
+            # Test connection
+            self.db = self.client[Config.DATABASE_NAME]
+            self.tabby_db = self.client[Config.TABBY_DATABASE_NAME]
+            self.client.admin.command("ping")
+            
+            # Initialize health checker
+            self.health_checker = DatabaseHealthChecker(self.client)
+            self.is_connected = True
+            
+            logger.info("✅ Connected using TLS 1.2 enforcement!")
+            logger.info("📊 Database: %s, Tabby Database: %s", 
+                      Config.DATABASE_NAME, Config.TABBY_DATABASE_NAME)
+            
+            return True
+            
+        except Exception as e:
+            logger.warning(f"❌ TLS 1.2 enforcement failed: {str(e)[:100]}...")
+        
+        # Strategy 2: Use legacy ssl parameter instead of tls
+        try:
+            logger.info("🔄 Trying legacy SSL parameter...")
+            
+            self.client = MongoClient(
+                connection_string,
+                ssl=True,  # Use old ssl parameter
+                serverSelectionTimeoutMS=30000,
+                connectTimeoutMS=30000,
+                maxPoolSize=3,
+                retryWrites=True,
+            )
+            
+            # Test connection
+            self.db = self.client[Config.DATABASE_NAME]
+            self.tabby_db = self.client[Config.TABBY_DATABASE_NAME]
+            self.client.admin.command("ping")
+            
+            # Initialize health checker
+            self.health_checker = DatabaseHealthChecker(self.client)
+            self.is_connected = True
+            
+            logger.warning("⚠️  Connected using legacy SSL parameter")
+            logger.info("📊 Database: %s, Tabby Database: %s", 
+                      Config.DATABASE_NAME, Config.TABBY_DATABASE_NAME)
+            
+            return True
+            
+        except Exception as e:
+            logger.warning(f"❌ Legacy SSL parameter failed: {str(e)[:100]}...")
+        
+        # Strategy 3: Connection string only (let MongoDB handle SSL automatically)
+        try:
+            logger.info("🔄 Trying connection string defaults...")
+            
+            self.client = MongoClient(
+                connection_string,
+                serverSelectionTimeoutMS=45000,  # Longer timeout
+                connectTimeoutMS=45000,
+                maxPoolSize=3,
+            )
+            
+            # Test connection
+            self.db = self.client[Config.DATABASE_NAME]
+            self.tabby_db = self.client[Config.TABBY_DATABASE_NAME]
+            self.client.admin.command("ping")
+            
+            # Initialize health checker
+            self.health_checker = DatabaseHealthChecker(self.client)
+            self.is_connected = True
+            
+            logger.info("✅ Connected using connection string defaults!")
+            logger.info("📊 Database: %s, Tabby Database: %s", 
+                      Config.DATABASE_NAME, Config.TABBY_DATABASE_NAME)
+            
+            return True
+            
+        except Exception as e:
+            logger.warning(f"❌ Connection string defaults failed: {str(e)[:100]}...")
+        
+        # Strategy 4: Modified connection string for compatibility
+        try:
+            logger.info("🔄 Trying compatibility connection string modifications...")
+            
+            # Remove potential problematic parameters and add compatibility ones
+            base_connection = connection_string.split('?')[0]
+            compat_params = "?retryWrites=true&w=majority&tlsVersion=1.2&ssl=true"
+            
+            compat_connection = f"{base_connection}{compat_params}"
+            
+            self.client = MongoClient(
+                compat_connection,
+                serverSelectionTimeoutMS=60000,  # Very long timeout
+                connectTimeoutMS=60000,
+                maxPoolSize=2,  # Minimal pool
+            )
+            
+            # Test connection
+            self.db = self.client[Config.DATABASE_NAME]
+            self.tabby_db = self.client[Config.TABBY_DATABASE_NAME]
+            self.client.admin.command("ping")
+            
+            # Initialize health checker
+            self.health_checker = DatabaseHealthChecker(self.client)
+            self.is_connected = True
+            
+            logger.warning("⚠️  Connected using compatibility modifications")
+            logger.info("📊 Database: %s, Tabby Database: %s", 
+                      Config.DATABASE_NAME, Config.TABBY_DATABASE_NAME)
+            
+            return True
+            
+        except Exception as e:
+            logger.warning(f"❌ Compatibility modifications failed: {str(e)[:100]}...")
+        
+        logger.error("❌ All alternative SSL strategies failed")
+        logger.info("💡 This might be due to:")
+        logger.info("   - Python 3.13+ and OpenSSL 3.0+ compatibility issues with MongoDB Atlas")
+        logger.info("   - Network firewall blocking MongoDB Atlas connections")
+        logger.info("   - IP address not whitelisted in MongoDB Atlas")
+        logger.info("   - MongoDB Atlas cluster is paused or unavailable")
+        
         return False
 
     def _set_disconnected_state(self):
