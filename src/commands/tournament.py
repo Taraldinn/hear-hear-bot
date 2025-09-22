@@ -17,6 +17,176 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
+class TournamentRoleView(discord.ui.View):
+    """Persistent view for tournament role assignment"""
+
+    def __init__(self, guild_id):
+        super().__init__(timeout=None)  # Persistent view
+        self.guild_id = guild_id
+
+        # Add the select menu
+        self.add_item(TournamentRoleSelect(guild_id))
+
+
+class TournamentRoleSelect(discord.ui.Select):
+    """Select menu for choosing tournament roles"""
+
+    def __init__(self, guild_id):
+        self.guild_id = guild_id
+
+        # Create standard options - roles will be validated dynamically
+        options = [
+            discord.SelectOption(
+                label="Debater",
+                emoji="🥊",
+                value="debater",
+                description="Participate in debates and access prep rooms",
+            ),
+            discord.SelectOption(
+                label="Adjudicator",
+                emoji="⚖️",
+                value="adjudicator",
+                description="Judge debates and access result discussions",
+            ),
+            discord.SelectOption(
+                label="Spectator",
+                emoji="👀",
+                value="spectator",
+                description="Watch the tournament with read-only access",
+            ),
+        ]
+
+        super().__init__(
+            placeholder="Choose your tournament role...",
+            min_values=1,
+            max_values=1,
+            options=options,
+            custom_id=f"tournament_role_select_{guild_id}",
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        """Handle role selection"""
+        try:
+            await interaction.response.defer(ephemeral=True)
+
+            guild = interaction.guild
+            if not guild:
+                await interaction.followup.send(
+                    "❌ This command can only be used in a server.", ephemeral=True
+                )
+                return
+
+            member = guild.get_member(interaction.user.id)
+            if not member:
+                await interaction.followup.send(
+                    "❌ Member not found in server.", ephemeral=True
+                )
+                return
+
+            selected_role_key = self.values[0]
+
+            # Find the role dynamically based on the selection
+            role_mapping = {
+                "debater": "Debater",
+                "adjudicator": "Adjudicator",
+                "spectator": "Spectator",
+            }
+
+            role_name = role_mapping.get(selected_role_key)
+            if not role_name:
+                await interaction.followup.send(
+                    "❌ Invalid role selection. Please try again.", ephemeral=True
+                )
+                return
+
+            selected_role = discord.utils.get(guild.roles, name=role_name)
+            if not selected_role:
+                await interaction.followup.send(
+                    f"❌ The {role_name} role doesn't exist. Make sure the tournament has been set up properly.",
+                    ephemeral=True,
+                )
+                return
+
+            # Check bot permissions
+            if selected_role >= guild.me.top_role:
+                await interaction.followup.send(
+                    f"❌ I don't have permission to assign the {role_name} role. "
+                    f"Please contact an administrator.",
+                    ephemeral=True,
+                )
+                return
+
+            # Remove other tournament roles first
+            tournament_roles = [
+                discord.utils.get(guild.roles, name="Debater"),
+                discord.utils.get(guild.roles, name="Adjudicator"),
+                discord.utils.get(guild.roles, name="Spectator"),
+            ]
+            tournament_roles = [r for r in tournament_roles if r and r in member.roles]
+
+            if tournament_roles:
+                await member.remove_roles(
+                    *tournament_roles,
+                    reason="Tournament role change - removing old roles",
+                )
+
+            # Add new role
+            await member.add_roles(
+                selected_role,
+                reason=f"Tournament role assignment - assigned {role_name}",
+            )
+
+            logger.info(f"Assigned {role_name} role to {member.display_name}")
+
+            # Send confirmation
+            await interaction.followup.send(
+                f"✅ **Role assigned successfully!**\n"
+                f"You are now a **{role_name}** for this tournament.\n\n"
+                f"🔄 Channels should now be visible. If you don't see them:\n"
+                f"• **Desktop**: Press `Ctrl+R` (Windows) or `Cmd+R` (Mac)\n"
+                f"• **Mobile**: Pull down to refresh or restart Discord\n\n"
+                f"You can change your role anytime by using this menu again!",
+                ephemeral=True,
+            )
+
+            # Send welcome message to welcome channel (if it exists)
+            try:
+                # Find the welcome channel and send a simple welcome message
+                welcome_channel = discord.utils.get(guild.text_channels, name="welcome")
+                if welcome_channel:
+                    embed = discord.Embed(
+                        title="🎉 Welcome to the Tournament!",
+                        description=f"Welcome {member.mention}! You've successfully registered as a **{role_name}**.",
+                        color=discord.Color.green(),
+                    )
+                    embed.add_field(
+                        name="🔄 Channels should now be visible!",
+                        value="If you don't see new channels, try refreshing Discord.",
+                        inline=False,
+                    )
+                    embed.set_footer(text="Good luck in the tournament! 🏆")
+                    await welcome_channel.send(embed=embed)
+            except Exception as e:
+                logger.warning(f"Could not send welcome message: {e}")
+
+        except discord.Forbidden:
+            await interaction.followup.send(
+                f"❌ I don't have permission to assign roles. Please contact an administrator.",
+                ephemeral=True,
+            )
+            logger.error(
+                f"No permission to assign roles to {interaction.user.display_name}"
+            )
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ An error occurred while assigning your role. Please try again or contact an administrator.",
+                ephemeral=True,
+            )
+            logger.error(
+                f"Error assigning role to {interaction.user.display_name}: {e}"
+            )
+
+
 class TournamentSetup(commands.Cog):
     """Tournament venue and role creation system"""
 
@@ -901,7 +1071,7 @@ class TournamentSetup(commands.Cog):
     async def setup_role_assignment(
         self, guild: discord.Guild, roles: Dict[str, discord.Role], channels: Dict
     ) -> Optional[discord.Message]:
-        """Setup role assignment with reactions"""
+        """Setup role assignment with interactive buttons"""
 
         if not roles or "role_assignment" not in channels:
             return None
@@ -910,31 +1080,33 @@ class TournamentSetup(commands.Cog):
 
         embed = discord.Embed(
             title="🎭 Tournament Role Assignment",
-            description="React with the appropriate emoji to get your tournament role!\n\n"
+            description="Click the button below to select your tournament role!\n\n"
             "**Note:** Until you select a role, most channels will be hidden from you.",
             color=discord.Color.blue(),
         )
 
         role_info = []
-        emoji_roles = []
+        available_roles = []
 
         if roles.get("debater"):
             role_info.append(
                 f"🥊 **Debater** - Participate in debates, access prep rooms"
             )
-            emoji_roles.append(("🥊", roles["debater"]))
+            available_roles.append(("debater", "🥊 Debater", roles["debater"]))
 
         if roles.get("adjudicator"):
             role_info.append(
                 f"⚖️ **Adjudicator** - Judge debates, access result discussions"
             )
-            emoji_roles.append(("⚖️", roles["adjudicator"]))
+            available_roles.append(
+                ("adjudicator", "⚖️ Adjudicator", roles["adjudicator"])
+            )
 
         if roles.get("spectator"):
             role_info.append(
                 f"👀 **Spectator** - Watch the tournament, read-only access"
             )
-            emoji_roles.append(("👀", roles["spectator"]))
+            available_roles.append(("spectator", "👀 Spectator", roles["spectator"]))
 
         embed.add_field(
             name="Available Roles", value="\n".join(role_info), inline=False
@@ -942,128 +1114,25 @@ class TournamentSetup(commands.Cog):
 
         embed.add_field(
             name="How to get your role",
-            value="1. React with the emoji for your desired role\n"
-            "2. Channels will become visible based on your role\n"
-            "3. You can change your role by reacting with a different emoji",
+            value="1. Click the **Select Role** button below\n"
+            "2. Choose your desired role from the dropdown\n"
+            "3. Channels will become visible based on your role\n"
+            "4. You can change your role anytime by clicking the button again",
             inline=False,
         )
 
         embed.set_footer(text="Role assignment powered by Hear! Hear! Bot")
 
-        # Send the role assignment message
-        role_msg = await role_channel.send(embed=embed)
+        # Create the view with role selection
+        view = TournamentRoleView(guild.id)
 
-        # Add reactions
-        for emoji, role in emoji_roles:
-            await role_msg.add_reaction(emoji)
-            await asyncio.sleep(0.5)
+        # Send the role assignment message
+        role_msg = await role_channel.send(embed=embed, view=view)
 
         logger.info(
-            f"Created role assignment message with {len(emoji_roles)} role options"
+            f"Created role assignment message with {len(available_roles)} role options"
         )
         return role_msg
-
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        """Handle role assignment reactions"""
-        if payload.user_id == self.bot.user.id:
-            return
-
-        guild = self.bot.get_guild(payload.guild_id)
-        if not guild:
-            return
-
-        member = guild.get_member(payload.user_id)
-        if not member:
-            return
-
-        channel = guild.get_channel(payload.channel_id)
-        if not channel or channel.name != "role-assignment":
-            return
-
-        # Define emoji to role mapping
-        emoji_roles = {"🥊": "Debater", "⚖️": "Adjudicator", "👀": "Spectator"}
-
-        emoji = str(payload.emoji)
-        if emoji not in emoji_roles:
-            return
-
-        # Get the role
-        role_name = emoji_roles[emoji]
-        role = discord.utils.get(guild.roles, name=role_name)
-        if not role:
-            return
-
-        try:
-            # Remove other tournament roles first
-            tournament_roles = [
-                discord.utils.get(guild.roles, name="Debater"),
-                discord.utils.get(guild.roles, name="Adjudicator"),
-                discord.utils.get(guild.roles, name="Spectator"),
-            ]
-            tournament_roles = [r for r in tournament_roles if r and r in member.roles]
-
-            if tournament_roles:
-                await member.remove_roles(
-                    *tournament_roles, reason="Role assignment - removing old roles"
-                )
-
-            # Add new role
-            await member.add_roles(
-                role, reason=f"Role assignment - assigned {role_name}"
-            )
-
-            logger.info(f"Assigned {role_name} role to {member.display_name}")
-
-            # Send welcome message to welcome channel
-            await self.send_welcome_message(guild, member, role_name)
-
-        except discord.Forbidden:
-            logger.error(f"No permission to assign roles to {member.display_name}")
-        except Exception as e:
-            logger.error(f"Error assigning role to {member.display_name}: {e}")
-
-    @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
-        """Handle role removal when reaction is removed"""
-        if payload.user_id == self.bot.user.id:
-            return
-
-        guild = self.bot.get_guild(payload.guild_id)
-        if not guild:
-            return
-
-        member = guild.get_member(payload.user_id)
-        if not member:
-            return
-
-        channel = guild.get_channel(payload.channel_id)
-        if not channel or channel.name != "role-assignment":
-            return
-
-        # Define emoji to role mapping
-        emoji_roles = {"🥊": "Debater", "⚖️": "Adjudicator", "👀": "Spectator"}
-
-        emoji = str(payload.emoji)
-        if emoji not in emoji_roles:
-            return
-
-        # Get the role
-        role_name = emoji_roles[emoji]
-        role = discord.utils.get(guild.roles, name=role_name)
-        if not role or role not in member.roles:
-            return
-
-        try:
-            await member.remove_roles(
-                role, reason=f"Role assignment - removed {role_name}"
-            )
-            logger.info(f"Removed {role_name} role from {member.display_name}")
-
-        except discord.Forbidden:
-            logger.error(f"No permission to remove roles from {member.display_name}")
-        except Exception as e:
-            logger.error(f"Error removing role from {member.display_name}: {e}")
 
     async def send_welcome_message(
         self, guild: discord.Guild, member: discord.Member, role_name: str
@@ -1245,4 +1314,11 @@ class TournamentSetup(commands.Cog):
 
 
 async def setup(bot):
+    # Add persistent views for tournament role assignment
+    # This ensures buttons work even after bot restarts
+    for guild in bot.guilds:
+        # Create a basic view instance for each guild
+        view = TournamentRoleView(guild.id)
+        bot.add_view(view)
+
     await bot.add_cog(TournamentSetup(bot))
