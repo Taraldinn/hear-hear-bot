@@ -31,7 +31,7 @@ A comprehensive, production-ready Discord bot designed for debate tournaments an
 - **Comprehensive Logging**: Detailed logging with file rotation
 - **Error Handling**: Robust error recovery and reporting
 - **Health Monitoring**: Real-time bot health and performance metrics
-- **Database Management**: MongoDB integration with connection pooling
+- **Database Management**: PostgreSQL integration with connection pooling and async support
 
 ### 🌐 Web Interface
 - **Documentation Portal**: Comprehensive web-based documentation
@@ -43,7 +43,7 @@ A comprehensive, production-ready Discord bot designed for debate tournaments an
 
 ### Prerequisites
 - Python 3.8 or higher
-- MongoDB (local or cloud)
+- PostgreSQL (local or cloud)
 - Discord Bot Token
 - Docker (optional, for containerized deployment)
 
@@ -113,7 +113,15 @@ Create a `.env` file based on `.env.example` and configure the following:
 DISCORD_BOT_TOKEN=your_discord_bot_token_here
 
 # Recommended
-MONGODB_CONNECTION_STRING=your_mongodb_connection_string_here
+# Database Configuration (PostgreSQL)
+DATABASE_URL=postgresql://username:password@host:port/database
+
+# Alternative: Individual PostgreSQL settings
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=hearhearbot
+POSTGRES_USER=botuser
+POSTGRES_PASSWORD=your_password_here
 
 # Optional
 TEST_GUILD_ID=your_test_guild_id_here
@@ -170,7 +178,7 @@ hear-hear-bot/
 ### Key Components
 
 - **Enhanced Bot Client**: Production-ready Discord bot with auto-sharding
-- **Database Manager**: Robust MongoDB integration with connection pooling
+- **Database Manager**: Robust PostgreSQL integration with async connection pooling
 - **Web Server**: aiohttp-based web interface with comprehensive documentation
 - **Logging System**: Multi-level logging with file rotation
 - **Error Handling**: Comprehensive error recovery and reporting
@@ -283,7 +291,12 @@ Access real-time metrics at `/stats`:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DISCORD_BOT_TOKEN` | ✅ | - | Discord bot token |
-| `MONGODB_CONNECTION_STRING` | ⚠️ | - | MongoDB connection string |
+| `DATABASE_URL` | ⚠️ | - | PostgreSQL connection URL |
+| `POSTGRES_HOST` | ⚠️ | localhost | PostgreSQL host |
+| `POSTGRES_PORT` | ⚠️ | 5432 | PostgreSQL port |  
+| `POSTGRES_DB` | ⚠️ | hearhearbot | PostgreSQL database name |
+| `POSTGRES_USER` | ⚠️ | - | PostgreSQL username |
+| `POSTGRES_PASSWORD` | ⚠️ | - | PostgreSQL password |
 | `TEST_GUILD_ID` | ❌ | - | Guild ID for instant command testing |
 | `PORT` | ❌ | 8080 | Web server port |
 | `ENVIRONMENT` | ❌ | production | Environment type |
@@ -291,7 +304,21 @@ Access real-time metrics at `/stats`:
 
 ### Database Configuration
 
-The bot supports MongoDB with automatic connection management:
+The bot supports PostgreSQL with automatic connection management:
+
+```env
+# Option 1: Full connection URL
+DATABASE_URL=postgresql://username:password@host:port/database
+
+# Option 2: Individual settings
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=hearhearbot
+POSTGRES_USER=botuser
+POSTGRES_PASSWORD=your_password
+```
+
+**Migration Note**: If migrating from MongoDB, see [PostgreSQL Migration Guide](docs/deployment/POSTGRESQL_MIGRATION.md).
 
 - **Connection Pooling**: Optimized for production workloads
 - **Auto-Reconnection**: Automatic recovery from connection failures
@@ -324,7 +351,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - [discord.py](https://discordpy.readthedocs.io/) - Python Discord API wrapper
-- [MongoDB](https://www.mongodb.com/) - Document database
+- [PostgreSQL](https://postgresql.org/) - Relational database with JSON support
 - [aiohttp](https://docs.aiohttp.org/) - Async HTTP client/server
 - [Tabbycat](https://tabbycat-debate.readthedocs.io/) - Debate tournament software
 

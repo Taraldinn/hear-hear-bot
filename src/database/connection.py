@@ -1,27 +1,44 @@
 """
-Enhanced Database Connection Manager - Production Ready
+Enhanced PostgreSQL Database Connection Manager - Production Ready
 Author: aldinn
 Email: kferdoush617@gmail.com
 
-Robust database connection management with enhanced error handling,
-connection pooling, and production optimizations.
+Robust PostgreSQL database connection management with enhanced error handling,
+connection pooling, and production optimizations using asyncpg and SQLAlchemy.
 """
 
 import asyncio
 import logging
-import ssl
-from typing import Optional, Dict, Any
-from pymongo import MongoClient
-from pymongo.collection import Collection
-from pymongo.database import Database as MongoDatabase
-from pymongo.errors import (
-    ConnectionFailure,
-    ServerSelectionTimeoutError,
-    OperationFailure,
-    ConfigurationError,
-    NetworkTimeout,
-    AutoReconnect
-)
+from typing import Optional, Dict, Any, List
+
+try:
+    import asyncpg
+
+    ASYNCPG_AVAILABLE = True
+except ImportError:
+    ASYNCPG_AVAILABLE = False
+
+try:
+    from sqlalchemy.ext.asyncio import (
+        create_async_engine,
+        AsyncSession,
+        async_sessionmaker,
+    )
+    from sqlalchemy.ext.declarative import declarative_base
+    from sqlalchemy import text
+    from sqlalchemy.exc import (
+        OperationalError,
+        DatabaseError,
+        TimeoutError as SQLTimeoutError,
+        DisconnectionError,
+    )
+
+    SQLALCHEMY_AVAILABLE = True
+    # SQLAlchemy Base for ORM models
+    Base = declarative_base()
+except ImportError:
+    SQLALCHEMY_AVAILABLE = False
+    Base = None
 
 from config.settings import Config
 
@@ -29,23 +46,23 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseHealthChecker:
-    """Monitor database connection health"""
-    
-    def __init__(self, client: Optional[MongoClient]):
-        self.client = client
+    """Monitor PostgreSQL database connection health"""
+
+    def __init__(self, pool):
+        self.pool = pool
         self.last_health_check = None
         self.health_check_interval = 300  # 5 minutes
-    
+
     async def check_health(self) -> bool:
         """Check if database connection is healthy"""
-        if not self.client:
+        if not self.pool or not ASYNCPG_AVAILABLE:
             return False
-            
+
         try:
-            # Simple ping command to test connectivity
-            result = self.client.admin.command("ping")
-            self.last_health_check = asyncio.get_event_loop().time()
-            return result.get("ok", 0) == 1
+            async with self.pool.acquire() as connection:
+                await connection.execute("SELECT 1")
+                self.last_health_check = asyncio.get_event_loop().time()
+                return True
         except Exception as e:
             logger.warning("Database health check failed: %s", str(e))
             return False
@@ -53,361 +70,273 @@ class DatabaseHealthChecker:
 
 class Database:
     """
-    Enhanced database connection and operations manager
-    
+    Enhanced PostgreSQL database connection and operations manager
+
     Features:
     - Automatic connection retry with exponential backoff
     - Connection health monitoring
     - Comprehensive error handling
     - Connection pooling optimization
     - Graceful degradation when database is unavailable
+    - Support for both asyncpg (raw SQL) and SQLAlchemy (ORM)
     """
 
     def __init__(self):
-        self.client: Optional[MongoClient] = None
-        self.db: Optional[MongoDatabase] = None
-        self.tabby_db: Optional[MongoDatabase] = None
-        self.health_checker: Optional[DatabaseHealthChecker] = None
+        self.pool = None
+        self.engine = None
+        self.session_factory = None
+        self.health_checker = None
         self.connection_attempts = 0
         self.max_connection_attempts = 3
         self.is_connected = False
-        
-        # Initialize connection
-        self.connect()
 
-    def connect(self) -> bool:
+        # Check for required dependencies
+        if not ASYNCPG_AVAILABLE:
+            logger.warning("asyncpg not available - PostgreSQL features disabled")
+            logger.info("Install with: pip install asyncpg")
+            return
+
+        if not SQLALCHEMY_AVAILABLE:
+            logger.warning("SQLAlchemy not available - ORM features disabled")
+            logger.info("Install with: pip install sqlalchemy[asyncio]")
+
+        # Initialize connection
+        asyncio.create_task(self.connect())
+
+    async def connect(self) -> bool:
         """
-        Establish database connection with comprehensive error handling
-        
+        Establish PostgreSQL database connection with comprehensive error handling
+
         Returns:
             bool: True if connection successful, False otherwise
         """
-        connection_string = Config.MONGODB_CONNECTION_STRING
+        if not ASYNCPG_AVAILABLE:
+            logger.warning("⚠️  asyncpg not available - database features disabled")
+            self._set_disconnected_state()
+            return False
 
-        if not connection_string:
-            logger.warning("⚠️  MONGODB_CONNECTION_STRING not provided - database features disabled")
+        postgres_url = Config.get_postgres_url()
+
+        if not postgres_url:
+            logger.warning(
+                "⚠️  PostgreSQL connection URL not provided - database features disabled"
+            )
+            logger.info(
+                "💡 Set DATABASE_URL or individual POSTGRES_* environment variables"
+            )
             self._set_disconnected_state()
             return False
 
         for attempt in range(1, self.max_connection_attempts + 1):
             try:
-                logger.info("🔌 Attempting database connection (attempt %d/%d)...", 
-                          attempt, self.max_connection_attempts)
-                
-                # Create client with enhanced SSL/TLS configuration for MongoDB Atlas
-                self.client = MongoClient(
-                    connection_string,
-                    # Connection timeouts
-                    serverSelectionTimeoutMS=Config.DATABASE_TIMEOUT * 1000,
-                    connectTimeoutMS=Config.DATABASE_TIMEOUT * 1000,
-                    socketTimeoutMS=Config.DATABASE_TIMEOUT * 1000,
-                    
-                    # Connection pooling
-                    maxPoolSize=Config.DATABASE_MAX_POOL_SIZE,
-                    minPoolSize=5,
-                    maxIdleTimeMS=30000,
-                    
-                    # Reliability settings
-                    retryWrites=True,
-                    retryReads=True,
-                    w="majority",
-                    
-                    # Enhanced SSL/TLS Configuration for MongoDB Atlas
-                    tls=True,
-                    tlsAllowInvalidCertificates=False,
-                    tlsAllowInvalidHostnames=False,
-                    
-                    # Additional connection stability settings
-                    heartbeatFrequencyMS=10000,
-                    waitQueueTimeoutMS=10000,
-                    
-                    # Application name for monitoring
-                    appName=f"{Config.BOT_NAME}-v{Config.BOT_VERSION}",
+                logger.info(
+                    "🔌 Attempting PostgreSQL connection (attempt %d/%d)...",
+                    attempt,
+                    self.max_connection_attempts,
                 )
 
-                # Get database instances
-                self.db = self.client[Config.DATABASE_NAME]
-                self.tabby_db = self.client[Config.TABBY_DATABASE_NAME]
+                # Create asyncpg connection pool
+                self.pool = await asyncpg.create_pool(
+                    postgres_url,
+                    min_size=Config.DATABASE_MIN_POOL_SIZE,
+                    max_size=Config.DATABASE_MAX_POOL_SIZE,
+                    command_timeout=Config.DATABASE_TIMEOUT,
+                    server_settings={
+                        "application_name": f"{Config.BOT_NAME}-v{Config.BOT_VERSION}",
+                        "jit": "off",  # Disable JIT for better compatibility
+                    },
+                )
 
-                # Test connection with ping
-                self.client.admin.command("ping")
-                
+                # Create SQLAlchemy async engine if available
+                if SQLALCHEMY_AVAILABLE:
+                    self.engine = create_async_engine(
+                        Config.get_async_postgres_url(),
+                        pool_size=Config.DATABASE_MAX_POOL_SIZE,
+                        max_overflow=10,
+                        pool_timeout=Config.DATABASE_TIMEOUT,
+                        pool_recycle=3600,  # Recycle connections every hour
+                        echo=Config.IS_DEVELOPMENT,  # Log SQL in development
+                    )
+
+                    # Create session factory
+                    self.session_factory = async_sessionmaker(
+                        self.engine, class_=AsyncSession, expire_on_commit=False
+                    )
+
+                # Test connection with both asyncpg and SQLAlchemy
+                async with self.pool.acquire() as connection:
+                    await connection.execute("SELECT 1")
+
+                if SQLALCHEMY_AVAILABLE and self.engine:
+                    async with self.engine.begin() as conn:
+                        await conn.execute(text("SELECT 1"))
+
                 # Initialize health checker
-                self.health_checker = DatabaseHealthChecker(self.client)
-                
+                self.health_checker = DatabaseHealthChecker(self.pool)
+
                 self.is_connected = True
                 self.connection_attempts = attempt
-                
-                logger.info("✅ Successfully connected to MongoDB Atlas!")
-                logger.info("📊 Database: %s, Tabby Database: %s", 
-                          Config.DATABASE_NAME, Config.TABBY_DATABASE_NAME)
-                
+
+                logger.info("✅ Successfully connected to PostgreSQL!")
+                logger.info(
+                    "📊 Database: %s, Host: %s:%s",
+                    Config.POSTGRES_DB,
+                    Config.POSTGRES_HOST,
+                    Config.POSTGRES_PORT,
+                )
+
                 return True
 
-            except (ConnectionFailure, ServerSelectionTimeoutError, NetworkTimeout, AutoReconnect) as e:
-                error_msg = str(e).lower()
-                if "ssl" in error_msg or "tls" in error_msg:
-                    logger.warning("❌ SSL/TLS connection failed (attempt %d): %s", attempt, str(e))
-                    logger.info("💡 Tip: Verify MongoDB Atlas network access list and SSL settings")
-                    
-                    # Try fallback connection on last attempt
-                    if attempt == self.max_connection_attempts:
-                        logger.info("🔄 Attempting alternative SSL configuration...")
-                        if self._try_alternative_ssl_connection(connection_string):
-                            return True
-                else:
-                    logger.warning("❌ Database connection failed (attempt %d): %s", attempt, str(e))
-                
-            except ConfigurationError as e:
-                logger.error("⚙️  Database configuration error: %s", str(e))
-                break  # Don't retry configuration errors
-                
-            except OperationFailure as e:
-                logger.error("🔐 Database authentication failed: %s", str(e))
-                break  # Don't retry auth failures
-                
-            except ssl.SSLError as e:
-                logger.error("🔒 SSL Certificate error (attempt %d): %s", attempt, str(e))
-                logger.info("💡 This might be due to network restrictions or outdated certificates")
-                
+            except (OSError, ConnectionError) as e:
+                logger.warning(
+                    "❌ Database connection failed (attempt %d): %s", attempt, str(e)
+                )
+
             except Exception as e:
-                logger.error("💥 Unexpected database error (attempt %d): %s", attempt, str(e))
-                
+                # Handle specific asyncpg errors if available
+                error_type = type(e).__name__
+                if "InvalidAuthorizationSpecification" in error_type:
+                    logger.error("🔐 Database authentication failed: %s", str(e))
+                    break  # Don't retry auth failures
+                elif "InvalidCatalogName" in error_type:
+                    logger.error("📂 Database does not exist: %s", str(e))
+                    logger.info(
+                        "💡 Please create the database first: CREATE DATABASE %s;",
+                        Config.POSTGRES_DB,
+                    )
+                    break  # Don't retry if database doesn't exist
+                else:
+                    logger.error(
+                        "💥 Unexpected database error (attempt %d): %s", attempt, str(e)
+                    )
+
             # Wait before retrying (exponential backoff)
             if attempt < self.max_connection_attempts:
-                wait_time = 2 ** attempt
+                wait_time = 2**attempt
                 logger.info("⏰ Retrying in %d seconds...", wait_time)
-                import time
-                time.sleep(wait_time)
+                await asyncio.sleep(wait_time)
 
         # All connection attempts failed
-        logger.error("❌ Failed to establish database connection after %d attempts", 
-                    self.max_connection_attempts)
-        logger.warning("🔄 This is likely due to Python 3.13+ and OpenSSL 3.0+ compatibility issues with MongoDB Atlas")
-        logger.info("� The bot will continue in database-free mode with reduced functionality:")
+        logger.error(
+            "❌ Failed to establish database connection after %d attempts",
+            self.max_connection_attempts,
+        )
+        logger.info(
+            "🔄 Bot will continue in database-free mode with reduced functionality:"
+        )
         logger.info("   ✅ Discord commands will work normally")
         logger.info("   ✅ Timer functionality will work")
         logger.info("   ❌ User preferences won't be saved")
         logger.info("   ❌ Persistent data features disabled")
         logger.info("   ❌ Analytics and logging reduced")
-        
-        logger.info("🔧 To fix this issue:")
-        logger.info("   1. Use Python 3.11 or 3.12 instead of 3.13+")
-        logger.info("   2. Update to a newer pymongo version when available")
-        logger.info("   3. Check MongoDB Atlas network access whitelist")
-        logger.info("   4. Verify your connection string is correct")
-        
-        self._set_disconnected_state()
-        return False
 
-    def _try_alternative_ssl_connection(self, connection_string: str) -> bool:
-        """
-        Try connection with alternative SSL configuration for OpenSSL compatibility
-        Uses different approaches to handle Python 3.13+ and OpenSSL 3.0+ compatibility issues
-        """
-        
-        # Strategy 1: Force older TLS version by modifying connection string
-        try:
-            logger.info("🔄 Trying connection with TLS 1.2 enforcement...")
-            
-            # Add TLS version parameter to connection string if not present
-            if "tlsVersion=" not in connection_string:
-                separator = "&" if "?" in connection_string else "?"
-                modified_connection = f"{connection_string}{separator}tlsVersion=1.2"
-            else:
-                modified_connection = connection_string
-            
-            self.client = MongoClient(
-                modified_connection,
-                serverSelectionTimeoutMS=30000,
-                connectTimeoutMS=30000,
-                maxPoolSize=5,
-                retryWrites=True,
-            )
-            
-            # Test connection
-            self.db = self.client[Config.DATABASE_NAME]
-            self.tabby_db = self.client[Config.TABBY_DATABASE_NAME]
-            self.client.admin.command("ping")
-            
-            # Initialize health checker
-            self.health_checker = DatabaseHealthChecker(self.client)
-            self.is_connected = True
-            
-            logger.info("✅ Connected using TLS 1.2 enforcement!")
-            logger.info("📊 Database: %s, Tabby Database: %s", 
-                      Config.DATABASE_NAME, Config.TABBY_DATABASE_NAME)
-            
-            return True
-            
-        except Exception as e:
-            logger.warning(f"❌ TLS 1.2 enforcement failed: {str(e)[:100]}...")
-        
-        # Strategy 2: Use legacy ssl parameter instead of tls
-        try:
-            logger.info("🔄 Trying legacy SSL parameter...")
-            
-            self.client = MongoClient(
-                connection_string,
-                ssl=True,  # Use old ssl parameter
-                serverSelectionTimeoutMS=30000,
-                connectTimeoutMS=30000,
-                maxPoolSize=3,
-                retryWrites=True,
-            )
-            
-            # Test connection
-            self.db = self.client[Config.DATABASE_NAME]
-            self.tabby_db = self.client[Config.TABBY_DATABASE_NAME]
-            self.client.admin.command("ping")
-            
-            # Initialize health checker
-            self.health_checker = DatabaseHealthChecker(self.client)
-            self.is_connected = True
-            
-            logger.warning("⚠️  Connected using legacy SSL parameter")
-            logger.info("📊 Database: %s, Tabby Database: %s", 
-                      Config.DATABASE_NAME, Config.TABBY_DATABASE_NAME)
-            
-            return True
-            
-        except Exception as e:
-            logger.warning(f"❌ Legacy SSL parameter failed: {str(e)[:100]}...")
-        
-        # Strategy 3: Connection string only (let MongoDB handle SSL automatically)
-        try:
-            logger.info("🔄 Trying connection string defaults...")
-            
-            self.client = MongoClient(
-                connection_string,
-                serverSelectionTimeoutMS=45000,  # Longer timeout
-                connectTimeoutMS=45000,
-                maxPoolSize=3,
-            )
-            
-            # Test connection
-            self.db = self.client[Config.DATABASE_NAME]
-            self.tabby_db = self.client[Config.TABBY_DATABASE_NAME]
-            self.client.admin.command("ping")
-            
-            # Initialize health checker
-            self.health_checker = DatabaseHealthChecker(self.client)
-            self.is_connected = True
-            
-            logger.info("✅ Connected using connection string defaults!")
-            logger.info("📊 Database: %s, Tabby Database: %s", 
-                      Config.DATABASE_NAME, Config.TABBY_DATABASE_NAME)
-            
-            return True
-            
-        except Exception as e:
-            logger.warning(f"❌ Connection string defaults failed: {str(e)[:100]}...")
-        
-        # Strategy 4: Modified connection string for compatibility
-        try:
-            logger.info("🔄 Trying compatibility connection string modifications...")
-            
-            # Remove potential problematic parameters and add compatibility ones
-            base_connection = connection_string.split('?')[0]
-            compat_params = "?retryWrites=true&w=majority&tlsVersion=1.2&ssl=true"
-            
-            compat_connection = f"{base_connection}{compat_params}"
-            
-            self.client = MongoClient(
-                compat_connection,
-                serverSelectionTimeoutMS=60000,  # Very long timeout
-                connectTimeoutMS=60000,
-                maxPoolSize=2,  # Minimal pool
-            )
-            
-            # Test connection
-            self.db = self.client[Config.DATABASE_NAME]
-            self.tabby_db = self.client[Config.TABBY_DATABASE_NAME]
-            self.client.admin.command("ping")
-            
-            # Initialize health checker
-            self.health_checker = DatabaseHealthChecker(self.client)
-            self.is_connected = True
-            
-            logger.warning("⚠️  Connected using compatibility modifications")
-            logger.info("📊 Database: %s, Tabby Database: %s", 
-                      Config.DATABASE_NAME, Config.TABBY_DATABASE_NAME)
-            
-            return True
-            
-        except Exception as e:
-            logger.warning(f"❌ Compatibility modifications failed: {str(e)[:100]}...")
-        
-        logger.error("❌ All alternative SSL strategies failed")
-        logger.info("💡 This might be due to:")
-        logger.info("   - Python 3.13+ and OpenSSL 3.0+ compatibility issues with MongoDB Atlas")
-        logger.info("   - Network firewall blocking MongoDB Atlas connections")
-        logger.info("   - IP address not whitelisted in MongoDB Atlas")
-        logger.info("   - MongoDB Atlas cluster is paused or unavailable")
-        
+        logger.info("🔧 To fix this issue:")
+        logger.info(
+            "   1. Install required packages: pip install asyncpg sqlalchemy[asyncio]"
+        )
+        logger.info("   2. Verify PostgreSQL server is running")
+        logger.info("   3. Check DATABASE_URL or POSTGRES_* environment variables")
+        logger.info("   4. Ensure database and user exist")
+        logger.info("   5. Verify network connectivity to database server")
+
+        self._set_disconnected_state()
         return False
 
     def _set_disconnected_state(self):
         """Set the database to disconnected state"""
-        self.client = None
-        self.db = None
-        self.tabby_db = None
+        self.pool = None
+        self.engine = None
+        self.session_factory = None
         self.health_checker = None
         self.is_connected = False
 
-    def get_collection(self, collection_name: str, use_tabby_db: bool = False) -> Optional[Collection]:
+    async def get_connection(self):
         """
-        Get a specific collection with error handling
-        
-        Args:
-            collection_name: Name of the collection
-            use_tabby_db: Whether to use the Tabby database instead of main
-            
-        Returns:
-            Collection instance or None if unavailable
-        """
-        try:
-            if not self.is_connected:
-                logger.debug("Database not connected - collection '%s' unavailable", collection_name)
-                return None
+        Get a raw asyncpg connection for direct SQL operations
 
-            if use_tabby_db and self.tabby_db is not None:
-                return self.tabby_db[collection_name]
-            elif self.db is not None:
-                return self.db[collection_name]
-            else:
-                logger.warning("Database instance not available for collection '%s'", collection_name)
-                return None
-                
-        except Exception as e:
-            logger.error("Error accessing collection '%s': %s", collection_name, str(e))
+        Returns:
+            asyncpg.Connection or None if unavailable
+        """
+        if not self.is_connected or not self.pool:
+            logger.debug("Database not connected - connection unavailable")
             return None
 
-    def get_database(self, use_tabby_db: bool = False) -> Optional[MongoDatabase]:
+        try:
+            return await self.pool.acquire()
+        except Exception as e:
+            logger.error("Error acquiring database connection: %s", str(e))
+            return None
+
+    async def get_session(self):
         """
-        Get the database instance
-        
-        Args:
-            use_tabby_db: Whether to return the Tabby database
-            
+        Get a SQLAlchemy async session for ORM operations
+
         Returns:
-            Database instance or None if unavailable
+            AsyncSession or None if unavailable
+        """
+        if not self.is_connected or not self.session_factory:
+            logger.debug("Database not connected - session unavailable")
+            return None
+
+        try:
+            return self.session_factory()
+        except Exception as e:
+            logger.error("Error creating database session: %s", str(e))
+            return None
+
+    async def execute_query(self, query: str, *args):
+        """
+        Execute a raw SQL query and return results
+
+        Args:
+            query: SQL query string
+            *args: Query parameters
+
+        Returns:
+            Query results or None if failed
         """
         if not self.is_connected:
             return None
-            
-        return self.tabby_db if use_tabby_db else self.db
+
+        try:
+            async with self.pool.acquire() as connection:
+                return await connection.fetch(query, *args)
+        except Exception as e:
+            logger.error("Error executing query: %s", str(e))
+            return None
+
+    async def execute_command(self, command: str, *args) -> bool:
+        """
+        Execute a SQL command (INSERT, UPDATE, DELETE)
+
+        Args:
+            command: SQL command string
+            *args: Command parameters
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not self.is_connected:
+            return False
+
+        try:
+            async with self.pool.acquire() as connection:
+                await connection.execute(command, *args)
+                return True
+        except Exception as e:
+            logger.error("Error executing command: %s", str(e))
+            return False
 
     async def health_check(self) -> bool:
         """
         Perform a health check on the database connection
-        
+
         Returns:
             bool: True if database is healthy, False otherwise
         """
         if not self.health_checker:
             return False
-            
+
         return await self.health_checker.check_health()
 
     def get_connection_stats(self) -> Dict[str, Any]:
@@ -415,76 +344,55 @@ class Database:
         stats = {
             "is_connected": self.is_connected,
             "connection_attempts": self.connection_attempts,
-            "databases": {
-                "main": Config.DATABASE_NAME if self.db is not None else None,
-                "tabby": Config.TABBY_DATABASE_NAME if self.tabby_db is not None else None,
-            }
+            "database_type": "PostgreSQL",
+            "asyncpg_available": ASYNCPG_AVAILABLE,
+            "sqlalchemy_available": SQLALCHEMY_AVAILABLE,
+            "database": {
+                "host": Config.POSTGRES_HOST,
+                "port": Config.POSTGRES_PORT,
+                "database": Config.POSTGRES_DB,
+                "user": Config.POSTGRES_USER,
+            },
         }
-        
-        if self.client and self.is_connected:
+
+        if self.pool and self.is_connected and ASYNCPG_AVAILABLE:
             try:
-                # Get server info
-                server_info = self.client.server_info()
-                stats.update({
-                    "server_version": server_info.get("version", "unknown"),
-                    "max_pool_size": Config.DATABASE_MAX_POOL_SIZE,
-                    "timeout_ms": Config.DATABASE_TIMEOUT * 1000,
-                })
+                stats.update(
+                    {
+                        "pool_size": self.pool.get_size(),
+                        "pool_min_size": Config.DATABASE_MIN_POOL_SIZE,
+                        "pool_max_size": Config.DATABASE_MAX_POOL_SIZE,
+                        "timeout_seconds": Config.DATABASE_TIMEOUT,
+                    }
+                )
             except Exception as e:
-                logger.warning("Could not retrieve server stats: %s", str(e))
-                
+                logger.warning("Could not retrieve pool stats: %s", str(e))
+
         return stats
 
-    def reconnect(self) -> bool:
-        """
-        Attempt to reconnect to the database
-        
-        Returns:
-            bool: True if reconnection successful
-        """
-        logger.info("🔄 Attempting database reconnection...")
-        
-        # Close existing connection
-        if self.client:
-            try:
-                self.client.close()
-            except Exception as e:
-                logger.warning("Error closing old connection: %s", str(e))
-        
-        # Reset state and reconnect
-        self._set_disconnected_state()
-        return self.connect()
-
-    def close_connection(self):
-        """Close database connection gracefully"""
-        if self.client:
-            try:
-                self.client.close()
-                logger.info("🔌 Database connection closed")
-            except Exception as e:
-                logger.warning("Error closing database connection: %s", str(e))
-        
-        self._set_disconnected_state()
-
     async def close(self):
-        """Async close method for bot shutdown"""
-        logger.info("🛑 Shutting down database connection...")
-        self.close_connection()
+        """Close all database connections gracefully"""
+        if self.pool:
+            await self.pool.close()
+        if self.engine:
+            await self.engine.dispose()
+        self._set_disconnected_state()
+        logger.info("🔌 Database connections closed")
 
 
 # Global database instance
 database = Database()
 
 
-# Export commonly used functions for backward compatibility
-def get_collection(collection_name: str, use_tabby_db: bool = False) -> Optional[Collection]:
-    """Get a collection from the global database instance"""
-    return database.get_collection(collection_name, use_tabby_db)
+# Backward compatibility functions
+async def get_connection():
+    """Get a raw connection from the global database instance"""
+    return await database.get_connection()
 
 
-def get_database(use_tabby_db: bool = False) -> Optional[MongoDatabase]:
-    """Get a database from the global database instance"""
-    return database.get_database(use_tabby_db)
+async def get_session():
+    """Get a session from the global database instance"""
+    return await database.get_session()
 
 
 def is_database_available() -> bool:

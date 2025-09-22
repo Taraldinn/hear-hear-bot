@@ -18,6 +18,7 @@ Welcome to the comprehensive documentation for Hear! Hear! Bot - a production-re
 - **[Deploy Script](deployment/deploy.sh)** - Full production deployment automation
 - **[Simple Deploy](deployment/deploy_simple.sh)** - Basic deployment script
 - **[Systemd Service](deployment/hearhear-bot.service)** - Linux service configuration
+- **[PostgreSQL Migration](deployment/POSTGRESQL_MIGRATION.md)** - Database migration guide
 
 ## 🛠️ Development
 
@@ -41,6 +42,7 @@ Welcome to the comprehensive documentation for Hear! Hear! Bot - a production-re
 
 - **[Permission Issues](troubleshooting/PERMISSION_FIX_GUIDE.md)** - Fix Discord permission problems
 - **[MongoDB SSL Issues](troubleshooting/MONGODB_SSL_TROUBLESHOOTING.md)** - Resolve database connection problems
+- **[PostgreSQL Migration](deployment/POSTGRESQL_MIGRATION.md)** - Migrate from MongoDB to PostgreSQL
 
 ## 📁 Project Structure
 
