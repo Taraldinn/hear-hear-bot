@@ -369,31 +369,219 @@ class TabbyCommands(commands.Cog):
     # Helper methods to handle both slash and prefix commands
     async def _checkin_logic(self, ctx, is_slash=False):
         """Shared logic for checkin commands"""
-        send_func = ctx.followup.send if is_slash else ctx.send
-        await send_func(
-            "⚠️ Check-in functionality temporarily disabled during PostgreSQL migration."
-        )
+        try:
+            tournament_data = self._get_tournament_data(ctx.guild.id if hasattr(ctx, 'guild') else ctx.guild_id)
+            if not tournament_data:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ This server is not synced with a tournament. Use `/tabsync` first.")
+                return
+
+            # For now, provide information about check-in process
+            embed = discord.Embed(
+                title="✅ Tournament Check-in",
+                description="Ready to check in for the tournament",
+                color=discord.Color.green(),
+            )
+            
+            embed.add_field(
+                name="📋 Check-in Process:",
+                value="1. Make sure you're registered with `/register <key>`\n"
+                      "2. Check your tournament status with `/status`\n"
+                      "3. Contact the tab team if you need assistance",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="🏆 Tournament:",
+                value=f"**{tournament_data['tournament_name']}**",
+                inline=True
+            )
+            
+            embed.add_field(
+                name="🔗 Tabbycat:",
+                value=f"[Open Tournament]({tournament_data['site']})",
+                inline=True
+            )
+
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func(embed=embed)
+
+        except Exception as e:
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func("❌ Error processing check-in.")
+            logger.error(f"Error in checkin command: {e}")
 
     async def _checkout_logic(self, ctx, is_slash=False):
         """Shared logic for checkout commands"""
-        send_func = ctx.followup.send if is_slash else ctx.send
-        await send_func(
-            "⚠️ Check-out functionality temporarily disabled during PostgreSQL migration."
-        )
+        try:
+            tournament_data = self._get_tournament_data(ctx.guild.id if hasattr(ctx, 'guild') else ctx.guild_id)
+            if not tournament_data:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ This server is not synced with a tournament. Use `/tabsync` first.")
+                return
+
+            # For now, provide information about check-out process
+            embed = discord.Embed(
+                title="🚪 Tournament Check-out",
+                description="Ready to check out from the tournament",
+                color=discord.Color.orange(),
+            )
+            
+            embed.add_field(
+                name="📋 Check-out Process:",
+                value="1. Complete any ongoing debates or judging\n"
+                      "2. Submit any required feedback\n"
+                      "3. Check your availability status",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="🏆 Tournament:",
+                value=f"**{tournament_data['tournament_name']}**",
+                inline=True
+            )
+
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func(embed=embed)
+
+        except Exception as e:
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func("❌ Error processing check-out.")
+            logger.error(f"Error in checkout command: {e}")
 
     async def _ballot_logic(self, ctx, is_slash=False):
         """Shared logic for ballot commands"""
-        send_func = ctx.followup.send if is_slash else ctx.send
-        await send_func(
-            "🗳️ Ballot functionality temporarily disabled during PostgreSQL migration."
-        )
+        try:
+            tournament_data = self._get_tournament_data(ctx.guild.id if hasattr(ctx, 'guild') else ctx.guild_id)
+            if not tournament_data:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ This server is not synced with a tournament. Use `/tabsync` first.")
+                return
+
+            headers = {"Authorization": f"Token {tournament_data['token']}"}
+            
+            # Get adjudicator info (simplified for now)
+            # In a full implementation, this would check if the user is registered as an adjudicator
+            # and fetch their specific ballot assignments
+            
+            embed = discord.Embed(
+                title="🗳️ Adjudicator Ballot",
+                description="Ballot functionality is available for registered adjudicators",
+                color=discord.Color.purple(),
+            )
+            
+            embed.add_field(
+                name="📋 How to get your ballot:",
+                value="1. Make sure you're registered with `/register <key>`\n"
+                      "2. Check in with `/checkin`\n"
+                      "3. Your ballot will be available once the round starts",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="💡 Note:",
+                value="Full ballot functionality requires tournament organizer setup.\n"
+                      "Contact the tab team if you need assistance.",
+                inline=False
+            )
+
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func(embed=embed)
+
+        except Exception as e:
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func("❌ Error fetching ballot information.")
+            logger.error(f"Error in ballot command: {e}")
 
     async def _pairings_logic(self, ctx, is_slash=False):
         """Shared logic for pairings commands"""
-        send_func = ctx.followup.send if is_slash else ctx.send
-        await send_func(
-            "📋 Pairings functionality temporarily disabled during PostgreSQL migration."
-        )
+        try:
+            tournament_data = self._get_tournament_data(ctx.guild.id if hasattr(ctx, 'guild') else ctx.guild_id)
+            if not tournament_data:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ This server is not synced with a tournament. Use `/tabsync` first.")
+                return
+
+            headers = {"Authorization": f"Token {tournament_data['token']}"}
+            
+            # First get current round info
+            rounds_url = f"{tournament_data['tournament']}rounds"
+            rounds_response = requests.get(rounds_url, headers=headers, timeout=10)
+            
+            if rounds_response.status_code != 200:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ Failed to fetch rounds data.")
+                return
+
+            rounds = rounds_response.json()
+            
+            # Find the current round (first non-completed round)
+            current_round = None
+            for round_data in rounds:
+                if not round_data.get("completed", False):
+                    current_round = round_data
+                    break
+            
+            if not current_round:
+                # If no incomplete rounds, use the last round
+                current_round = rounds[-1] if rounds else None
+            
+            if not current_round:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ No rounds found in tournament.")
+                return
+
+            # Get pairings for the current round
+            pairings_url = f"{current_round['url']}/pairings"
+            pairings_response = requests.get(pairings_url, headers=headers, timeout=10)
+            
+            if pairings_response.status_code != 200:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ Failed to fetch pairings data.")
+                return
+
+            pairings = pairings_response.json()
+            
+            embed = discord.Embed(
+                title=f"📋 Round {current_round['abbreviation']} Pairings",
+                description=f"Draw for **{tournament_data['tournament_name']}**",
+                color=discord.Color.blue(),
+            )
+
+            if not pairings:
+                embed.add_field(name="Status", value="No pairings released yet", inline=False)
+            else:
+                # Format pairings - show first 10 debates
+                pairings_text = ""
+                for i, pairing in enumerate(pairings[:10], 1):
+                    venue = pairing.get('venue', {}).get('display_name', 'TBA')
+                    
+                    # Get team names
+                    teams = []
+                    for team_data in pairing.get('teams', []):
+                        team_name = team_data.get('team', {}).get('short_name', 'Unknown')
+                        position = team_data.get('position', 'Unknown')
+                        teams.append(f"{team_name} ({position})")
+                    
+                    if teams:
+                        teams_str = " vs ".join(teams)
+                        pairings_text += f"**{venue}:** {teams_str}\n"
+                    
+                if pairings_text:
+                    embed.add_field(name="Debates", value=pairings_text, inline=False)
+                
+                if len(pairings) > 10:
+                    embed.add_field(name="Note", value=f"Showing 10 of {len(pairings)} total debates", inline=False)
+
+            embed.set_footer(text=f"Round: {current_round['name']}")
+            
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func(embed=embed)
+
+        except Exception as e:
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func("❌ Error fetching pairings.")
+            logger.error(f"Error in pairings command: {e}")
 
     async def _standings_logic(self, ctx, is_slash=False):
         """Shared logic for standings commands"""
