@@ -26,7 +26,8 @@ class Timer(commands.Cog):
         self.t = {}  # reminder storage library
         self.active_timers = (
             {}
-        )  # track active timer messages - format: {user_id_channel_id: message_obj}
+            # track active timer messages - format: {user_id_channel_id: message_obj}
+        )
 
     async def get_language(self, guild_id):
         """Get language setting for a guild"""
@@ -294,7 +295,8 @@ class Timer(commands.Cog):
                     current_time - last_update >= 1  # Every second for real-time
                     or total_seconds <= 10  # Last 10 seconds
                     or total_seconds % 60 == 0  # Every minute
-                    or total_seconds in [300, 180, 60, 30]  # Important milestones
+                    # Important milestones
+                    or total_seconds in [300, 180, 60, 30]
                 )
 
                 if should_update:
