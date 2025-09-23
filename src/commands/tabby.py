@@ -26,6 +26,16 @@ class TabbyCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.database = Database()
+        # Temporary in-memory storage until PostgreSQL tables are created
+        self.tournament_cache = {}
+
+    def _get_tournament_data(self, guild_id):
+        """Get tournament data from cache"""
+        return self.tournament_cache.get(guild_id)
+
+    def _store_tournament_data(self, guild_id, data):
+        """Store tournament data in cache"""
+        self.tournament_cache[guild_id] = data
 
     @commands.command(name="tabsync")
     @commands.has_permissions(administrator=True)
@@ -64,8 +74,17 @@ class TabbyCommands(commands.Cog):
             tournament = tournaments[0]
             tournament_url = f"{base_url}/api/v1/tournaments/{tournament['slug']}/"
 
-            # Database storage temporarily disabled for PostgreSQL migration
-            # TODO: Create proper PostgreSQL tables for tournament data
+            # Store tournament data in temporary cache
+            tournament_data = {
+                "site": base_url,
+                "token": token,
+                "tournament": tournament_url,
+                "tournament_name": tournament["name"],
+                "tournament_slug": tournament["slug"],
+                "teams": [],
+                "adjudicators": [],
+            }
+            self._store_tournament_data(ctx.guild.id, tournament_data)
 
             embed = discord.Embed(
                 title="✅ Tournament Connected",
@@ -163,6 +182,20 @@ class TabbyCommands(commands.Cog):
         """View current tournament standings"""
         await self._standings_logic(ctx, is_slash=False)
 
+    @commands.command()
+    async def motion(self, ctx, round_abbrev):
+        """Get motion for a specific round
+
+        Usage: .motion <round_abbreviation>
+        Example: .motion R1
+        """
+        await self._motion_logic(ctx, round_abbrev, is_slash=False)
+
+    @commands.command()
+    async def status(self, ctx):
+        """Show tournament status and connection info"""
+        await self._status_logic(ctx, is_slash=False)
+
     @commands.command(
         name="addemai",
         aliases=["email-adj"],
@@ -241,15 +274,25 @@ class TabbyCommands(commands.Cog):
             # Use the first tournament (or let admin choose in the future)
             tournament = tournaments[0]
 
+            # Store tournament data in temporary cache
+            tournament_data = {
+                "site": base_url,
+                "token": token,
+                "tournament": f"{base_url}/api/v1/tournaments/{tournament['slug']}/",
+                "tournament_name": tournament["name"],
+                "tournament_slug": tournament["slug"],
+                "teams": [],
+                "adjudicators": [],
+            }
+            self._store_tournament_data(interaction.guild_id, tournament_data)
+
             # Store tournament data in PostgreSQL
             if await self.database.ensure_connected():
-                # TODO: Update this to use proper PostgreSQL table structure
-                # For now, just acknowledge the sync
                 await interaction.followup.send(
                     f"✅ Successfully connected to tournament: **{tournament['name']}**\n"
                     f"🔗 URL: {base_url}\n"
                     f"📊 Tournament ID: {tournament['slug']}\n"
-                    f"⚠️ Database storage pending PostgreSQL table creation"
+                    f"💾 Data cached and ready for use!"
                 )
                 logger.info(
                     f"Synced guild {interaction.guild_id} with tournament {tournament['name']}"
@@ -308,6 +351,21 @@ class TabbyCommands(commands.Cog):
             "⚠️ Announcement system temporarily disabled during PostgreSQL migration."
         )
 
+    @app_commands.command(name="motion", description="Get motion for a specific round")
+    @app_commands.describe(round_abbrev="Round abbreviation (e.g., R1, R2, SF, F)")
+    async def slash_motion(self, interaction: discord.Interaction, round_abbrev: str):
+        """Slash command version of motion"""
+        await interaction.response.defer()
+        await self._motion_logic(interaction, round_abbrev, is_slash=True)
+
+    @app_commands.command(
+        name="status", description="Show tournament status and connection info"
+    )
+    async def slash_status(self, interaction: discord.Interaction):
+        """Slash command version of status"""
+        await interaction.response.defer()
+        await self._status_logic(interaction, is_slash=True)
+
     # Helper methods to handle both slash and prefix commands
     async def _checkin_logic(self, ctx, is_slash=False):
         """Shared logic for checkin commands"""
@@ -339,10 +397,170 @@ class TabbyCommands(commands.Cog):
 
     async def _standings_logic(self, ctx, is_slash=False):
         """Shared logic for standings commands"""
-        send_func = ctx.followup.send if is_slash else ctx.send
-        await send_func(
-            "🏆 Standings functionality temporarily disabled during PostgreSQL migration."
-        )
+        try:
+            tournament_data = self._get_tournament_data(
+                ctx.guild.id if hasattr(ctx, "guild") else ctx.guild_id
+            )
+            if not tournament_data:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func(
+                    "❌ This server is not synced with a tournament. Use `/tabsync` first."
+                )
+                return
+
+            headers = {"Authorization": f"Token {tournament_data['token']}"}
+            standings_url = f"{tournament_data['tournament']}standings"
+
+            response = requests.get(standings_url, headers=headers, timeout=10)
+
+            if response.status_code != 200:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ Failed to fetch standings data.")
+                return
+
+            standings = response.json()
+
+            embed = discord.Embed(
+                title="🏆 Tournament Standings",
+                description=f"Current standings for **{tournament_data['tournament_name']}**",
+                color=discord.Color.gold(),
+            )
+
+            # Format top 10 standings
+            standings_text = ""
+            for i, team in enumerate(standings[:10], 1):
+                standings_text += f"{i}. **{team.get('short_name', 'Unknown')}** - {team.get('points', 0)} pts\n"
+
+            if standings_text:
+                embed.add_field(name="Top 10 Teams", value=standings_text, inline=False)
+            else:
+                embed.add_field(
+                    name="Standings", value="No standings available yet", inline=False
+                )
+
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func(embed=embed)
+
+        except Exception as e:
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func("❌ Error fetching standings.")
+            logger.error(f"Error in standings command: {e}")
+
+    async def _motion_logic(self, ctx, round_abbrev, is_slash=False):
+        """Shared logic for motion commands"""
+        try:
+            tournament_data = self._get_tournament_data(
+                ctx.guild.id if hasattr(ctx, "guild") else ctx.guild_id
+            )
+            if not tournament_data:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func(
+                    "❌ This server is not synced with a tournament. Use `/tabsync` first."
+                )
+                return
+
+            headers = {"Authorization": f"Token {tournament_data['token']}"}
+            rounds_url = f"{tournament_data['tournament']}rounds"
+
+            response = requests.get(rounds_url, headers=headers, timeout=10)
+
+            if response.status_code != 200:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ Failed to fetch rounds data.")
+                return
+
+            rounds = response.json()
+
+            for round_data in rounds:
+                if round_data["abbreviation"].lower() == round_abbrev.lower():
+                    if not round_data.get("motions_released", False):
+                        send_func = ctx.followup.send if is_slash else ctx.send
+                        await send_func(
+                            f"🔒 The motion for **{round_abbrev}** is not released yet!"
+                        )
+                        return
+
+                    motions = round_data.get("motions", [])
+
+                    if not motions:
+                        send_func = ctx.followup.send if is_slash else ctx.send
+                        await send_func(f"❌ No motions found for **{round_abbrev}**")
+                        return
+
+                    for i, motion_data in enumerate(motions, 1):
+                        motion_text = motion_data.get("text", "No motion text")
+                        info_slide = motion_data.get("info_slide", "")
+
+                        embed = discord.Embed(
+                            title=f"🎯 Motion {i} for {round_abbrev}",
+                            description=f"**{motion_text}**",
+                            color=discord.Color.blue(),
+                        )
+
+                        if info_slide:
+                            embed.add_field(
+                                name="📋 Info Slide", value=info_slide, inline=False
+                            )
+
+                        embed.set_footer(
+                            text=f"Tournament: {tournament_data.get('tournament_name', 'Unknown')}"
+                        )
+
+                        send_func = ctx.followup.send if is_slash else ctx.send
+                        await send_func(embed=embed)
+
+                    return
+
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func(f"❌ Round **{round_abbrev}** not found.")
+
+        except Exception as e:
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func("❌ Error fetching motion.")
+            logger.error(f"Error in motion command: {e}")
+
+    async def _status_logic(self, ctx, is_slash=False):
+        """Shared logic for status commands"""
+        try:
+            tournament_data = self._get_tournament_data(
+                ctx.guild.id if hasattr(ctx, "guild") else ctx.guild_id
+            )
+            if not tournament_data:
+                embed = discord.Embed(
+                    title="❌ Not Connected",
+                    description="This server is not synced with any tournament.",
+                    color=discord.Color.red(),
+                )
+                embed.add_field(
+                    name="💡 Setup Required",
+                    value="Use `/tabsync <url> <token>` to connect to a tournament",
+                    inline=False,
+                )
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func(embed=embed)
+                return
+
+            embed = discord.Embed(
+                title="🏆 Tournament Status",
+                description=f"Connected to **{tournament_data['tournament_name']}**",
+                color=discord.Color.green(),
+            )
+
+            embed.add_field(name="🔗 URL", value=tournament_data["site"], inline=False)
+            embed.add_field(
+                name="📊 Tournament",
+                value=tournament_data["tournament_slug"],
+                inline=True,
+            )
+            embed.add_field(name="🔄 Status", value="Connected", inline=True)
+
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func(embed=embed)
+
+        except Exception as e:
+            send_func = ctx.followup.send if is_slash else ctx.send
+            await send_func("❌ Error retrieving status.")
+            logger.error(f"Error in status command: {e}")
 
 
 async def setup(bot):
