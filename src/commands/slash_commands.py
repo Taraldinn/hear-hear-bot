@@ -4,12 +4,13 @@ Author: aldinn
 Email: kferdoush617@gmail.com
 """
 
+import logging
+import random
+
 import discord
 from discord.ext import commands
 from discord import app_commands
-import logging
-import random
-from src.utils.language import language_manager
+
 
 logger = logging.getLogger(__name__)
 
@@ -70,4 +71,5 @@ class SlashCommands(commands.Cog):
 
 
 async def setup(bot):
+    """Set up the SlashCommands cog."""
     await bot.add_cog(SlashCommands(bot))

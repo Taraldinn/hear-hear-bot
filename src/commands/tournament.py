@@ -6,195 +6,26 @@ Email: kferdoush617@gmail.com
 Creates tournament venues, roles, and channels for debate tournaments
 """
 
-import discord
-from discord.ext import commands
-from discord import app_commands
+from __future__ import annotations
+
 import asyncio
 import logging
-from typing import Dict, List, Optional, Literal
 from datetime import datetime
+from typing import Dict, Optional, Literal
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+from .tournament_views import TournamentRoleView
+from .tournament_service import (
+    create_tournament_roles,
+    create_general_channels,
+    create_venue_channels,
+    setup_permissions,
+    setup_role_assignment as setup_role_assignment_service,
+)
 
 logger = logging.getLogger(__name__)
-
-
-class TournamentRoleView(discord.ui.View):
-    """Persistent view for tournament role assignment"""
-
-    def __init__(self, guild_id):
-        super().__init__(timeout=None)  # Persistent view
-        self.guild_id = guild_id
-
-        # Add the select menu
-        self.add_item(TournamentRoleSelect(guild_id))
-
-
-class TournamentRoleSelect(discord.ui.Select):
-    """Select menu for choosing tournament roles"""
-
-    def __init__(self, guild_id):
-        self.guild_id = guild_id
-
-        # Create standard options - roles will be validated dynamically
-        options = [
-            discord.SelectOption(
-                label="Debater",
-                emoji="🥊",
-                value="debater",
-                description="Participate in debates and access prep rooms",
-            ),
-            discord.SelectOption(
-                label="Adjudicator",
-                emoji="⚖️",
-                value="adjudicator",
-                description="Judge debates and access result discussions",
-            ),
-            discord.SelectOption(
-                label="Spectator",
-                emoji="👀",
-                value="spectator",
-                description="Watch the tournament with read-only access",
-            ),
-        ]
-
-        super().__init__(
-            placeholder="Choose your tournament role...",
-            min_values=1,
-            max_values=1,
-            options=options,
-            custom_id=f"tournament_role_select_{guild_id}",
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        """Handle role selection"""
-        try:
-            await interaction.response.defer(ephemeral=True)
-
-            guild = interaction.guild
-            if not guild:
-                await interaction.followup.send(
-                    "❌ This command can only be used in a server.", ephemeral=True
-                )
-                return
-
-            # Try to get member from cache first, then fetch if needed
-            member = guild.get_member(interaction.user.id)
-            if not member:
-                try:
-                    member = await guild.fetch_member(interaction.user.id)
-                except discord.NotFound:
-                    await interaction.followup.send(
-                        "❌ You are not a member of this server.", ephemeral=True
-                    )
-                    return
-                except discord.HTTPException:
-                    await interaction.followup.send(
-                        "❌ Failed to verify your membership. Please try again.",
-                        ephemeral=True,
-                    )
-                    return
-
-            selected_role_key = self.values[0]
-
-            # Find the role dynamically based on the selection
-            role_mapping = {
-                "debater": "Debater",
-                "adjudicator": "Adjudicator",
-                "spectator": "Spectator",
-            }
-
-            role_name = role_mapping.get(selected_role_key)
-            if not role_name:
-                await interaction.followup.send(
-                    "❌ Invalid role selection. Please try again.", ephemeral=True
-                )
-                return
-
-            selected_role = discord.utils.get(guild.roles, name=role_name)
-            if not selected_role:
-                await interaction.followup.send(
-                    f"❌ The {role_name} role doesn't exist. Make sure the tournament has been set up properly.",
-                    ephemeral=True,
-                )
-                return
-
-            # Check bot permissions
-            if selected_role >= guild.me.top_role:
-                await interaction.followup.send(
-                    f"❌ I don't have permission to assign the {role_name} role. "
-                    f"Please contact an administrator.",
-                    ephemeral=True,
-                )
-                return
-
-            # Remove other tournament roles first
-            tournament_roles = [
-                discord.utils.get(guild.roles, name="Debater"),
-                discord.utils.get(guild.roles, name="Adjudicator"),
-                discord.utils.get(guild.roles, name="Spectator"),
-            ]
-            tournament_roles = [r for r in tournament_roles if r and r in member.roles]
-
-            if tournament_roles:
-                await member.remove_roles(
-                    *tournament_roles,
-                    reason="Tournament role change - removing old roles",
-                )
-
-            # Add new role
-            await member.add_roles(
-                selected_role,
-                reason=f"Tournament role assignment - assigned {role_name}",
-            )
-
-            logger.info("Assigned {role_name} role to {member.display_name}", )
-
-            # Send confirmation
-            await interaction.followup.send(
-                f"✅ **Role assigned successfully!**\n"
-                f"You are now a **{role_name}** for this tournament.\n\n"
-                f"🔄 Channels should now be visible. If you don't see them:\n"
-                f"• **Desktop**: Press `Ctrl+R` (Windows) or `Cmd+R` (Mac)\n"
-                f"• **Mobile**: Pull down to refresh or restart Discord\n\n"
-                f"You can change your role anytime by using this menu again!",
-                ephemeral=True,
-            )
-
-            # Send welcome message to welcome channel (if it exists)
-            try:
-                # Find the welcome channel and send a simple welcome message
-                welcome_channel = discord.utils.get(guild.text_channels, name="welcome")
-                if welcome_channel:
-                    embed = discord.Embed(
-                        title="🎉 Welcome to the Tournament!",
-                        description=f"Welcome {member.mention}! You've successfully registered as a **{role_name}**.",
-                        color=discord.Color.green(),
-                    )
-                    embed.add_field(
-                        name="🔄 Channels should now be visible!",
-                        value="If you don't see new channels, try refreshing Discord.",
-                        inline=False,
-                    )
-                    embed.set_footer(text="Good luck in the tournament! 🏆")
-                    await welcome_channel.send(embed=embed)
-            except Exception as e:
-                logger.warning("Could not send welcome message: {e}", )
-
-        except discord.Forbidden:
-            await interaction.followup.send(
-                f"❌ I don't have permission to assign roles. Please contact an administrator.",
-                ephemeral=True,
-            )
-            logger.error(
-                f"No permission to assign roles to {interaction.user.display_name}"
-            )
-        except Exception as e:
-            await interaction.followup.send(
-                f"❌ An error occurred while assigning your role. Please try again or contact an administrator.",
-                ephemeral=True,
-            )
-            logger.error(
-                f"Error assigning role to {interaction.user.display_name}: {e}"
-            )
 
 
 class TournamentSetup(commands.Cog):
@@ -208,7 +39,10 @@ class TournamentSetup(commands.Cog):
         description="Create tournament venues and channels for debate competition",
     )
     @app_commands.describe(
-        tournament_type="Type of debate format (AP = Asian Parliamentary, BP = British Parliamentary)",
+        tournament_type=(
+            "Type of debate format "
+            "(AP = Asian Parliamentary, BP = British Parliamentary)"
+        ),
         venues="Number of venues to create (1-20)",
         setup_roles="Whether to create tournament roles (Debater, Adjudicator, Spectator)",
         setup_role_assignment="Whether to setup role assignment channel with reactions",
@@ -314,6 +148,9 @@ class TournamentSetup(commands.Cog):
 
         await interaction.response.defer()
 
+        # Track progress message for updates
+        progress_msg: Optional[discord.Message] = None
+
         try:
             embed = discord.Embed(
                 title="🏆 Creating Tournament Setup",
@@ -325,7 +162,7 @@ class TournamentSetup(commands.Cog):
             progress_msg = await interaction.followup.send(embed=embed)
 
             # Step 1: Create roles if requested
-            roles = {}
+            roles: Dict[str, discord.Role] = {}
             if setup_roles:
                 embed = discord.Embed(
                     title="🏆 Creating Tournament Setup",
@@ -339,8 +176,8 @@ class TournamentSetup(commands.Cog):
                     inline=False,
                 )
                 if progress_msg:
-                    await progress_msg.edit(embed=embed)
-                roles = await self.create_tournament_roles(guild)
+                    await progress_msg.edit(embed=embed)  # type: ignore[misc]
+                roles = await create_tournament_roles(guild)
 
             # Step 2: Create general tournament channels
             embed = discord.Embed(
@@ -353,8 +190,8 @@ class TournamentSetup(commands.Cog):
                 name="📁 Step 2/5", value="Creating general channels...", inline=False
             )
             if progress_msg:
-                await progress_msg.edit(embed=embed)
-            general_channels = await self.create_general_channels(guild, roles)
+                await progress_msg.edit(embed=embed)  # type: ignore[misc]
+            general_channels = await create_general_channels(guild, roles)
 
             # Step 3: Create venue channels
             embed = discord.Embed(
@@ -367,8 +204,8 @@ class TournamentSetup(commands.Cog):
                 name="🏟️ Step 3/5", value=f"Creating {venues} venues...", inline=False
             )
             if progress_msg:
-                await progress_msg.edit(embed=embed)
-            venue_channels = await self.create_venue_channels(
+                await progress_msg.edit(embed=embed)  # type: ignore[misc]
+            venue_channels = await create_venue_channels(
                 guild, tournament_type, venues, roles
             )
 
@@ -383,8 +220,8 @@ class TournamentSetup(commands.Cog):
                 name="🔒 Step 4/5", value="Configuring permissions...", inline=False
             )
             if progress_msg:
-                await progress_msg.edit(embed=embed)
-            await self.setup_permissions(guild, roles, general_channels, venue_channels)
+                await progress_msg.edit(embed=embed)  # type: ignore[misc]
+            await setup_permissions(guild, roles, general_channels, venue_channels)
 
             # Step 5: Setup role assignment if requested
             role_assignment_msg = None
@@ -401,15 +238,18 @@ class TournamentSetup(commands.Cog):
                     inline=False,
                 )
                 if progress_msg:
-                    await progress_msg.edit(embed=embed)
-                role_assignment_msg = await self.setup_role_assignment(
+                    await progress_msg.edit(embed=embed)  # type: ignore[misc]
+                role_assignment_msg = await setup_role_assignment_service(
                     guild, roles, general_channels
                 )
 
             # Final success message
             success_embed = discord.Embed(
                 title="✅ Tournament Setup Complete!",
-                description=f"Successfully created {tournament_type} tournament with {venues} venues",
+                description=(
+                    f"Successfully created {tournament_type} tournament "
+                    f"with {venues} venues"
+                ),
                 color=discord.Color.green(),
                 timestamp=datetime.now(),
             )
@@ -446,7 +286,10 @@ class TournamentSetup(commands.Cog):
             if role_assignment_msg:
                 success_embed.add_field(
                     name="📋 Role Assignment",
-                    value=f"Check {general_channels.get('role_assignment', '#role-assignment')} to get your role!",
+                    value=(
+                        f"Check {general_channels.get('role_assignment', '#role-assignment')} "
+                        "to get your role!"
+                    ),
                     inline=False,
                 )
 
@@ -455,10 +298,11 @@ class TournamentSetup(commands.Cog):
             )
 
             if progress_msg:
-                await progress_msg.edit(embed=success_embed)
+                # Some type checkers think edit might return Never; it's awaitable in runtime
+                await progress_msg.edit(embed=success_embed)  # type: ignore[misc]
 
         except discord.Forbidden as e:
-            logger.error("Permission error during tournament setup: {e}", )
+            logger.error("Permission error during tournament setup: %s", e)
 
             # Create detailed permission error embed
             error_embed = discord.Embed(
@@ -498,11 +342,11 @@ class TournamentSetup(commands.Cog):
 
             try:
                 await interaction.edit_original_response(embed=error_embed)
-            except:
+            except discord.HTTPException:
                 await interaction.followup.send(embed=error_embed, ephemeral=True)
 
         except discord.HTTPException as e:
-            logger.error("Discord API error during tournament setup: {e}", )
+            logger.error("Discord API error during tournament setup: %s", e)
 
             error_embed = discord.Embed(
                 title="❌ Discord API Error",
@@ -537,11 +381,11 @@ class TournamentSetup(commands.Cog):
 
             try:
                 await interaction.edit_original_response(embed=error_embed)
-            except:
+            except discord.HTTPException:
                 await interaction.followup.send(embed=error_embed, ephemeral=True)
 
-        except Exception as e:
-            logger.error("Failed to create tournament: {e}", )
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to create tournament: %s", e)
             error_embed = discord.Embed(
                 title="❌ Tournament Setup Failed",
                 description=f"Error: {str(e)}",
@@ -549,704 +393,9 @@ class TournamentSetup(commands.Cog):
             )
             await interaction.followup.send(embed=error_embed, ephemeral=True)
 
-    async def create_tournament_roles(
-        self, guild: discord.Guild
-    ) -> Dict[str, discord.Role]:
-        """Create tournament roles if they don't exist"""
-        roles = {}
-
-        role_configs = {
-            "debater": {
-                "name": "Debater",
-                "color": discord.Color.blue(),
-                "permissions": discord.Permissions(
-                    read_messages=True,
-                    send_messages=True,
-                    connect=True,
-                    speak=True,
-                    use_voice_activation=True,
-                ),
-            },
-            "adjudicator": {
-                "name": "Adjudicator",
-                "color": discord.Color.gold(),
-                "permissions": discord.Permissions(
-                    read_messages=True,
-                    send_messages=True,
-                    connect=True,
-                    speak=True,
-                    use_voice_activation=True,
-                    mute_members=True,
-                    deafen_members=True,
-                ),
-            },
-            "spectator": {
-                "name": "Spectator",
-                "color": discord.Color.light_grey(),
-                "permissions": discord.Permissions(
-                    read_messages=True, send_messages=False, connect=False, speak=False
-                ),
-            },
-        }
-
-        for role_key, config in role_configs.items():
-            # Check if role already exists
-            existing_role = discord.utils.get(guild.roles, name=config["name"])
-            if existing_role:
-                roles[role_key] = existing_role
-                logger.info("Role {config['name']} already exists", )
-            else:
-                # Create new role
-                role = await guild.create_role(
-                    name=config["name"],
-                    color=config["color"],
-                    permissions=config["permissions"],
-                    reason="Tournament setup - creating tournament roles",
-                )
-                roles[role_key] = role
-                logger.info("Created role: {config['name']}", )
-
-                # Small delay to avoid rate limiting
-                await asyncio.sleep(0.5)
-
-        return roles
-
-    async def create_general_channels(
-        self, guild: discord.Guild, roles: Dict[str, discord.Role]
-    ) -> Dict[str, discord.TextChannel]:
-        """Create general tournament channels"""
-        channels = {}
-
-        # Channel categories and their channels
-        channel_structure = {
-            "Welcome": {
-                "channels": [
-                    ("welcome", "Welcome to the tournament!"),
-                    (
-                        "instructions-for-teams",
-                        "Important instructions for team members",
-                    ),
-                    ("instructions-for-adjudicators", "Guidelines for adjudicators"),
-                    ("equity-policy", "Tournament equity and safety policies"),
-                    ("report-problems", "Report any issues here"),
-                    ("role-assignment", "React to get your tournament role"),
-                ]
-            },
-            "Info Desk": {
-                "channels": [
-                    ("bot-commands", "Use bot commands here"),
-                    ("schedules", "Tournament schedules and timing"),
-                    ("tech-support", "Technical assistance"),
-                ]
-            },
-            "Feedback & Check-in": {
-                "channels": [
-                    ("feedback-submission", "Submit feedback and evaluations"),
-                    ("check-in", "Check in for rounds"),
-                    ("check-out", "Check out after rounds"),
-                ]
-            },
-            "Grand Auditorium": {
-                "channels": [
-                    ("announcements", "Official tournament announcements"),
-                    ("motion-clarifications", "Motion clarifications and questions"),
-                    ("draws-and-motion-release", "Round draws and motion releases"),
-                    ("equity-announcements", "Equity and safety announcements"),
-                    ("music-control", "Music and entertainment"),
-                    ("important-links", "Important links and resources"),
-                    ("auditorium-text", "General auditorium chat"),
-                ]
-            },
-        }
-
-        for category_name, category_data in channel_structure.items():
-            # Create category if it doesn't exist
-            category = discord.utils.get(guild.categories, name=category_name)
-            if not category:
-                category = await guild.create_category(
-                    name=category_name,
-                    reason="Tournament setup - creating general channels",
-                )
-                logger.info("Created category: {category_name}", )
-                await asyncio.sleep(0.5)
-
-            # Create channels in category
-            for channel_name, description in category_data["channels"]:
-                existing_channel = discord.utils.get(
-                    guild.text_channels, name=channel_name
-                )
-                if not existing_channel:
-                    channel = await guild.create_text_channel(
-                        name=channel_name,
-                        category=category,
-                        topic=description,
-                        reason="Tournament setup - creating general channels",
-                    )
-                    channels[channel_name.replace("-", "_")] = channel
-                    logger.info("Created channel: #{channel_name}", )
-
-                    # Set initial permissions for role-assignment channel
-                    if channel_name == "role-assignment":
-                        # Everyone can see and react in role-assignment channel
-                        await channel.set_permissions(
-                            guild.default_role,
-                            read_messages=True,
-                            send_messages=False,
-                            add_reactions=True,
-                            read_message_history=True,
-                        )
-                        logger.info(
-                            "Set role-assignment channel permissions for everyone"
-                        )
-                    elif category_name == "Welcome":
-                        # Welcome channels are visible to everyone but read-only
-                        await channel.set_permissions(
-                            guild.default_role,
-                            read_messages=True,
-                            send_messages=False,
-                            add_reactions=False,
-                        )
-                        logger.info(
-                            f"Set welcome channel permissions for #{channel_name}"
-                        )
-                    else:
-                        # Other channels are hidden until user gets a role
-                        await channel.set_permissions(
-                            guild.default_role, read_messages=False, send_messages=False
-                        )
-                        logger.info(
-                            f"Set hidden channel permissions for #{channel_name}"
-                        )
-
-                    await asyncio.sleep(0.5)
-                    await asyncio.sleep(0.5)
-                else:
-                    channels[channel_name.replace("-", "_")] = existing_channel
-
-        return channels
-
-    async def create_venue_channels(
-        self,
-        guild: discord.Guild,
-        tournament_type: str,
-        venues: int,
-        roles: Dict[str, discord.Role],
-    ) -> List[Dict]:
-        """Create venue-specific channels"""
-        venue_channels = []
-
-        for venue_num in range(1, venues + 1):
-            venue_data = {}
-
-            # Create venue category
-            category_name = f"Venue {venue_num}"
-            category = await guild.create_category(
-                name=category_name,
-                reason=f"Tournament setup - creating venue {venue_num}",
-            )
-            await asyncio.sleep(0.5)
-
-            # Create debate text channel
-            debate_text = await guild.create_text_channel(
-                name=f"venue-{venue_num}-debate",
-                category=category,
-                topic=f"Debate discussion for venue {venue_num}",
-                reason=f"Tournament setup - venue {venue_num} text channel",
-            )
-            venue_data["debate_text"] = debate_text
-            await asyncio.sleep(0.5)
-
-            # Create main debate voice channel
-            debate_voice = await guild.create_voice_channel(
-                name=f"Venue-{venue_num}-Debate",
-                category=category,
-                reason=f"Tournament setup - venue {venue_num} main voice",
-            )
-            venue_data["debate_voice"] = debate_voice
-            await asyncio.sleep(0.5)
-
-            # Create prep rooms based on tournament type
-            if tournament_type == "AP":
-                # Asian Parliamentary: Gov and Opp prep rooms
-                prep_rooms = [
-                    (f"Venue-{venue_num}-Gov-Prep", 3),
-                    (f"Venue-{venue_num}-Opp-Prep", 3),
-                ]
-            else:  # BP
-                # British Parliamentary: OG, OO, CG, CO prep rooms
-                prep_rooms = [
-                    (f"Venue-{venue_num}-OG-Prep", 2),
-                    (f"Venue-{venue_num}-OO-Prep", 2),
-                    (f"Venue-{venue_num}-CG-Prep", 2),
-                    (f"Venue-{venue_num}-CO-Prep", 2),
-                ]
-
-            venue_data["prep_rooms"] = []
-            for room_name, user_limit in prep_rooms:
-                prep_room = await guild.create_voice_channel(
-                    name=room_name,
-                    category=category,
-                    user_limit=user_limit,
-                    reason=f"Tournament setup - {room_name}",
-                )
-                venue_data["prep_rooms"].append(prep_room)
-                await asyncio.sleep(0.5)
-
-            # Create result discussion room
-            result_room = await guild.create_voice_channel(
-                name=f"Venue-{venue_num}-Result-Discussion",
-                category=category,
-                reason=f"Tournament setup - venue {venue_num} result discussion",
-            )
-            venue_data["result_room"] = result_room
-            await asyncio.sleep(0.5)
-
-            venue_channels.append(venue_data)
-            logger.info("Created venue {venue_num} with {len(prep_rooms)} prep rooms", )
-
-        return venue_channels
-
-    async def setup_permissions(
-        self,
-        guild: discord.Guild,
-        roles: Dict[str, discord.Role],
-        general_channels: Dict,
-        venue_channels: List[Dict],
-    ):
-        """Setup permissions for all channels and roles"""
-        logger.info("Setting up comprehensive channel permissions...")
-
-        if not roles:
-            logger.warning("No roles provided, skipping permission setup")
-            return
-
-        debater_role = roles.get("debater")
-        adjudicator_role = roles.get("adjudicator")
-        spectator_role = roles.get("spectator")
-
-        # Setup category permissions first
-        welcome_categories = ["Welcome"]
-        # Grand Auditorium should be open for everyone with any role
-        grand_auditorium_categories = ["Grand Auditorium"]
-        restricted_categories = [
-            "Info Desk",
-            "Feedback & Check-in",
-        ]  # Removed Grand Auditorium
-
-        for category in guild.categories:
-            if category.name in welcome_categories:
-                # Welcome categories: visible to everyone
-                await category.set_permissions(
-                    guild.default_role, read_messages=True, send_messages=False
-                )
-                logger.info("✅ Set welcome category permissions for {category.name}", )
-
-            elif category.name in grand_auditorium_categories:
-                # Grand Auditorium: hidden from @everyone, but open to ALL role holders
-                await category.set_permissions(guild.default_role, read_messages=False)
-
-                # Grant access to ALL role holders (debaters, adjudicators, spectators)
-                for role in [debater_role, adjudicator_role, spectator_role]:
-                    if role:
-                        await category.set_permissions(
-                            role, read_messages=True, send_messages=True
-                        )
-
-                logger.info(
-                    f"✅ Set Grand Auditorium permissions (open for all role holders)"
-                )
-
-            elif category.name in restricted_categories:
-                # Restricted categories: hidden from @everyone, visible to role holders
-                await category.set_permissions(guild.default_role, read_messages=False)
-
-                # Grant access to role holders
-                for role in [debater_role, adjudicator_role, spectator_role]:
-                    if role:
-                        await category.set_permissions(
-                            role, read_messages=True, send_messages=True
-                        )
-
-                logger.info(
-                    f"✅ Set restricted category permissions for {category.name}"
-                )
-
-            elif category.name and "venue" in category.name.lower():
-                # Venue categories: accessible to participants
-                await category.set_permissions(guild.default_role, view_channel=False)
-
-                # Grant access to ALL role holders (not just debaters and adjudicators)
-                for role in [debater_role, adjudicator_role, spectator_role]:
-                    if role:
-                        await category.set_permissions(role, view_channel=True)
-
-                logger.info("✅ Set venue category permissions for {category.name}", )
-
-            await asyncio.sleep(0.2)
-
-        # Setup permissions for general channels
-        for channel_key, channel in general_channels.items():
-            if channel_key == "role_assignment":
-                # Role assignment: Visible to everyone, reactions only
-                await channel.set_permissions(
-                    guild.default_role,
-                    read_messages=True,
-                    send_messages=False,
-                    add_reactions=True,
-                    read_message_history=True,
-                )
-                # Bot can manage the channel
-                await channel.set_permissions(
-                    guild.me,
-                    read_messages=True,
-                    send_messages=True,
-                    manage_messages=True,
-                    add_reactions=True,
-                )
-                logger.info("✅ Set role-assignment channel permissions")
-
-            elif channel_key in [
-                "welcome",
-                "instructions_for_teams",
-                "instructions_for_adjudicators",
-                "equity_policy",
-            ]:
-                # Welcome channels: Everyone can read
-                await channel.set_permissions(
-                    guild.default_role,
-                    read_messages=True,
-                    send_messages=False,
-                    add_reactions=False,
-                )
-                logger.info("✅ Set welcome channel permissions for {channel_key}", )
-
-            else:
-                # Other channels: Hidden from @everyone, but open to ALL role holders
-                await channel.set_permissions(
-                    guild.default_role, read_messages=False, send_messages=False
-                )
-
-                # ALL role holders get equal access to most channels
-                for role in [debater_role, adjudicator_role, spectator_role]:
-                    if role:
-                        # Special channels where spectators can send messages
-                        can_send = True
-                        if role == spectator_role:
-                            # Spectators can send in feedback and problem channels
-                            can_send = channel_key in [
-                                "feedback_submission",
-                                "report_problems",
-                                "general",
-                                "announcements",
-                            ]
-
-                        await channel.set_permissions(
-                            role,
-                            read_messages=True,
-                            send_messages=can_send,
-                            add_reactions=True,
-                        )
-
-                logger.info(
-                    f"✅ Set permissions for {channel_key} (open for all role holders)"
-                )
-
-            await asyncio.sleep(0.2)
-
-        # Setup permissions for venue channels
-        for i, venue_data in enumerate(venue_channels, 1):
-            logger.info("Setting permissions for Venue {i}...", )
-
-            # Main debate text channel - open for all role holders
-            if "text_channel" in venue_data:
-                text_channel = venue_data["text_channel"]
-                # Hide from @everyone
-                await text_channel.set_permissions(
-                    guild.default_role, read_messages=False
-                )
-
-                # ALL tournament participants can access
-                for role in [debater_role, adjudicator_role, spectator_role]:
-                    if role:
-                        # Spectators get read-only access, others can send messages
-                        can_send = role != spectator_role
-                        await text_channel.set_permissions(
-                            role,
-                            read_messages=True,
-                            send_messages=can_send,
-                            add_reactions=True,
-                        )
-
-                logger.info(
-                    f"✅ Set text channel permissions for Venue {i} (open for all)"
-                )
-                await asyncio.sleep(0.2)
-
-            # Main debate voice channel - open for all role holders
-            if "debate_voice" in venue_data:
-                voice_channel = venue_data["debate_voice"]
-                # Hide from @everyone
-                await voice_channel.set_permissions(
-                    guild.default_role, view_channel=False, connect=False
-                )
-
-                # Debaters and adjudicators can join and speak
-                for role in [debater_role, adjudicator_role]:
-                    if role:
-                        await voice_channel.set_permissions(
-                            role,
-                            view_channel=True,
-                            connect=True,
-                            speak=True,
-                            use_voice_activation=True,
-                        )
-
-                # Spectators can see and join but with limited speaking (listen mode)
-                if spectator_role:
-                    await voice_channel.set_permissions(
-                        spectator_role,
-                        view_channel=True,
-                        connect=True,
-                        speak=False,  # Spectators can listen but not speak during debates
-                    )
-
-                logger.info(
-                    f"✅ Set main voice channel permissions for Venue {i} (open for all)"
-                )
-                await asyncio.sleep(0.2)
-
-            # Prep rooms - ONLY debaters (no adjudicators)
-            prep_rooms = venue_data.get("prep_rooms", [])
-            for j, prep_room in enumerate(prep_rooms, 1):
-                # Hide from @everyone
-                await prep_room.set_permissions(
-                    guild.default_role, view_channel=False, connect=False
-                )
-
-                # ONLY debaters can access prep rooms
-                if debater_role:
-                    await prep_room.set_permissions(
-                        debater_role,
-                        view_channel=True,
-                        connect=True,
-                        speak=True,
-                        use_voice_activation=True,
-                    )
-
-                # Explicitly deny access to adjudicators and spectators
-                for role in [adjudicator_role, spectator_role]:
-                    if role:
-                        await prep_room.set_permissions(
-                            role, view_channel=False, connect=False
-                        )
-
-                logger.info(
-                    f"✅ Set prep room {j} permissions for Venue {i} (debaters only)"
-                )
-                await asyncio.sleep(0.2)
-
-            # Result discussion - adjudicators only
-            if "result_room" in venue_data:
-                result_room = venue_data["result_room"]
-                # Hide from everyone
-                await result_room.set_permissions(
-                    guild.default_role, view_channel=False, connect=False
-                )
-
-                # Only adjudicators can access
-                if adjudicator_role:
-                    await result_room.set_permissions(
-                        adjudicator_role,
-                        view_channel=True,
-                        connect=True,
-                        speak=True,
-                        use_voice_activation=True,
-                    )
-
-                # Explicitly deny access to others
-                for role in [debater_role, spectator_role]:
-                    if role:
-                        await result_room.set_permissions(
-                            role, view_channel=False, connect=False
-                        )
-
-                logger.info("✅ Set result discussion permissions for Venue {i}", )
-                await asyncio.sleep(0.2)
-
-        logger.info("🎉 All channel permissions setup completed successfully!")
-
-    async def setup_role_assignment(
-        self, guild: discord.Guild, roles: Dict[str, discord.Role], channels: Dict
-    ) -> Optional[discord.Message]:
-        """Setup role assignment with interactive buttons"""
-
-        if not roles or "role_assignment" not in channels:
-            return None
-
-        role_channel = channels["role_assignment"]
-
-        embed = discord.Embed(
-            title="🎭 Tournament Role Assignment",
-            description="Click the button below to select your tournament role!\n\n"
-            "**Note:** Until you select a role, most channels will be hidden from you.",
-            color=discord.Color.blue(),
-        )
-
-        role_info = []
-        available_roles = []
-
-        if roles.get("debater"):
-            role_info.append(
-                f"🥊 **Debater** - Participate in debates, access prep rooms"
-            )
-            available_roles.append(("debater", "🥊 Debater", roles["debater"]))
-
-        if roles.get("adjudicator"):
-            role_info.append(
-                f"⚖️ **Adjudicator** - Judge debates, access result discussions"
-            )
-            available_roles.append(
-                ("adjudicator", "⚖️ Adjudicator", roles["adjudicator"])
-            )
-
-        if roles.get("spectator"):
-            role_info.append(
-                f"👀 **Spectator** - Watch the tournament, read-only access"
-            )
-            available_roles.append(("spectator", "👀 Spectator", roles["spectator"]))
-
-        embed.add_field(
-            name="Available Roles", value="\n".join(role_info), inline=False
-        )
-
-        embed.add_field(
-            name="How to get your role",
-            value="1. Click the **Select Role** button below\n"
-            "2. Choose your desired role from the dropdown\n"
-            "3. Channels will become visible based on your role\n"
-            "4. You can change your role anytime by clicking the button again",
-            inline=False,
-        )
-
-        embed.set_footer(text="Role assignment powered by Hear! Hear! Bot")
-
-        # Create the view with role selection
-        view = TournamentRoleView(guild.id)
-
-        # Send the role assignment message
-        role_msg = await role_channel.send(embed=embed, view=view)
-
-        logger.info(
-            f"Created role assignment message with {len(available_roles)} role options"
-        )
-        return role_msg
-
-    async def send_welcome_message(
-        self, guild: discord.Guild, member: discord.Member, role_name: str
-    ):
-        """Send welcome message to the welcome channel when user gets a role"""
-        try:
-            # Find the welcome channel
-            welcome_channel = discord.utils.get(guild.text_channels, name="welcome")
-            if not welcome_channel:
-                logger.warning("Welcome channel not found for welcome message")
-                return
-
-            # Create role-specific welcome embed
-            embed = discord.Embed(
-                title="🎉 Welcome to the Tournament!", color=discord.Color.green()
-            )
-
-            # Role-specific messages
-            role_messages = {
-                "Debater": {
-                    "description": f"Welcome {member.mention}! You've successfully registered as a **Debater**.",
-                    "fields": [
-                        (
-                            "🥊 What you can do:",
-                            "• Participate in debates\n• Access prep rooms\n• Submit feedback\n• Check in/out for rounds",
-                            False,
-                        ),
-                        (
-                            "📍 Next Steps:",
-                            "• Check the schedules channel for round timings\n• Join your assigned prep room when called\n• Follow equity guidelines",
-                            False,
-                        ),
-                    ],
-                },
-                "Adjudicator": {
-                    "description": f"Welcome {member.mention}! You've successfully registered as an **Adjudicator**.",
-                    "fields": [
-                        (
-                            "⚖️ What you can do:",
-                            "• Judge debates\n• Access result discussion rooms\n• Monitor prep rooms\n• Review feedback",
-                            False,
-                        ),
-                        (
-                            "📍 Next Steps:",
-                            "• Check the schedules channel for your assignments\n• Review adjudication guidelines\n• Join result rooms after rounds",
-                            False,
-                        ),
-                    ],
-                },
-                "Spectator": {
-                    "description": f"Welcome {member.mention}! You've successfully registered as a **Spectator**.",
-                    "fields": [
-                        (
-                            "👀 What you can do:",
-                            "• Watch debates\n• Submit feedback\n• Participate in general chat\n• Access tournament information",
-                            False,
-                        ),
-                        (
-                            "📍 Next Steps:",
-                            "• Check the schedules channel for round timings\n• Follow tournament updates in announcements\n• Enjoy the debates!",
-                            False,
-                        ),
-                    ],
-                },
-            }
-
-            message_data = role_messages.get(
-                role_name,
-                {
-                    "description": f"Welcome {member.mention}! You've been assigned the **{role_name}** role.",
-                    "fields": [
-                        (
-                            "📍 Next Steps:",
-                            "Check the relevant channels for more information.",
-                            False,
-                        )
-                    ],
-                },
-            )
-
-            embed.description = message_data["description"]
-
-            for field_name, field_value, inline in message_data["fields"]:
-                embed.add_field(name=field_name, value=field_value, inline=inline)
-
-            embed.add_field(
-                name="🔄 Need to change your role?",
-                value="Simply react with a different emoji in the role-assignment channel!",
-                inline=False,
-            )
-
-            embed.add_field(
-                name="👀 Can't see new channels?",
-                value="• **Desktop**: Press `Ctrl+R` (Windows) or `Cmd+R` (Mac) to refresh\n• **Mobile**: Pull down to refresh or restart the app\n• New channels should appear in a few seconds!",
-                inline=False,
-            )
-
-            embed.set_footer(text="Good luck in the tournament! 🏆")
-            embed.timestamp = discord.utils.utcnow()
-
-            await welcome_channel.send(embed=embed)
-            logger.info(
-                f"Sent welcome message for {member.display_name} as {role_name}"
-            )
-
-        except Exception as e:
-            logger.error("Error sending welcome message: {e}", )
+            # progress messages
+            if progress_msg:
+                await progress_msg.edit(embed=embed)  # type: ignore[misc]
 
     @app_commands.command(
         name="tournament_cleanup", description="Clean up tournament channels and roles"
@@ -1300,7 +449,10 @@ class TournamentSetup(commands.Cog):
 
             embed = discord.Embed(
                 title="✅ Tournament Cleanup Complete",
-                description=f"Deleted {deleted_count} channels and {len(categories_to_delete)} categories.",
+                description=(
+                    f"Deleted {deleted_count} channels and "
+                    f"{len(categories_to_delete)} categories."
+                ),
                 color=discord.Color.green(),
             )
 
@@ -1313,14 +465,15 @@ class TournamentSetup(commands.Cog):
 
             await interaction.followup.send(embed=embed)
 
-        except Exception as e:
-            logger.error("Error during tournament cleanup: {e}", )
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Error during tournament cleanup: %s", e)
             await interaction.followup.send(
                 f"❌ Error during cleanup: {str(e)}", ephemeral=True
             )
 
 
 async def setup(bot):
+    """Setup the tournament cog and persistent views."""
     # Add persistent views for tournament role assignment
     # This ensures buttons work even after bot restarts
     for guild in bot.guilds:

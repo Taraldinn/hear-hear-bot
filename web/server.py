@@ -6,7 +6,8 @@ Email: kferdoush617@gmail.com
 Clean, secure, and well-documented web server implementation.
 """
 
-import json
+# pylint: disable=broad-exception-caught
+
 import logging
 import traceback
 from datetime import datetime
@@ -14,7 +15,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 from aiohttp import web
-from aiohttp.web import Response, Request, Application
+from aiohttp.web import Response, Request
 
 try:
     import aiohttp_jinja2
@@ -50,13 +51,15 @@ class WebServer:
                 response = await handler(request)
                 return response
             except web.HTTPException as ex:
-                logger.warning(f"HTTP {ex.status}: {request.path}")
+                logger.warning("HTTP %s: %s", ex.status, request.path)
                 return ex
-            except Exception as ex:
-                logger.error(f"Unhandled error in {request.path}: {ex}")
+            except Exception as ex:  # pragma: no cover - generic safety net
+                logger.error("Unhandled error in %s: %s", request.path, ex)
                 logger.error(traceback.format_exc())
                 return web.Response(
-                    text="Internal Server Error", status=500, content_type="text/plain"
+                    text="Internal Server Error",
+                    status=500,
+                    content_type="text/plain",
                 )
 
         @web.middleware
@@ -66,11 +69,15 @@ class WebServer:
             process_time = (datetime.utcnow() - start_time).total_seconds()
 
             logger.info(
-                f"{request.method} {request.path} - "
-                f"{response.status} - {process_time:.3f}s"
+                "%s %s - %s - %.3fs",
+                request.method,
+                request.path,
+                response.status,
+                process_time,
             )
             return response
 
+        # register middlewares
         self.app.middlewares.append(error_middleware)
         self.app.middlewares.append(logging_middleware)
 
@@ -80,15 +87,15 @@ class WebServer:
             try:
                 template_path = Path(__file__).parent / "templates"
                 if not template_path.exists():
-                    logger.warning(f"Template directory not found: {template_path}")
+                    logger.warning("Template directory not found: %s", template_path)
                     return
 
                 aiohttp_jinja2.setup(
                     self.app, loader=jinja2.FileSystemLoader(str(template_path))
                 )
                 logger.info("Jinja2 templates configured successfully")
-            except Exception as e:
-                logger.error(f"Failed to setup templates: {e}")
+            except Exception as e:  # pragma: no cover - init fallback
+                logger.error("Failed to setup templates: %s", e)
         else:
             logger.warning(
                 "Jinja2 templates not available - using fallback HTML responses"
@@ -102,7 +109,7 @@ class WebServer:
             if static_path.exists():
                 self.app.router.add_static("/static/", static_path, name="static")
             else:
-                logger.warning(f"Static directory not found: {static_path}")
+                logger.warning("Static directory not found: %s", static_path)
 
             # API endpoints
             self.app.router.add_get("/", self.home)
@@ -115,8 +122,8 @@ class WebServer:
             self.app.router.add_get("/invite", self.invite)
 
             logger.info("Web routes configured successfully")
-        except Exception as e:
-            logger.error(f"Failed to setup routes: {e}")
+        except Exception as e:  # pragma: no cover - init fallback
+            logger.error("Failed to setup routes: %s", e)
 
     def _render_template(
         self,
@@ -130,8 +137,8 @@ class WebServer:
                 return aiohttp_jinja2.render_template(
                     template_name, request, context or {}
                 )
-            except Exception as e:
-                logger.error(f"Template rendering failed for {template_name}: {e}")
+            except Exception as e:  # pragma: no cover - template fallback
+                logger.error("Template rendering failed for %s: %s", template_name, e)
                 return None
         return None
 
@@ -175,8 +182,8 @@ class WebServer:
                     else "Starting"
                 ),
             }
-        except Exception as e:
-            logger.error(f"Error getting bot stats: {e}")
+        except Exception as e:  # pragma: no cover - metrics fallback
+            logger.error("Error getting bot stats: %s", e)
             return {
                 "guilds": 0,
                 "users": 0,
@@ -205,8 +212,8 @@ class WebServer:
                     else:
                         return f"{minutes}m"
             return "Unknown"
-        except Exception as e:
-            logger.error(f"Error calculating uptime: {e}")
+        except Exception as e:  # pragma: no cover - uptime fallback
+            logger.error("Error calculating uptime: %s", e)
             return "Unknown"
 
     async def home(self, request: Request) -> Response:
@@ -233,9 +240,12 @@ class WebServer:
             return self._get_fallback_homepage(bot_stats)
 
         except Exception as e:
-            logger.error(f"Error in home endpoint: {e}")
+            logger.error("Error in home endpoint: %s", e)
             return web.Response(
-                text="<h1>Service Temporarily Unavailable</h1><p>Please try again later.</p>",
+                text=(
+                    "<h1>Service Temporarily Unavailable</h1>"
+                    "<p>Please try again later.</p>"
+                ),
                 content_type="text/html",
                 status=503,
             )
@@ -246,42 +256,59 @@ class WebServer:
             {
                 "icon": "⏱️",
                 "title": "Debate Timer",
-                "description": "Advanced timer system with visual progress bars and multiple timers",
+                "description": (
+                    "Advanced timer system with visual progress bars "
+                    "and multiple timers"
+                ),
             },
             {
                 "icon": "🎯",
                 "title": "Tournament Management",
-                "description": "Complete tournament setup with role assignment and venue management",
+                "description": (
+                    "Complete tournament setup with role assignment "
+                    "and venue management"
+                ),
             },
             {
                 "icon": "📊",
                 "title": "Tabbycat Integration",
-                "description": "Full tournament software integration for professional competitions",
+                "description": (
+                    "Full tournament software integration for professional "
+                    "competitions"
+                ),
             },
             {
                 "icon": "🛡️",
                 "title": "Moderation System",
-                "description": "Professional moderation with timed actions and audit trails",
+                "description": (
+                    "Professional moderation with timed actions and audit trails"
+                ),
             },
             {
                 "icon": "🎲",
                 "title": "Debate Tools",
-                "description": "Motion system, feedback collection, and venue management",
+                "description": (
+                    "Motion system, feedback collection, and venue management"
+                ),
             },
             {
                 "icon": "⚙️",
                 "title": "Server Config",
-                "description": "Extensive customization with auto-roles and welcome systems",
+                "description": (
+                    "Extensive customization with auto-roles and welcome systems"
+                ),
             },
             {
                 "icon": "🌐",
                 "title": "Multi-language",
-                "description": "English and Bangla support with expandable architecture",
+                "description": (
+                    "English and Bangla support with expandable architecture"
+                ),
             },
             {
                 "icon": "⚡",
                 "title": "Modern UI",
-                "description": "Discord's latest UI components with slash commands",
+                "description": ("Discord's latest UI components with slash commands"),
             },
         ]
 
@@ -297,7 +324,8 @@ class WebServer:
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>{bot_name} - Discord Debate Bot</title>
             <script src="https://cdn.tailwindcss.com"></script>
-            <meta name="description" content="Professional Discord bot for debate tournaments with Tabbycat integration">
+            <meta name="description" content="Professional Discord bot for debate tournaments "
+                  "with Tabbycat integration">
         </head>
         <body class="bg-gray-50 font-sans">
             <div class="min-h-screen">
@@ -312,8 +340,12 @@ class WebServer:
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="text-sm text-gray-500">Status: {bot_stats['status']}</div>
-                                <div class="text-lg font-semibold text-blue-600">{bot_stats['guilds']} Servers</div>
+                                <div class="text-sm text-gray-500">
+                                    Status: {bot_stats['status']}
+                                </div>
+                                <div class="text-lg font-semibold text-blue-600">
+                                    {bot_stats['guilds']} Servers
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -330,25 +362,34 @@ class WebServer:
                     
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center mb-12">
                         <div class="bg-white p-6 rounded-lg shadow">
-                            <div class="text-3xl font-bold text-blue-600">{bot_stats['guilds']}</div>
+                            <div class="text-3xl font-bold text-blue-600">
+                                {bot_stats['guilds']}
+                            </div>
                             <div class="text-gray-600">Discord Servers</div>
                         </div>
                         <div class="bg-white p-6 rounded-lg shadow">
-                            <div class="text-3xl font-bold text-purple-600">{bot_stats['users']}</div>
+                            <div class="text-3xl font-bold text-purple-600">
+                                {bot_stats['users']}
+                            </div>
                             <div class="text-gray-600">Users Served</div>
                         </div>
                         <div class="bg-white p-6 rounded-lg shadow">
-                            <div class="text-3xl font-bold text-green-600">{bot_stats['latency']}ms</div>
+                            <div class="text-3xl font-bold text-green-600">
+                                {bot_stats['latency']}ms
+                            </div>
                             <div class="text-gray-600">Response Time</div>
                         </div>
                         <div class="bg-white p-6 rounded-lg shadow">
-                            <div class="text-3xl font-bold text-orange-600">{bot_stats['uptime']}</div>
+                            <div class="text-3xl font-bold text-orange-600">
+                                {bot_stats['uptime']}
+                            </div>
                             <div class="text-gray-600">Uptime</div>
                         </div>
                     </div>
                     
                     <div class="text-center space-y-4">
-                        <a href="/docs" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                        <a href="/docs" 
+                           class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
                             View Documentation
                         </a>
                         <div class="text-gray-600">
@@ -362,7 +403,10 @@ class WebServer:
                 <footer class="bg-gray-800 text-white py-8 mt-12">
                     <div class="max-w-6xl mx-auto px-4 text-center">
                         <p>&copy; 2025 {bot_name} by aldinn. Built for the debate community.</p>
-                        <p class="text-gray-400 text-sm mt-2">Version {bot_stats['version']} | <a href="/health" class="hover:text-blue-400">Health Check</a></p>
+                        <p class="text-gray-400 text-sm mt-2">
+                            Version {bot_stats['version']} | 
+                            <a href="/health" class="hover:text-blue-400">Health Check</a>
+                        </p>
                     </div>
                 </footer>
             </div>
@@ -398,10 +442,12 @@ class WebServer:
                         <h1 class="text-4xl font-bold text-center mb-8">🎤 Hear! Hear! Bot Documentation</h1>
                         <div class="bg-white rounded-lg shadow p-6">
                             <h2 class="text-2xl font-bold mb-4">📚 Complete Bot Documentation</h2>
-                            <p class="text-gray-600 mb-4">
-                                Comprehensive documentation for Hear! Hear! Bot is available with full template support.
-                                Please ensure Jinja2 templates are properly configured to view the complete documentation.
-                            </p>
+                <p class="text-gray-600 mb-4">
+                    Comprehensive documentation for Hear! Hear! Bot is
+                    available with full template support. Please ensure
+                    Jinja2 templates are properly configured to view the
+                    complete documentation.
+                </p>
                             <div class="bg-blue-50 border border-blue-200 rounded p-4">
                                 <h3 class="font-bold text-blue-800">Quick Start:</h3>
                                 <ul class="list-disc list-inside text-blue-700 mt-2">
@@ -420,7 +466,7 @@ class WebServer:
             return web.Response(text=html, content_type="text/html")
 
         except Exception as e:
-            logger.error(f"Error in documentation endpoint: {e}")
+            logger.error("Error in documentation endpoint: %s", e)
             return web.Response(
                 text="Documentation temporarily unavailable",
                 content_type="text/plain",
@@ -447,7 +493,7 @@ class WebServer:
             return web.Response(text=commands_html, content_type="text/html")
 
         except Exception as e:
-            logger.error(f"Error in commands endpoint: {e}")
+            logger.error("Error in commands endpoint: %s", e)
             return web.Response(
                 text="Commands page temporarily unavailable",
                 content_type="text/plain",
@@ -536,7 +582,7 @@ class WebServer:
         </html>
         """
 
-    async def health(self, request: Request) -> Response:
+    async def health(self, _request: Request) -> Response:
         """Health check endpoint for monitoring"""
         try:
             bot_stats = self.get_bot_stats()
@@ -562,7 +608,7 @@ class WebServer:
             return web.json_response(health_data, status=status_code)
 
         except Exception as e:
-            logger.error(f"Health check failed: {e}")
+            logger.error("Health check failed: %s", e)
             return web.json_response(
                 {
                     "status": "unhealthy",
@@ -572,18 +618,18 @@ class WebServer:
                 status=503,
             )
 
-    async def api_stats(self, request: Request) -> Response:
+    async def api_stats(self, _request: Request) -> Response:
         """JSON API for bot statistics"""
         try:
             stats = self.get_bot_stats()
             return web.json_response(stats)
         except Exception as e:
-            logger.error(f"Error in API stats: {e}")
+            logger.error("Error in API stats: %s", e)
             return web.json_response(
                 {"error": "Failed to retrieve statistics"}, status=500
             )
 
-    async def invite(self, request: Request) -> Response:
+    async def invite(self, _request: Request) -> Response:
         """Bot invitation page"""
         try:
             invite_url = getattr(Config, "BOT_INVITE_URL", "#")
@@ -605,7 +651,7 @@ class WebServer:
                         <p class="text-gray-600 mb-6">
                             Add the most advanced Discord bot for debate tournaments to your server.
                         </p>
-                        <a href="{invite_url}" 
+                        <a href="{invite_url}"
                            class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
                             Add to Discord
                         </a>
@@ -619,7 +665,7 @@ class WebServer:
             """
             return web.Response(text=html, content_type="text/html")
         except Exception as e:
-            logger.error(f"Error in invite endpoint: {e}")
+            logger.error("Error in invite endpoint: %s", e)
             return web.Response(
                 text="Invite page temporarily unavailable",
                 content_type="text/plain",
@@ -635,10 +681,10 @@ class WebServer:
             site = web.TCPSite(runner, host, port)
             await site.start()
 
-            logger.info(f"Web server started on http://{host}:{port}")
+            logger.info("Web server started on http://%s:%s", host, str(port))
             return runner
         except Exception as e:
-            logger.error(f"Failed to start web server: {e}")
+            logger.error("Failed to start web server: %s", e)
             raise
 
     async def stop_server(self) -> None:
@@ -647,4 +693,4 @@ class WebServer:
             await self.app.cleanup()
             logger.info("Web server stopped gracefully")
         except Exception as e:
-            logger.error(f"Error stopping web server: {e}")
+            logger.error("Error stopping web server: %s", e)

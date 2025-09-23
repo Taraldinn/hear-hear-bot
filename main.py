@@ -12,7 +12,8 @@ import signal
 import sys
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
+from aiohttp.web import AppRunner
 
 # Add src to path for imports
 src_path = Path(__file__).parent / "src"
@@ -86,22 +87,28 @@ class BotLogger:
 class GracefulShutdown:
     """Handle graceful shutdown of bot and web server"""
 
-    def __init__(self, bot, web_server: Optional[object] = None):
+    def __init__(
+        self,
+        bot,
+        web_server: Optional[WebServer] = None,
+        web_runner: Optional[AppRunner] = None,
+    ):
         self.bot = bot
         self.web_server = web_server
+        self.web_runner = web_runner
         self.logger = logging.getLogger(__name__)
         self.shutdown_initiated = False
 
     def setup_signal_handlers(self):
         """Setup signal handlers for graceful shutdown"""
 
-        def signal_handler(signum, frame):
+        def signal_handler(signum, _frame):
             if self.shutdown_initiated:
                 self.logger.warning("Force shutdown requested!")
                 sys.exit(1)
 
             self.logger.info(
-                f"Received signal {signum}, initiating graceful shutdown..."
+                "Received signal %s, initiating graceful shutdown...", signum
             )
             self.shutdown_initiated = True
 
@@ -130,16 +137,23 @@ class GracefulShutdown:
                 await self.web_server.stop_server()
                 self.logger.info("Web server stopped")
 
+            # Stop web runner
+            if self.web_runner:
+                await self.web_runner.cleanup()
+                self.logger.info("Web runner cleaned up")
+
             self.logger.info("Graceful shutdown complete")
 
-        except Exception as e:
-            self.logger.error(f"Error during shutdown: {e}")
+        except (OSError, asyncio.CancelledError, discord.DiscordException) as e:
+            self.logger.error("Error during shutdown: %s", e)
         finally:
             # Force exit if needed
             sys.exit(0)
 
 
-async def start_web_server(bot, logger) -> tuple[Optional[object], Optional[object]]:
+async def start_web_server(
+    bot, logger
+) -> Tuple[Optional[WebServer], Optional[AppRunner]]:
     """Start the web server with proper error handling"""
     web_server = None
     web_runner = None
@@ -148,18 +162,18 @@ async def start_web_server(bot, logger) -> tuple[Optional[object], Optional[obje
         web_server = WebServer(bot)
         port = int(os.environ.get("PORT", 8080))
 
-        logger.info(f"Starting web server on port {port}...")
+        logger.info("Starting web server on port %s...", port)
         web_runner = await web_server.start_server(port)
-        logger.info(f"✅ Web server started successfully on port {port}")
+        logger.info("✅ Web server started successfully on port %s", port)
 
         # Log available endpoints
         logger.info("Available endpoints:")
-        logger.info(f"  - Health check: http://localhost:{port}/")
-        logger.info(f"  - Documentation: http://localhost:{port}/docs")
-        logger.info(f"  - Bot stats: http://localhost:{port}/stats")
+        logger.info("  - Health check: http://localhost:%s/", port)
+        logger.info("  - Documentation: http://localhost:%s/docs", port)
+        logger.info("  - Bot stats: http://localhost:%s/stats", port)
 
-    except Exception as e:
-        logger.error(f"Failed to start web server: {e}")
+    except (OSError, ConnectionError, ImportError) as e:
+        logger.error("Failed to start web server: %s", e)
         logger.info("Continuing without web server...")
         web_server = None
         web_runner = None
@@ -174,10 +188,10 @@ async def main():
 
     logger.info("=" * 60)
     logger.info("🚀 Starting Hear! Hear! Bot")
-    logger.info(f"📋 Bot Name: {Config.BOT_NAME}")
-    logger.info(f"📦 Version: {Config.BOT_VERSION}")
-    logger.info(f"👤 Author: {Config.BOT_AUTHOR}")
-    logger.info(f"🔗 GitHub: {Config.BOT_GITHUB}")
+    logger.info("📋 Bot Name: %s", Config.BOT_NAME)
+    logger.info("📦 Version: %s", Config.BOT_VERSION)
+    logger.info("👤 Author: %s", Config.BOT_AUTHOR)
+    logger.info("🔗 GitHub: %s", Config.BOT_GITHUB)
     logger.info("=" * 60)
 
     bot = None
@@ -202,6 +216,7 @@ async def main():
         # Start web server
         web_server, web_runner = await start_web_server(bot, logger)
         shutdown_handler.web_server = web_server
+        shutdown_handler.web_runner = web_runner
 
         # Start the bot
         logger.info("🔌 Connecting to Discord...")
@@ -215,25 +230,18 @@ async def main():
         sys.exit(1)
 
     except discord.HTTPException as e:
-        logger.error(f"❌ Discord HTTP error: {e}")
+        logger.error("❌ Discord HTTP error: %s", e)
         sys.exit(1)
 
     except KeyboardInterrupt:
         logger.info("🛑 Bot shutdown requested by user")
 
     except Exception as e:
-        logger.error(f"💥 Fatal error: {e}", exc_info=True)
+        logger.error("💥 Fatal error: %s", e, exc_info=True)
         raise
 
     finally:
-        # Cleanup
-        try:
-            if web_runner:
-                await web_runner.cleanup()
-                logger.info("🌐 Web server stopped")
-        except Exception as e:
-            logger.error(f"Error stopping web server: {e}")
-
+        # Final cleanup is handled by GracefulShutdown
         logger.info("👋 Bot shutdown complete")
 
 
@@ -253,6 +261,6 @@ if __name__ == "__main__":
     except SystemExit:
         pass  # Expected exit
 
-    except Exception as e:
-        print(f"💥 Failed to start bot: {e}")
+    except (RuntimeError, ImportError, OSError) as e:
+        print(f"❌ Fatal startup error: {e}")
         sys.exit(1)

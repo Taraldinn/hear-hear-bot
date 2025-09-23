@@ -13,7 +13,6 @@ from discord import app_commands
 from discord.ext import commands
 
 from src.database.connection import database
-from src.database.models import COLLECTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ class LoggingSystem(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.db = database.get_database()
+        self.db = database  # database is already the Database instance
         self.logging_configs = {}  # Cache guild logging configurations
         self.message_cache = {}  # Cache messages for edit/delete logging
         self.invite_cache = {}  # Cache invites for tracking
@@ -36,22 +35,19 @@ class LoggingSystem(commands.Cog):
     async def load_logging_configs(self):
         """Load all guild logging configurations"""
         # Check if database is available
-        if self.db is None:
+        if self.db is None or not self.db.is_connected:
             logger.warning("Database not available - skipping logging config load")
             return
 
         try:
-            cursor = self.db[COLLECTIONS["logging_configs"]].find()
-            configs = list(cursor)
-            for config in configs:
-                self.logging_configs[config["guild_id"]] = config
+            # For PostgreSQL, we need to use a proper query
+            # Since this is a MongoDB-style logging system, we'll disable it for now
+            # NOTE: PostgreSQL-compatible logging configuration storage needed
             logger.info(
-                f"Loaded logging configs for {len(self.logging_configs)} guilds"
+                "Logging config loading disabled - requires PostgreSQL migration"
             )
-        except Exception as e:
-            logger.error(
-                "Failed to load logging configs: {e}",
-            )
+        except (ConnectionError, OSError, AttributeError) as e:
+            logger.error("Failed to load logging configs: %s", e)
 
     async def cache_guild_invites(self):
         """Cache guild invites for invite tracking"""
@@ -67,25 +63,15 @@ class LoggingSystem(commands.Cog):
     async def get_logging_config(self, guild_id: int) -> Optional[dict]:
         """Get logging configuration for a guild"""
         # Check if database is available
-        if self.db is None:
+        if self.db is None or not self.db.is_connected:
             logger.warning("Database not available - logging features disabled")
             return None
 
         if guild_id not in self.logging_configs:
-            # Try to load from database
-            try:
-                config = self.db[COLLECTIONS["logging_configs"]].find_one(
-                    {"guild_id": guild_id}
-                )
-                if config:
-                    self.logging_configs[guild_id] = config
-                else:
-                    return None
-            except Exception as e:
-                logger.error(
-                    "Failed to get logging config for guild {guild_id}: {e}",
-                )
-                return None
+            # For PostgreSQL compatibility, we'll disable this for now
+            # NOTE: PostgreSQL-compatible logging configuration storage needed
+            logger.info("Logging config disabled - requires PostgreSQL migration")
+            return None
         return self.logging_configs.get(guild_id)
 
     async def should_log_event(self, guild_id: int, event_type: str, **kwargs) -> bool:
@@ -129,10 +115,8 @@ class LoggingSystem(commands.Cog):
             channel = self.bot.get_channel(channel_id)
             if channel and channel.permissions_for(channel.guild.me).send_messages:
                 await channel.send(embed=embed)
-        except Exception as e:
-            logger.error(
-                "Failed to send log to {channel_type}: {e}",
-            )
+        except (discord.HTTPException, discord.Forbidden, AttributeError) as e:
+            logger.error("Failed to send log to %s: %s", channel_type, e)
 
     # Message Logging Events
     @commands.Cog.listener()
@@ -184,9 +168,19 @@ class LoggingSystem(commands.Cog):
             inline=True,
         )
 
+        # Handle different channel types for display
+        try:
+            if isinstance(message.channel, discord.TextChannel):
+                channel_display = f"{message.channel.mention} ({message.channel.id})"
+            else:
+                channel_name = getattr(message.channel, "name", "DM/Private")
+                channel_display = f"{channel_name} ({message.channel.id})"
+        except (AttributeError, TypeError):
+            channel_display = f"Unknown Channel ({message.channel.id})"
+
         embed.add_field(
             name="📍 Channel",
-            value=f"{message.channel.mention} ({message.channel.id})",
+            value=channel_display,
             inline=True,
         )
 
@@ -255,9 +249,19 @@ class LoggingSystem(commands.Cog):
             name="👤 Author", value=f"{before.author} ({before.author.id})", inline=True
         )
 
+        # Handle different channel types for display
+        try:
+            if isinstance(before.channel, discord.TextChannel):
+                channel_display = f"{before.channel.mention} ({before.channel.id})"
+            else:
+                channel_name = getattr(before.channel, "name", "DM/Private")
+                channel_display = f"{channel_name} ({before.channel.id})"
+        except (AttributeError, TypeError):
+            channel_display = f"Unknown Channel ({before.channel.id})"
+
         embed.add_field(
             name="📍 Channel",
-            value=f"{before.channel.mention} ({before.channel.id})",
+            value=channel_display,
             inline=True,
         )
 
@@ -583,6 +587,12 @@ class LoggingSystem(commands.Cog):
         try:
             await interaction.response.defer()
 
+            if not interaction.guild:
+                await interaction.followup.send(
+                    "❌ This command can only be used in a server!", ephemeral=True
+                )
+                return
+
             guild_id = interaction.guild.id
 
             # Get existing config or create new one
@@ -600,10 +610,11 @@ class LoggingSystem(commands.Cog):
             if invite_tracking is not None:
                 config["invite_tracking"] = invite_tracking
 
-            # Save to database
-            if self.db is not None:
-                self.db[COLLECTIONS["logging_configs"]].replace_one(
-                    {"guild_id": guild_id}, config, upsert=True
+            # Save to database - disabled for PostgreSQL compatibility
+            # NOTE: PostgreSQL-compatible logging configuration storage needed
+            if self.db is not None and self.db.is_connected:
+                logger.info(
+                    "Logging config saving disabled - requires PostgreSQL migration"
                 )
 
             # Update cache
@@ -653,14 +664,18 @@ class LoggingSystem(commands.Cog):
 
             await interaction.followup.send(embed=embed)
 
-        except Exception as e:
-            logger.error(
-                "Failed to setup logging: {e}",
-            )
+        except (
+            discord.HTTPException,
+            discord.Forbidden,
+            AttributeError,
+            ConnectionError,
+        ) as e:
+            logger.error("Failed to setup logging: %s", e)
             await interaction.followup.send(
                 f"❌ Failed to setup logging: {str(e)}", ephemeral=True
             )
 
 
 async def setup(bot):
+    """Set up the LoggingSystem cog."""
     await bot.add_cog(LoggingSystem(bot))

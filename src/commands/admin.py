@@ -4,10 +4,12 @@ Author: aldinn
 Email: kferdoush617@gmail.com
 """
 
+import logging
+import os
+
 import discord
 from discord.ext import commands
 from discord import app_commands
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -25,16 +27,12 @@ class AdminCommands(commands.Cog):
         try:
             await member.edit(mute=False)
             await ctx.send(f"> {member.mention} was unmuted successfully")
-            logger.info(
-                "Unmuted {member} in {ctx.guild}",
-            )
+            logger.info("Unmuted %s in %s", member, ctx.guild)
         except discord.Forbidden:
             await ctx.send("❌ I don't have permission to unmute members.")
-        except Exception as e:
+        except (discord.HTTPException, discord.NotFound) as e:
             await ctx.send(f"❌ Error unmuting member: {str(e)}")
-            logger.error(
-                "Error unmuting {member}: {e}",
-            )
+            logger.error("Error unmuting %s: %s", member, e)
 
     @app_commands.command(name="unmute", description="Unmute a member in voice chat")
     @app_commands.describe(member="The member to unmute")
@@ -48,20 +46,16 @@ class AdminCommands(commands.Cog):
             await interaction.response.send_message(
                 f"> {member.mention} was unmuted successfully"
             )
-            logger.info(
-                "Unmuted {member} in {interaction.guild}",
-            )
+            logger.info("Unmuted %s in %s", member, interaction.guild)
         except discord.Forbidden:
             await interaction.response.send_message(
                 "❌ I don't have permission to unmute members.", ephemeral=True
             )
-        except Exception as e:
+        except (discord.HTTPException, discord.NotFound) as e:
             await interaction.response.send_message(
                 f"❌ Error unmuting member: {str(e)}", ephemeral=True
             )
-            logger.error(
-                "Error unmuting {member}: {e}",
-            )
+            logger.error("Error unmuting %s: %s", member, e)
 
     @commands.command()
     @commands.has_permissions(manage_roles=True)
@@ -70,16 +64,12 @@ class AdminCommands(commands.Cog):
         try:
             await member.edit(deafen=False)
             await ctx.send(f"> {member.mention} was undeafened successfully")
-            logger.info(
-                "Undeafened {member} in {ctx.guild}",
-            )
+            logger.info("Undeafened %s in %s", member, ctx.guild)
         except discord.Forbidden:
             await ctx.send("❌ I don't have permission to undeafen members.")
-        except Exception as e:
+        except (discord.HTTPException, discord.NotFound) as e:
             await ctx.send(f"❌ Error undeafening member: {str(e)}")
-            logger.error(
-                "Error undeafening {member}: {e}",
-            )
+            logger.error("Error undeafening %s: %s", member, e)
 
     @app_commands.command(
         name="undeafen", description="Undeafen a member in voice chat"
@@ -95,20 +85,16 @@ class AdminCommands(commands.Cog):
             await interaction.response.send_message(
                 f"> {member.mention} was undeafened successfully"
             )
-            logger.info(
-                "Undeafened {member} in {interaction.guild}",
-            )
+            logger.info("Undeafened %s in %s", member, interaction.guild)
         except discord.Forbidden:
             await interaction.response.send_message(
                 "❌ I don't have permission to undeafen members.", ephemeral=True
             )
-        except Exception as e:
+        except (discord.HTTPException, discord.NotFound) as e:
             await interaction.response.send_message(
                 f"❌ Error undeafening member: {str(e)}", ephemeral=True
             )
-            logger.error(
-                "Error undeafening {member}: {e}",
-            )
+            logger.error("Error undeafening %s: %s", member, e)
 
     @commands.command(aliases=["setlang"])
     @commands.has_permissions(administrator=True)
@@ -158,11 +144,9 @@ class AdminCommands(commands.Cog):
                 await ctx.send(f"✅ Auto-role set to **{role.name}**")
             else:
                 await ctx.send("❌ Database connection error.")
-        except Exception as e:
+        except (AttributeError, ConnectionError, OSError) as e:
             await ctx.send("❌ Failed to set auto-role.")
-            logger.error(
-                "Error setting autorole: {e}",
-            )
+            logger.error("Error setting autorole: %s", e)
 
     @commands.command()
     @commands.has_permissions(administrator=True)
@@ -177,11 +161,9 @@ class AdminCommands(commands.Cog):
                 await ctx.send("✅ Auto-role removed")
             else:
                 await ctx.send("❌ Database connection error.")
-        except Exception as e:
+        except (AttributeError, ConnectionError, OSError) as e:
             await ctx.send("❌ Failed to remove auto-role.")
-            logger.error(
-                "Error removing autorole: {e}",
-            )
+            logger.error("Error removing autorole: %s", e)
 
     @commands.command(aliases=["delete-data"])
     @commands.has_permissions(administrator=True)
@@ -209,14 +191,12 @@ class AdminCommands(commands.Cog):
 
             await ctx.send("✅ ALL DATA FOR THIS SERVER WAS DELETED SUCCESSFULLY")
             logger.warning(
-                "All data deleted for guild {ctx.guild.id} by {ctx.author}",
+                "All data deleted for guild %s by %s", ctx.guild.id, ctx.author
             )
 
-        except Exception as e:
+        except (AttributeError, ConnectionError, OSError) as e:
             await ctx.send("❌ Error deleting data.")
-            logger.error(
-                "Error deleting data for guild {ctx.guild.id}: {e}",
-            )
+            logger.error("Error deleting data for guild %s: %s", ctx.guild.id, e)
 
     @commands.command()
     @commands.has_permissions(administrator=True)
@@ -233,7 +213,7 @@ class AdminCommands(commands.Cog):
             guild_data = collection.find_one({"_id": guild.id}) if collection else None
             autorole_id = guild_data.get("autorole") if guild_data else None
             autorole = guild.get_role(autorole_id) if autorole_id else None
-        except:
+        except (AttributeError, KeyError, TypeError):
             autorole = None
 
         embed = discord.Embed(
@@ -287,7 +267,11 @@ class AdminCommands(commands.Cog):
                 )
                 embed.add_field(
                     name="Troubleshooting",
-                    value="• Make sure DISCORD_BOT_TOKEN is set correctly\n• Check if the bot token is valid\n• Ensure bot has proper permissions",
+                    value=(
+                        "• Make sure DISCORD_BOT_TOKEN is set correctly\n"
+                        "• Check if the bot token is valid\n"
+                        "• Ensure bot has proper permissions"
+                    ),
                     inline=False,
                 )
                 await sync_msg.edit(embed=embed)
@@ -299,11 +283,13 @@ class AdminCommands(commands.Cog):
             # Get the synced commands
             try:
                 synced = await self.bot.tree.fetch_commands()
-            except Exception as fetch_error:
+            except (
+                discord.HTTPException,
+                discord.Forbidden,
+                discord.NotFound,
+            ) as fetch_error:
                 # Fallback to show loaded commands if fetch fails
-                logger.warning(
-                    "Could not fetch synced commands: {fetch_error}",
-                )
+                logger.warning("Could not fetch synced commands: %s", fetch_error)
                 loaded_commands = self.bot.tree.get_commands()
                 synced = loaded_commands
 
@@ -325,13 +311,16 @@ class AdminCommands(commands.Cog):
                 # Add note about propagation
                 embed.add_field(
                     name="💡 Global Propagation",
-                    value="Commands are now synced globally and will appear in ALL servers within 1 hour due to Discord's propagation time.",
+                    value=(
+                        "Commands are now synced globally and will appear in ALL servers "
+                        "within 1 hour due to Discord's propagation time."
+                    ),
                     inline=False,
                 )
 
             await sync_msg.edit(embed=embed)
 
-        except Exception as e:
+        except (discord.HTTPException, discord.Forbidden, AttributeError) as e:
             embed = discord.Embed(
                 title="❌ Global Sync Failed",
                 description=f"Failed to sync slash commands globally: {str(e)}",
@@ -340,7 +329,12 @@ class AdminCommands(commands.Cog):
             )
             embed.add_field(
                 name="Troubleshooting",
-                value="• Make sure the bot has the `applications.commands` scope\n• Bot must have global permissions\n• Try again in a few minutes\n• Check bot permissions",
+                value=(
+                    "• Make sure the bot has the `applications.commands` scope\n"
+                    "• Bot must have global permissions\n"
+                    "• Try again in a few minutes\n"
+                    "• Check bot permissions"
+                ),
                 inline=False,
             )
             await ctx.send(embed=embed)
@@ -367,11 +361,13 @@ class AdminCommands(commands.Cog):
                 synced = await self.bot.tree.fetch_commands(
                     guild=discord.Object(id=ctx.guild.id)
                 )
-            except Exception as fetch_error:
+            except (
+                discord.HTTPException,
+                discord.Forbidden,
+                discord.NotFound,
+            ) as fetch_error:
                 # Fallback to show loaded commands if fetch fails
-                logger.warning(
-                    "Could not fetch guild synced commands: {fetch_error}",
-                )
+                logger.warning("Could not fetch guild synced commands: %s", fetch_error)
                 loaded_commands = self.bot.tree.get_commands()
                 synced = loaded_commands
 
@@ -393,13 +389,16 @@ class AdminCommands(commands.Cog):
                 # Add note about instant access
                 embed.add_field(
                     name="💡 Instant Access",
-                    value="Commands are now available IMMEDIATELY in this server! Try typing `/` to see them.",
+                    value=(
+                        "Commands are now available IMMEDIATELY in this server! "
+                        "Try typing `/` to see them."
+                    ),
                     inline=False,
                 )
 
             await sync_msg.edit(embed=embed)
 
-        except Exception as e:
+        except (discord.HTTPException, discord.Forbidden, AttributeError) as e:
             embed = discord.Embed(
                 title="❌ Guild Sync Failed",
                 description=f"Failed to sync slash commands to this guild: {str(e)}",
@@ -408,7 +407,12 @@ class AdminCommands(commands.Cog):
             )
             embed.add_field(
                 name="Troubleshooting",
-                value="• Make sure the bot has the `applications.commands` scope\n• Bot must have permissions in this server\n• Try the global sync command instead\n• Check bot permissions",
+                value=(
+                    "• Make sure the bot has the `applications.commands` scope\n"
+                    "• Bot must have permissions in this server\n"
+                    "• Try the global sync command instead\n"
+                    "• Check bot permissions"
+                ),
                 inline=False,
             )
             await ctx.send(embed=embed)
@@ -432,18 +436,19 @@ class AdminCommands(commands.Cog):
             latency = round(self.bot.latency * 1000, 2)
             results.append(f"✅ **Bot Connectivity**: {latency}ms latency")
             passed_tests += 1
-        except Exception as e:
+        except (AttributeError, TypeError, ValueError) as e:
             results.append(f"❌ **Bot Connectivity**: Failed - {str(e)[:50]}")
 
         # Test 2: Database Connection
         total_tests += 1
         try:
-            from src.database.connection import Database
-
-            # Test configuration without connecting
-            results.append("✅ **Database Connection**: Configuration available")
-            passed_tests += 1
-        except Exception as e:
+            # Test database configuration availability
+            if hasattr(self.bot, "database"):
+                results.append("✅ **Database Connection**: Configuration available")
+                passed_tests += 1
+            else:
+                results.append("❌ **Database Connection**: No database configured")
+        except (ImportError, ModuleNotFoundError) as e:
             results.append(f"❌ **Database Connection**: {str(e)[:50]}")
 
         # Test 3: Timer Commands
@@ -455,7 +460,7 @@ class AdminCommands(commands.Cog):
                 passed_tests += 1
             else:
                 results.append("❌ **Timer Commands**: Not loaded")
-        except Exception as e:
+        except (AttributeError, KeyError) as e:
             results.append(f"❌ **Timer Commands**: {str(e)[:50]}")
 
         # Test 4: Tabbycat Commands
@@ -467,14 +472,14 @@ class AdminCommands(commands.Cog):
                 passed_tests += 1
             else:
                 results.append("❌ **Tabbycat Commands**: Not loaded")
-        except Exception as e:
+        except (AttributeError, KeyError) as e:
             results.append(f"❌ **Tabbycat Commands**: {str(e)[:50]}")
 
         # Test 5: Slash Command Registration
         total_tests += 1
         try:
-            app_commands = await self.bot.tree.fetch_commands()
-            command_count = len(app_commands)
+            registered_commands = await self.bot.tree.fetch_commands()
+            command_count = len(registered_commands)
             if command_count > 0:
                 results.append(
                     f"✅ **Slash Commands**: {command_count} registered globally"
@@ -482,7 +487,7 @@ class AdminCommands(commands.Cog):
                 passed_tests += 1
             else:
                 results.append("❌ **Slash Commands**: None registered")
-        except Exception as e:
+        except (discord.HTTPException, discord.Forbidden, AttributeError) as e:
             results.append(f"❌ **Slash Commands**: {str(e)[:50]}")
 
         # Test 6: Guild Commands
@@ -497,14 +502,12 @@ class AdminCommands(commands.Cog):
                 passed_tests += 1
             else:
                 results.append("❌ **Guild Commands**: Not in guild")
-        except Exception as e:
+        except (discord.HTTPException, discord.Forbidden, AttributeError) as e:
             results.append(f"❌ **Guild Commands**: {str(e)[:50]}")
 
         # Test 7: Environment Configuration
         total_tests += 1
         try:
-            import os
-
             token = os.getenv("DISCORD_TOKEN")
             db_url = os.getenv("DATABASE_URL")
             if token and db_url:
@@ -512,7 +515,7 @@ class AdminCommands(commands.Cog):
                 passed_tests += 1
             else:
                 results.append("❌ **Environment Config**: Missing required vars")
-        except Exception as e:
+        except (ImportError, OSError) as e:
             results.append(f"❌ **Environment Config**: {str(e)[:50]}")
 
         # Test 8: Cog Loading Status
@@ -527,9 +530,12 @@ class AdminCommands(commands.Cog):
                 passed_tests += 1
             else:
                 results.append(
-                    f"❌ **Cog Loading**: Only {len(loaded_expected)}/{len(expected_cogs)} expected cogs"
+                    (
+                        "❌ **Cog Loading**: Only "
+                        f"{len(loaded_expected)}/{len(expected_cogs)} expected cogs"
+                    )
                 )
-        except Exception as e:
+        except (AttributeError, KeyError, TypeError) as e:
             results.append(f"❌ **Cog Loading**: {str(e)[:50]}")
 
         # Test 9: Permission Checks
@@ -558,18 +564,16 @@ class AdminCommands(commands.Cog):
                     results.append("❌ **Bot Permissions**: Bot member not found")
             else:
                 results.append("❌ **Bot Permissions**: Not in guild")
-        except Exception as e:
+        except (AttributeError, TypeError) as e:
             results.append(f"❌ **Bot Permissions**: {str(e)[:50]}")
 
         # Test 10: Memory Usage
         total_tests += 1
         try:
-            import os
-
             # Simple memory check using basic OS calls
             results.append("✅ **Memory Usage**: Basic monitoring available")
             passed_tests += 1
-        except Exception as e:
+        except (ImportError, OSError) as e:
             results.append(f"❌ **Memory Usage**: {str(e)[:50]}")
 
         # Create comprehensive report
@@ -590,7 +594,11 @@ class AdminCommands(commands.Cog):
 
         embed = discord.Embed(
             title=f"{status_emoji} Bot System Test Results",
-            description=f"**Overall Status**: {status_text} ({passed_tests}/{total_tests} tests passed - {success_rate}%)",
+            description=(
+                "**Overall Status**: "
+                f"{status_text} ("
+                f"{passed_tests}/{total_tests} tests passed - {success_rate}%)"
+            ),
             color=color,
             timestamp=discord.utils.utcnow(),
         )
@@ -640,4 +648,5 @@ class AdminCommands(commands.Cog):
 
 
 async def setup(bot):
+    """Set up the AdminCommands cog."""
     await bot.add_cog(AdminCommands(bot))

@@ -6,7 +6,7 @@ Email: kferdoush617@gmail.com
 SQLAlchemy models for PostgreSQL database backend.
 """
 
-from typing import Dict, List, Optional, Any
+import enum
 from datetime import datetime
 from sqlalchemy import (
     Column,
@@ -23,7 +23,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-import enum
 
 Base = declarative_base()
 
@@ -31,11 +30,11 @@ Base = declarative_base()
 class ReactionRoleModeEnum(enum.Enum):
     """Enum for reaction role modes"""
 
-    unique = "unique"
-    verify = "verify"
-    reversed = "reversed"
-    binding = "binding"
-    temporary = "temporary"
+    UNIQUE = "unique"
+    VERIFY = "verify"
+    REVERSED = "reversed"
+    BINDING = "binding"
+    TEMPORARY = "temporary"
 
 
 class Guild(Base):
@@ -138,7 +137,7 @@ class ReactionRoleConfig(Base):
 
     title = Column(String(256), nullable=False)
     description = Column(Text, nullable=True)
-    mode = Column(Enum(ReactionRoleModeEnum), default=ReactionRoleModeEnum.unique)
+    mode = Column(Enum(ReactionRoleModeEnum), default=ReactionRoleModeEnum.UNIQUE)
 
     # Optional settings
     self_destruct = Column(
@@ -330,7 +329,7 @@ async def drop_tables(engine):
 
 
 # Migration utilities
-async def migrate_from_mongodb(mongo_db, postgres_session):
+async def migrate_from_mongodb(_mongo_db, _postgres_session):
     """
     Migrate data from MongoDB to PostgreSQL
 
@@ -338,6 +337,6 @@ async def migrate_from_mongodb(mongo_db, postgres_session):
         mongo_db: MongoDB database instance
         postgres_session: PostgreSQL session
     """
-    # This would contain migration logic from MongoDB collections
-    # to PostgreSQL tables - implementation would depend on existing data structure
-    pass
+    # Placeholder: migration not implemented yet.
+    # This function intentionally left blank to retain public API.
+    return None

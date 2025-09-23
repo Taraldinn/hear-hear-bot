@@ -7,14 +7,14 @@ Modern, scalable Discord bot client with comprehensive error handling,
 logging, and production optimizations.
 """
 
-import discord
-from discord.ext import commands
-from discord import app_commands
 import asyncio
 import logging
 import time
-from typing import Optional, List, Dict, Any
-from pathlib import Path
+from typing import Optional, List, Dict, Any, Union
+
+import discord
+from discord.ext import commands
+from discord import app_commands
 
 from config.settings import Config
 from src.database.connection import database
@@ -96,8 +96,8 @@ class HearHearBot(commands.AutoShardedBot):
         self.database = database
         self.metrics = BotMetrics()
         self.web_server = None
-        self._ready = False
-        self._shutdown_requested = False
+        self._bot_ready: bool = False
+        self._shutdown_requested: bool = False
 
         # Extension tracking
         self.loaded_extensions: List[str] = []
@@ -123,7 +123,7 @@ class HearHearBot(commands.AutoShardedBot):
             logger.info("✅ Bot setup completed successfully")
 
         except Exception as e:
-            logger.error("❌ Critical error in setup_hook: {e}", , exc_info=True)
+            logger.error("❌ Critical error in setup_hook: %s", e, exc_info=True)
             raise
 
     async def load_extensions(self):
@@ -145,34 +145,38 @@ class HearHearBot(commands.AutoShardedBot):
             "src.events.member",
         ]
 
-        logger.info("📦 Loading {len(extensions)} extensions...", )
+        logger.info("📦 Loading %d extensions...", len(extensions))
 
         for extension in extensions:
             try:
                 await self.load_extension(extension)
                 self.loaded_extensions.append(extension)
-                logger.info("✅ Loaded: {extension}", )
+                logger.info("✅ Loaded: %s", extension)
 
             except commands.ExtensionNotFound:
-                logger.warning("⚠️  Extension not found: {extension}", )
+                logger.warning("⚠️  Extension not found: %s", extension)
                 self.failed_extensions.append(extension)
 
             except commands.ExtensionFailed as e:
-                logger.error("❌ Failed to load {extension}: {e}", )
+                logger.error("❌ Failed to load %s: %s", extension, e)
                 self.failed_extensions.append(extension)
 
-            except Exception as e:
+            except (commands.ExtensionError, ImportError, AttributeError) as e:
                 logger.error(
-                    f"💥 Unexpected error loading {extension}: {e}", exc_info=True
+                    "💥 Unexpected error loading %s: %s", extension, e, exc_info=True
                 )
                 self.failed_extensions.append(extension)
 
         logger.info(
-            f"📊 Extension Summary: {len(self.loaded_extensions)} loaded, {len(self.failed_extensions)} failed"
+            "📊 Extension Summary: %d loaded, %d failed",
+            len(self.loaded_extensions),
+            len(self.failed_extensions),
         )
 
         if self.failed_extensions:
-            logger.warning("⚠️  Failed extensions: {', '.join(self.failed_extensions)}", )
+            logger.warning(
+                "⚠️  Failed extensions: %s", ", ".join(self.failed_extensions)
+            )
 
     async def sync_commands(self, guild_id: Optional[int] = None):
         """
@@ -189,7 +193,7 @@ class HearHearBot(commands.AutoShardedBot):
                 # Guild-specific sync for testing
                 guild = discord.Object(id=guild_id)
                 logger.info(
-                    f"🔄 Syncing commands to guild {guild_id} for instant testing..."
+                    "🔄 Syncing commands to guild %s for instant testing...", guild_id
                 )
 
                 # Clear and copy global commands to guild
@@ -199,12 +203,15 @@ class HearHearBot(commands.AutoShardedBot):
                 # Sync to guild
                 synced = await self.tree.sync(guild=guild)
                 logger.info(
-                    f"⚡ Successfully synced {len(synced)} commands to guild {guild_id}"
+                    "⚡ Successfully synced %d commands to guild %s",
+                    len(synced),
+                    guild_id,
                 )
 
                 # Log command names for debugging
-                command_names = [cmd.name for cmd in synced]
-                logger.info("📝 Guild commands: {', '.join(command_names)}", )
+                logger.info(
+                    "📝 Guild commands: %s", ", ".join(cmd.name for cmd in synced)
+                )
                 return
 
             # Global sync logic
@@ -213,34 +220,41 @@ class HearHearBot(commands.AutoShardedBot):
             try:
                 existing_commands = await self.tree.fetch_commands()
                 logger.info(
-                    f"📋 Found {len(existing_commands)} existing global commands"
+                    "📋 Found %d existing global commands", len(existing_commands)
                 )
 
                 # Sync global commands
                 synced = await self.tree.sync()
-                logger.info("✅ Successfully synced {len(synced)} global commands", )
+                logger.info("✅ Successfully synced %d global commands", len(synced))
 
                 # Log synced commands
-                command_names = [cmd.name for cmd in synced]
-                logger.info("📝 Global commands: {', '.join(command_names)}", )
+                logger.info(
+                    "📝 Global commands: %s", ", ".join(cmd.name for cmd in synced)
+                )
 
                 if len(synced) != len(existing_commands):
                     logger.info(
-                        f"📊 Command count changed: {len(existing_commands)} → {len(synced)}"
+                        "📊 Command count changed: %d → %d",
+                        len(existing_commands),
+                        len(synced),
                     )
 
             except discord.HTTPException as e:
-                logger.error("❌ HTTP error during command sync: {e}", )
+                logger.error("❌ HTTP error during command sync: %s", e)
                 if e.status == 429:  # Rate limited
                     logger.warning("⏰ Rate limited, will retry later")
 
-            except Exception as e:
+            except discord.ConnectionClosed as e:
                 logger.error(
-                    f"💥 Unexpected error during command sync: {e}", exc_info=True
+                    "💥 Connection error during command sync: %s", e, exc_info=True
                 )
 
-        except Exception as e:
-            logger.error("💥 Critical error in sync_commands: {e}", , exc_info=True)
+        except (
+            discord.HTTPException,
+            discord.ConnectionClosed,
+            discord.LoginFailure,
+        ) as e:
+            logger.error("💥 Critical error in sync_commands: %s", e, exc_info=True)
 
     async def heartbeat_task(self):
         """Background task to monitor bot health"""
@@ -253,9 +267,11 @@ class HearHearBot(commands.AutoShardedBot):
                 # Log periodic health check
                 if int(time.time()) % 300 == 0:  # Every 5 minutes
                     logger.info(
-                        f"💓 Heartbeat - Guilds: {len(self.guilds)}, "
-                        f"Users: {len(self.users)}, Latency: {self.get_latency_ms()}ms, "
-                        f"Uptime: {self.metrics.get_uptime()}"
+                        "💓 Heartbeat - Guilds: %d, Users: %d, Latency: %dms, Uptime: %s",
+                        len(self.guilds),
+                        len(self.users),
+                        self.get_latency_ms(),
+                        self.metrics.get_uptime(),
                     )
 
                 await asyncio.sleep(60)  # Check every minute
@@ -263,26 +279,26 @@ class HearHearBot(commands.AutoShardedBot):
             except asyncio.CancelledError:
                 logger.info("💓 Heartbeat task cancelled")
                 break
-            except Exception as e:
-                logger.error("❌ Error in heartbeat task: {e}", )
+            except discord.ConnectionClosed as e:
+                logger.error("❌ Error in heartbeat task: %s", e)
                 await asyncio.sleep(60)
 
     async def on_ready(self):
         """Called when the bot is ready and connected"""
-        if self._ready:
+        if self._bot_ready:
             logger.info("🔄 Bot reconnected")
             return
 
-        self._ready = True
+        self._bot_ready = True
         logger.info("=" * 60)
-        logger.info("🤖 {self.user} is now online!", )
-        logger.info("👥 Connected to {len(self.guilds)} guilds", )
-        logger.info("👤 Serving {len(self.users)} users", )
-        logger.info("🏓 Latency: {self.get_latency_ms()}ms", )
-        logger.info("📊 Extensions loaded: {len(self.loaded_extensions)}", )
+        logger.info("🤖 %s is now online!", self.user)
+        logger.info("👥 Connected to %d guilds", len(self.guilds))
+        logger.info("👤 Serving %d users", len(self.users))
+        logger.info("🏓 Latency: %dms", self.get_latency_ms())
+        logger.info("📊 Extensions loaded: %d", len(self.loaded_extensions))
 
         if Config.TEST_GUILD_ID:
-            logger.info("🧪 Test guild configured: {Config.TEST_GUILD_ID}", )
+            logger.info("🧪 Test guild configured: %s", Config.TEST_GUILD_ID)
 
         logger.info("=" * 60)
 
@@ -295,20 +311,22 @@ class HearHearBot(commands.AutoShardedBot):
             await self.change_presence(activity=activity)
             logger.info("✅ Bot status updated")
 
-        except Exception as e:
-            logger.error("❌ Failed to set bot status: {e}", )
+        except (discord.HTTPException, discord.LoginFailure) as e:
+            logger.error("❌ Failed to set bot status: %s", e)
 
-    async def on_command(self, ctx):
+    async def on_command(self, ctx):  # pylint: disable=unused-argument
         """Called when a command is invoked"""
         self.metrics.increment_command()
-        logger.debug("Command used: {ctx.command.name} by {ctx.author} in {ctx.guild}", )
+        logger.debug(
+            "Command used: %s by %s in %s", ctx.command.name, ctx.author, ctx.guild
+        )
 
-    async def on_command_error(self, ctx, error):
+    async def on_command_error(self, ctx, error):  # pylint: disable=arguments-differ
         """Global command error handler"""
         self.metrics.increment_error()
 
         # Log the error
-        logger.error("Command error in {ctx.command}: {error}", , exc_info=error)
+        logger.error("Command error in %s: %s", ctx.command, error, exc_info=error)
 
         # Handle specific error types
         if isinstance(error, commands.CommandNotFound):
@@ -336,7 +354,7 @@ class HearHearBot(commands.AutoShardedBot):
         """Global slash command error handler"""
         self.metrics.increment_error()
 
-        logger.error("Slash command error: {error}", , exc_info=error)
+        logger.error("Slash command error: %s", error, exc_info=error)
 
         # Respond to the interaction if not already responded
         try:
@@ -345,8 +363,8 @@ class HearHearBot(commands.AutoShardedBot):
                     "❌ An error occurred while processing your command. Please try again later.",
                     ephemeral=True,
                 )
-        except Exception as e:
-            logger.error("Failed to send error response: {e}", )
+        except (discord.HTTPException, discord.NotFound) as e:
+            logger.error("Failed to send error response: %s", e)
 
     def get_latency_ms(self) -> int:
         """Get bot latency in milliseconds"""
@@ -364,13 +382,13 @@ class HearHearBot(commands.AutoShardedBot):
             "extensions_loaded": len(self.loaded_extensions),
             "extensions_failed": len(self.failed_extensions),
             "memory_usage": self._get_memory_usage(),
-            "is_ready": self._ready,
+            "is_ready": self._bot_ready,
         }
 
-    def _get_memory_usage(self) -> Dict[str, int]:
+    def _get_memory_usage(self) -> Dict[str, Union[int, float, str]]:
         """Get memory usage statistics"""
         try:
-            import psutil
+            import psutil  # pylint: disable=import-outside-toplevel # type: ignore
 
             process = psutil.Process()
             memory_info = process.memory_info()
@@ -406,8 +424,8 @@ class HearHearBot(commands.AutoShardedBot):
                 await super().close()
                 logger.info("🔌 Bot connection closed")
 
-        except Exception as e:
-            logger.error("❌ Error during shutdown: {e}", )
+        except (OSError, discord.ConnectionClosed, asyncio.CancelledError) as e:
+            logger.error("❌ Error during shutdown: %s", e)
         finally:
             logger.info("✅ Bot shutdown complete")
 

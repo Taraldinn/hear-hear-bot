@@ -9,13 +9,23 @@ connection pooling, and production optimizations using asyncpg and SQLAlchemy.
 
 import asyncio
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any
+from urllib.parse import urlparse, parse_qs
 
 try:
     import asyncpg
 
+    AsyncpgException = asyncpg.PostgresError
     ASYNCPG_AVAILABLE = True
 except ImportError:
+    asyncpg = None  # type: ignore[assignment]
+
+    class _AsyncpgFallbackError(Exception):
+        """Fallback asyncpg exception type when asyncpg is unavailable."""
+
+        CODE = "ASYNC_PG_FALLBACK"
+
+    AsyncpgException = _AsyncpgFallbackError
     ASYNCPG_AVAILABLE = False
 
 try:
@@ -26,19 +36,20 @@ try:
     )
     from sqlalchemy.ext.declarative import declarative_base
     from sqlalchemy import text
-    from sqlalchemy.exc import (
-        OperationalError,
-        DatabaseError,
-        TimeoutError as SQLTimeoutError,
-        DisconnectionError,
-    )
+
+    # Note: Specific SQLAlchemy exceptions are imported on-demand where needed
 
     SQLALCHEMY_AVAILABLE = True
     # SQLAlchemy Base for ORM models
-    Base = declarative_base()
+    BASE = declarative_base()
 except ImportError:
     SQLALCHEMY_AVAILABLE = False
-    Base = None
+    BASE = None
+    # Provide fallbacks for type checkers when SQLAlchemy is unavailable
+    create_async_engine = None  # type: ignore[assignment]
+    AsyncSession = None  # type: ignore[assignment]
+    async_sessionmaker = None  # type: ignore[assignment]
+    text = None  # type: ignore[assignment]
 
 from config.settings import Config
 
@@ -63,8 +74,11 @@ class DatabaseHealthChecker:
                 await connection.execute("SELECT 1")
                 self.last_health_check = asyncio.get_event_loop().time()
                 return True
-        except Exception as e:
+        except AsyncpgException as e:  # type: ignore[misc]
             logger.warning("Database health check failed: %s", str(e))
+            return False
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("Database health check unexpected error: %s", str(e))
             return False
 
 
@@ -82,9 +96,9 @@ class Database:
     """
 
     def __init__(self):
-        self.pool = None
-        self.engine = None
-        self.session_factory = None
+        self.pool: Any = None  # dynamic type from asyncpg pool
+        self.engine: Any = None
+        self.session_factory: Any = None
         self.health_checker = None
         self.connection_attempts = 0
         self.max_connection_attempts = 3
@@ -113,8 +127,6 @@ class Database:
             tuple: (clean_url, ssl_params) where clean_url has no query params
         """
         try:
-            from urllib.parse import urlparse, parse_qs
-
             parsed = urlparse(url)
 
             # Build clean URL without query parameters
@@ -141,8 +153,8 @@ class Database:
                     ssl_params["ssl"] = True
 
             return clean_url, ssl_params
-        except Exception as e:
-            logger.warning("Failed to parse PostgreSQL URL: {e}", )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("Failed to parse PostgreSQL URL: %s", e)
             return url, {}
 
     async def ensure_connected(self) -> bool:
@@ -151,7 +163,7 @@ class Database:
             self._connection_initialized = True
             try:
                 return await self.connect()
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 logger.error("Failed to initialize database connection: %s", e)
                 return False
         return self.is_connected
@@ -192,7 +204,7 @@ class Database:
                 clean_url, ssl_params = self._parse_postgres_url(postgres_url)
 
                 # Create asyncpg connection pool if available
-                if ASYNCPG_AVAILABLE:
+                if ASYNCPG_AVAILABLE and asyncpg is not None:
                     connection_kwargs = {
                         "dsn": clean_url,
                         "min_size": Config.DATABASE_MIN_POOL_SIZE,
@@ -208,13 +220,19 @@ class Database:
                     if ssl_params:
                         connection_kwargs.update(ssl_params)
                         logger.info(
-                            f"Using SSL configuration for asyncpg: {ssl_params}"
+                            "Using SSL configuration for asyncpg: %s", ssl_params
                         )
 
                     self.pool = await asyncpg.create_pool(**connection_kwargs)
 
                 # Create SQLAlchemy async engine if available
-                if SQLALCHEMY_AVAILABLE:
+                if (
+                    SQLALCHEMY_AVAILABLE
+                    and create_async_engine is not None
+                    and async_sessionmaker is not None
+                    and AsyncSession is not None
+                    and text is not None
+                ):
                     # Use the clean URL for SQLAlchemy too
                     sqlalchemy_url = clean_url.replace(
                         "postgresql://", "postgresql+asyncpg://", 1
@@ -240,7 +258,7 @@ class Database:
                 async with self.pool.acquire() as connection:
                     await connection.execute("SELECT 1")
 
-                if SQLALCHEMY_AVAILABLE and self.engine:
+                if SQLALCHEMY_AVAILABLE and self.engine and text is not None:
                     async with self.engine.begin() as conn:
                         await conn.execute(text("SELECT 1"))
 
@@ -265,7 +283,7 @@ class Database:
                     "❌ Database connection failed (attempt %d): %s", attempt, str(e)
                 )
 
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 # Handle specific asyncpg errors if available
                 error_type = type(e).__name__
                 if "InvalidAuthorizationSpecification" in error_type:
@@ -338,7 +356,7 @@ class Database:
 
         try:
             return await self.pool.acquire()
-        except Exception as e:
+        except AsyncpgException as e:  # type: ignore[misc]
             logger.error("Error acquiring database connection: %s", str(e))
             return None
 
@@ -357,7 +375,7 @@ class Database:
 
         try:
             return self.session_factory()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error("Error creating database session: %s", str(e))
             return None
 
@@ -378,7 +396,7 @@ class Database:
         try:
             async with self.pool.acquire() as connection:
                 return await connection.fetch(query, *args)
-        except Exception as e:
+        except AsyncpgException as e:  # type: ignore[misc]
             logger.error("Error executing query: %s", str(e))
             return None
 
@@ -400,7 +418,7 @@ class Database:
             async with self.pool.acquire() as connection:
                 await connection.execute(command, *args)
                 return True
-        except Exception as e:
+        except AsyncpgException as e:  # type: ignore[misc]
             logger.error("Error executing command: %s", str(e))
             return False
 
@@ -442,7 +460,7 @@ class Database:
                         "timeout_seconds": Config.DATABASE_TIMEOUT,
                     }
                 )
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 logger.warning("Could not retrieve pool stats: %s", str(e))
 
         return stats

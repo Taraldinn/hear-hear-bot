@@ -32,7 +32,7 @@ def _load_environment_variables():
                     print(f"✅ Loaded environment variables from {env_file}")
                 else:
                     dotenv.load_dotenv()  # Load from current directory
-    except Exception as e:
+    except (ImportError, AttributeError, OSError) as e:
         print(f"⚠️  Could not load .env file: {e}")
 
 
@@ -84,9 +84,11 @@ class Config:
     SHARD_COUNT: int = int(os.getenv("SHARD_COUNT", "2"))
     USE_SLASH_COMMANDS: bool = True
     GLOBAL_COMMANDS: bool = True
-    TEST_GUILD_ID: Optional[int] = (
-        int(os.getenv("TEST_GUILD_ID")) if os.getenv("TEST_GUILD_ID") else None
-    )
+    TEST_GUILD_ID: Optional[int] = None
+    # Initialize TEST_GUILD_ID safely
+    _test_guild_env = os.getenv("TEST_GUILD_ID")
+    if _test_guild_env and _test_guild_env.isdigit():
+        TEST_GUILD_ID = int(_test_guild_env)
 
     # ==================== DATABASE SETTINGS ====================
     # PostgreSQL Configuration
@@ -188,7 +190,10 @@ class Config:
         if not cls.POSTGRES_PASSWORD:
             return ""
 
-        url = f"postgresql://{cls.POSTGRES_USER}:{cls.POSTGRES_PASSWORD}@{cls.POSTGRES_HOST}:{cls.POSTGRES_PORT}/{cls.POSTGRES_DB}"
+        url = (
+            f"postgresql://{cls.POSTGRES_USER}:{cls.POSTGRES_PASSWORD}"
+            f"@{cls.POSTGRES_HOST}:{cls.POSTGRES_PORT}/{cls.POSTGRES_DB}"
+        )
 
         # Add SSL mode if specified
         if cls.POSTGRES_SSL_MODE and cls.POSTGRES_SSL_MODE != "disable":
@@ -354,6 +359,6 @@ class Config:
 if __name__ != "__main__":
     try:
         Config.validate_config()
-    except Exception as e:
+    except (RuntimeError, ValueError, OSError) as e:
         print(f"❌ Configuration validation failed: {e}")
         # Don't exit here - let the main application handle the error
