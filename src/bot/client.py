@@ -123,7 +123,7 @@ class HearHearBot(commands.AutoShardedBot):
             logger.info("✅ Bot setup completed successfully")
 
         except Exception as e:
-            logger.error(f"❌ Critical error in setup_hook: {e}", exc_info=True)
+            logger.error("❌ Critical error in setup_hook: {e}", , exc_info=True)
             raise
 
     async def load_extensions(self):
@@ -145,20 +145,20 @@ class HearHearBot(commands.AutoShardedBot):
             "src.events.member",
         ]
 
-        logger.info(f"📦 Loading {len(extensions)} extensions...")
+        logger.info("📦 Loading {len(extensions)} extensions...", )
 
         for extension in extensions:
             try:
                 await self.load_extension(extension)
                 self.loaded_extensions.append(extension)
-                logger.info(f"✅ Loaded: {extension}")
+                logger.info("✅ Loaded: {extension}", )
 
             except commands.ExtensionNotFound:
-                logger.warning(f"⚠️  Extension not found: {extension}")
+                logger.warning("⚠️  Extension not found: {extension}", )
                 self.failed_extensions.append(extension)
 
             except commands.ExtensionFailed as e:
-                logger.error(f"❌ Failed to load {extension}: {e}")
+                logger.error("❌ Failed to load {extension}: {e}", )
                 self.failed_extensions.append(extension)
 
             except Exception as e:
@@ -172,7 +172,7 @@ class HearHearBot(commands.AutoShardedBot):
         )
 
         if self.failed_extensions:
-            logger.warning(f"⚠️  Failed extensions: {', '.join(self.failed_extensions)}")
+            logger.warning("⚠️  Failed extensions: {', '.join(self.failed_extensions)}", )
 
     async def sync_commands(self, guild_id: Optional[int] = None):
         """
@@ -204,7 +204,7 @@ class HearHearBot(commands.AutoShardedBot):
 
                 # Log command names for debugging
                 command_names = [cmd.name for cmd in synced]
-                logger.info(f"📝 Guild commands: {', '.join(command_names)}")
+                logger.info("📝 Guild commands: {', '.join(command_names)}", )
                 return
 
             # Global sync logic
@@ -218,11 +218,11 @@ class HearHearBot(commands.AutoShardedBot):
 
                 # Sync global commands
                 synced = await self.tree.sync()
-                logger.info(f"✅ Successfully synced {len(synced)} global commands")
+                logger.info("✅ Successfully synced {len(synced)} global commands", )
 
                 # Log synced commands
                 command_names = [cmd.name for cmd in synced]
-                logger.info(f"📝 Global commands: {', '.join(command_names)}")
+                logger.info("📝 Global commands: {', '.join(command_names)}", )
 
                 if len(synced) != len(existing_commands):
                     logger.info(
@@ -230,7 +230,7 @@ class HearHearBot(commands.AutoShardedBot):
                     )
 
             except discord.HTTPException as e:
-                logger.error(f"❌ HTTP error during command sync: {e}")
+                logger.error("❌ HTTP error during command sync: {e}", )
                 if e.status == 429:  # Rate limited
                     logger.warning("⏰ Rate limited, will retry later")
 
@@ -240,7 +240,7 @@ class HearHearBot(commands.AutoShardedBot):
                 )
 
         except Exception as e:
-            logger.error(f"💥 Critical error in sync_commands: {e}", exc_info=True)
+            logger.error("💥 Critical error in sync_commands: {e}", , exc_info=True)
 
     async def heartbeat_task(self):
         """Background task to monitor bot health"""
@@ -264,7 +264,7 @@ class HearHearBot(commands.AutoShardedBot):
                 logger.info("💓 Heartbeat task cancelled")
                 break
             except Exception as e:
-                logger.error(f"❌ Error in heartbeat task: {e}")
+                logger.error("❌ Error in heartbeat task: {e}", )
                 await asyncio.sleep(60)
 
     async def on_ready(self):
@@ -275,14 +275,14 @@ class HearHearBot(commands.AutoShardedBot):
 
         self._ready = True
         logger.info("=" * 60)
-        logger.info(f"🤖 {self.user} is now online!")
-        logger.info(f"👥 Connected to {len(self.guilds)} guilds")
-        logger.info(f"👤 Serving {len(self.users)} users")
-        logger.info(f"🏓 Latency: {self.get_latency_ms()}ms")
-        logger.info(f"📊 Extensions loaded: {len(self.loaded_extensions)}")
+        logger.info("🤖 {self.user} is now online!", )
+        logger.info("👥 Connected to {len(self.guilds)} guilds", )
+        logger.info("👤 Serving {len(self.users)} users", )
+        logger.info("🏓 Latency: {self.get_latency_ms()}ms", )
+        logger.info("📊 Extensions loaded: {len(self.loaded_extensions)}", )
 
         if Config.TEST_GUILD_ID:
-            logger.info(f"🧪 Test guild configured: {Config.TEST_GUILD_ID}")
+            logger.info("🧪 Test guild configured: {Config.TEST_GUILD_ID}", )
 
         logger.info("=" * 60)
 
@@ -296,19 +296,19 @@ class HearHearBot(commands.AutoShardedBot):
             logger.info("✅ Bot status updated")
 
         except Exception as e:
-            logger.error(f"❌ Failed to set bot status: {e}")
+            logger.error("❌ Failed to set bot status: {e}", )
 
     async def on_command(self, ctx):
         """Called when a command is invoked"""
         self.metrics.increment_command()
-        logger.debug(f"Command used: {ctx.command.name} by {ctx.author} in {ctx.guild}")
+        logger.debug("Command used: {ctx.command.name} by {ctx.author} in {ctx.guild}", )
 
     async def on_command_error(self, ctx, error):
         """Global command error handler"""
         self.metrics.increment_error()
 
         # Log the error
-        logger.error(f"Command error in {ctx.command}: {error}", exc_info=error)
+        logger.error("Command error in {ctx.command}: {error}", , exc_info=error)
 
         # Handle specific error types
         if isinstance(error, commands.CommandNotFound):
@@ -336,7 +336,7 @@ class HearHearBot(commands.AutoShardedBot):
         """Global slash command error handler"""
         self.metrics.increment_error()
 
-        logger.error(f"Slash command error: {error}", exc_info=error)
+        logger.error("Slash command error: {error}", , exc_info=error)
 
         # Respond to the interaction if not already responded
         try:
@@ -346,7 +346,7 @@ class HearHearBot(commands.AutoShardedBot):
                     ephemeral=True,
                 )
         except Exception as e:
-            logger.error(f"Failed to send error response: {e}")
+            logger.error("Failed to send error response: {e}", )
 
     def get_latency_ms(self) -> int:
         """Get bot latency in milliseconds"""
@@ -407,7 +407,7 @@ class HearHearBot(commands.AutoShardedBot):
                 logger.info("🔌 Bot connection closed")
 
         except Exception as e:
-            logger.error(f"❌ Error during shutdown: {e}")
+            logger.error("❌ Error during shutdown: {e}", )
         finally:
             logger.info("✅ Bot shutdown complete")
 

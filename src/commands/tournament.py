@@ -146,7 +146,7 @@ class TournamentRoleSelect(discord.ui.Select):
                 reason=f"Tournament role assignment - assigned {role_name}",
             )
 
-            logger.info(f"Assigned {role_name} role to {member.display_name}")
+            logger.info("Assigned {role_name} role to {member.display_name}", )
 
             # Send confirmation
             await interaction.followup.send(
@@ -177,7 +177,7 @@ class TournamentRoleSelect(discord.ui.Select):
                     embed.set_footer(text="Good luck in the tournament! 🏆")
                     await welcome_channel.send(embed=embed)
             except Exception as e:
-                logger.warning(f"Could not send welcome message: {e}")
+                logger.warning("Could not send welcome message: {e}", )
 
         except discord.Forbidden:
             await interaction.followup.send(
@@ -458,7 +458,7 @@ class TournamentSetup(commands.Cog):
                 await progress_msg.edit(embed=success_embed)
 
         except discord.Forbidden as e:
-            logger.error(f"Permission error during tournament setup: {e}")
+            logger.error("Permission error during tournament setup: {e}", )
 
             # Create detailed permission error embed
             error_embed = discord.Embed(
@@ -502,7 +502,7 @@ class TournamentSetup(commands.Cog):
                 await interaction.followup.send(embed=error_embed, ephemeral=True)
 
         except discord.HTTPException as e:
-            logger.error(f"Discord API error during tournament setup: {e}")
+            logger.error("Discord API error during tournament setup: {e}", )
 
             error_embed = discord.Embed(
                 title="❌ Discord API Error",
@@ -541,7 +541,7 @@ class TournamentSetup(commands.Cog):
                 await interaction.followup.send(embed=error_embed, ephemeral=True)
 
         except Exception as e:
-            logger.error(f"Failed to create tournament: {e}")
+            logger.error("Failed to create tournament: {e}", )
             error_embed = discord.Embed(
                 title="❌ Tournament Setup Failed",
                 description=f"Error: {str(e)}",
@@ -594,7 +594,7 @@ class TournamentSetup(commands.Cog):
             existing_role = discord.utils.get(guild.roles, name=config["name"])
             if existing_role:
                 roles[role_key] = existing_role
-                logger.info(f"Role {config['name']} already exists")
+                logger.info("Role {config['name']} already exists", )
             else:
                 # Create new role
                 role = await guild.create_role(
@@ -604,7 +604,7 @@ class TournamentSetup(commands.Cog):
                     reason="Tournament setup - creating tournament roles",
                 )
                 roles[role_key] = role
-                logger.info(f"Created role: {config['name']}")
+                logger.info("Created role: {config['name']}", )
 
                 # Small delay to avoid rate limiting
                 await asyncio.sleep(0.5)
@@ -667,7 +667,7 @@ class TournamentSetup(commands.Cog):
                     name=category_name,
                     reason="Tournament setup - creating general channels",
                 )
-                logger.info(f"Created category: {category_name}")
+                logger.info("Created category: {category_name}", )
                 await asyncio.sleep(0.5)
 
             # Create channels in category
@@ -683,7 +683,7 @@ class TournamentSetup(commands.Cog):
                         reason="Tournament setup - creating general channels",
                     )
                     channels[channel_name.replace("-", "_")] = channel
-                    logger.info(f"Created channel: #{channel_name}")
+                    logger.info("Created channel: #{channel_name}", )
 
                     # Set initial permissions for role-assignment channel
                     if channel_name == "role-assignment":
@@ -802,7 +802,7 @@ class TournamentSetup(commands.Cog):
             await asyncio.sleep(0.5)
 
             venue_channels.append(venue_data)
-            logger.info(f"Created venue {venue_num} with {len(prep_rooms)} prep rooms")
+            logger.info("Created venue {venue_num} with {len(prep_rooms)} prep rooms", )
 
         return venue_channels
 
@@ -839,7 +839,7 @@ class TournamentSetup(commands.Cog):
                 await category.set_permissions(
                     guild.default_role, read_messages=True, send_messages=False
                 )
-                logger.info(f"✅ Set welcome category permissions for {category.name}")
+                logger.info("✅ Set welcome category permissions for {category.name}", )
 
             elif category.name in grand_auditorium_categories:
                 # Grand Auditorium: hidden from @everyone, but open to ALL role holders
@@ -880,7 +880,7 @@ class TournamentSetup(commands.Cog):
                     if role:
                         await category.set_permissions(role, view_channel=True)
 
-                logger.info(f"✅ Set venue category permissions for {category.name}")
+                logger.info("✅ Set venue category permissions for {category.name}", )
 
             await asyncio.sleep(0.2)
 
@@ -918,7 +918,7 @@ class TournamentSetup(commands.Cog):
                     send_messages=False,
                     add_reactions=False,
                 )
-                logger.info(f"✅ Set welcome channel permissions for {channel_key}")
+                logger.info("✅ Set welcome channel permissions for {channel_key}", )
 
             else:
                 # Other channels: Hidden from @everyone, but open to ALL role holders
@@ -955,7 +955,7 @@ class TournamentSetup(commands.Cog):
 
         # Setup permissions for venue channels
         for i, venue_data in enumerate(venue_channels, 1):
-            logger.info(f"Setting permissions for Venue {i}...")
+            logger.info("Setting permissions for Venue {i}...", )
 
             # Main debate text channel - open for all role holders
             if "text_channel" in venue_data:
@@ -1070,7 +1070,7 @@ class TournamentSetup(commands.Cog):
                             role, view_channel=False, connect=False
                         )
 
-                logger.info(f"✅ Set result discussion permissions for Venue {i}")
+                logger.info("✅ Set result discussion permissions for Venue {i}", )
                 await asyncio.sleep(0.2)
 
         logger.info("🎉 All channel permissions setup completed successfully!")
@@ -1246,7 +1246,7 @@ class TournamentSetup(commands.Cog):
             )
 
         except Exception as e:
-            logger.error(f"Error sending welcome message: {e}")
+            logger.error("Error sending welcome message: {e}", )
 
     @app_commands.command(
         name="tournament_cleanup", description="Clean up tournament channels and roles"
@@ -1314,7 +1314,7 @@ class TournamentSetup(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"Error during tournament cleanup: {e}")
+            logger.error("Error during tournament cleanup: {e}", )
             await interaction.followup.send(
                 f"❌ Error during cleanup: {str(e)}", ephemeral=True
             )

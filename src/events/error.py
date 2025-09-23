@@ -110,7 +110,7 @@ class ErrorEvents(commands.Cog):
             
         else:
             # Log unexpected errors
-            logger.error(f"Unexpected error in command {ctx.command}: {error}")
+            logger.error("Unexpected error in command {ctx.command}: {error}", )
             logger.error(traceback.format_exc())
             
             embed.title = "❌ Unexpected Error"
@@ -131,12 +131,12 @@ class ErrorEvents(commands.Cog):
                 # If we can't send messages at all, there's nothing we can do
                 pass
         except Exception as send_error:
-            logger.error(f"Error sending error message: {send_error}")
+            logger.error("Error sending error message: {send_error}", )
     
     @commands.Cog.listener()
     async def on_error(self, event, *args, **kwargs):
         """Handle general bot errors"""
-        logger.error(f"Error in event {event}")
+        logger.error("Error in event {event}", )
         logger.error(traceback.format_exc())
     
     @commands.Cog.listener()
@@ -156,7 +156,7 @@ class ErrorEvents(commands.Cog):
             embed.description = "The requested resource could not be found."
         else:
             embed.description = "An error occurred while processing this command."
-            logger.error(f"Application command error: {error}")
+            logger.error("Application command error: {error}", )
             logger.error(traceback.format_exc())
         
         try:
@@ -165,7 +165,7 @@ class ErrorEvents(commands.Cog):
             else:
                 await interaction.response.send_message(embed=embed, ephemeral=True)
         except Exception as send_error:
-            logger.error(f"Error sending application command error message: {send_error}")
+            logger.error("Error sending application command error message: {send_error}", )
 
 async def setup(bot):
     await bot.add_cog(ErrorEvents(bot))

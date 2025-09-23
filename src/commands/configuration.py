@@ -36,9 +36,9 @@ class ConfigurationCommands(commands.Cog):
             )
             for config in configs:
                 self.guild_configs[config["guild_id"]] = config
-            logger.info(f"Loaded configurations for {len(self.guild_configs)} guilds")
+            logger.info("Loaded configurations for {len(self.guild_configs)} guilds", )
         except Exception as e:
-            logger.error(f"Failed to load guild configs: {e}")
+            logger.error("Failed to load guild configs: {e}", )
 
     async def get_guild_config(self, guild_id: int) -> dict:
         """Get or create guild configuration"""
@@ -172,7 +172,7 @@ class ConfigurationCommands(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"Failed to view config: {e}")
+            logger.error("Failed to view config: {e}", )
             await interaction.followup.send(
                 f"❌ Failed to view configuration: {str(e)}", ephemeral=True
             )
@@ -250,7 +250,7 @@ class ConfigurationCommands(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"Failed to setup moderation: {e}")
+            logger.error("Failed to setup moderation: {e}", )
             await interaction.followup.send(
                 f"❌ Failed to setup moderation: {str(e)}", ephemeral=True
             )
@@ -323,7 +323,7 @@ class ConfigurationCommands(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"Failed to setup welcome: {e}")
+            logger.error("Failed to setup welcome: {e}", )
             await interaction.followup.send(
                 f"❌ Failed to setup welcome: {str(e)}", ephemeral=True
             )
@@ -456,7 +456,7 @@ class ConfigurationCommands(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"Failed to manage autorole: {e}")
+            logger.error("Failed to manage autorole: {e}", )
             await interaction.followup.send(
                 f"❌ Failed to manage auto role: {str(e)}", ephemeral=True
             )
@@ -570,7 +570,7 @@ class ConfigurationCommands(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"Failed to manage prefixes: {e}")
+            logger.error("Failed to manage prefixes: {e}", )
             await interaction.followup.send(
                 f"❌ Failed to manage prefixes: {str(e)}", ephemeral=True
             )
@@ -594,10 +594,10 @@ class ConfigurationCommands(commands.Cog):
 
             if roles_to_add:
                 await member.add_roles(*roles_to_add, reason="Auto role assignment")
-                logger.info(f"Added {len(roles_to_add)} auto roles to {member}")
+                logger.info("Added {len(roles_to_add)} auto roles to {member}", )
 
         except Exception as e:
-            logger.error(f"Failed to assign auto roles to {member}: {e}")
+            logger.error("Failed to assign auto roles to {member}: {e}", )
 
 
 async def setup(bot):

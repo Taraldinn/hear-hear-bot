@@ -37,11 +37,11 @@ class MemberEvents(commands.Cog):
                 if role and role < member.guild.me.top_role:
                     try:
                         await member.add_roles(role, reason="Auto-role assignment")
-                        logger.info(f"Assigned auto-role {role.name} to {member} in {member.guild}")
+                        logger.info("Assigned auto-role {role.name} to {member} in {member.guild}", )
                     except discord.Forbidden:
-                        logger.warning(f"Cannot assign auto-role {role.name} - insufficient permissions")
+                        logger.warning("Cannot assign auto-role {role.name} - insufficient permissions", )
                     except Exception as e:
-                        logger.error(f"Error assigning auto-role: {e}")
+                        logger.error("Error assigning auto-role: {e}", )
             
             # Welcome message (if configured)
             if 'welcome_channel' in guild_data:
@@ -69,12 +69,12 @@ class MemberEvents(commands.Cog):
                     try:
                         await channel.send(embed=embed)
                     except discord.Forbidden:
-                        logger.warning(f"Cannot send welcome message - no permission in {channel}")
+                        logger.warning("Cannot send welcome message - no permission in {channel}", )
                     except Exception as e:
-                        logger.error(f"Error sending welcome message: {e}")
+                        logger.error("Error sending welcome message: {e}", )
         
         except Exception as e:
-            logger.error(f"Error in on_member_join: {e}")
+            logger.error("Error in on_member_join: {e}", )
     
     @commands.Cog.listener()
     async def on_member_remove(self, member):
@@ -112,17 +112,17 @@ class MemberEvents(commands.Cog):
                 try:
                     await channel.send(embed=embed)
                 except discord.Forbidden:
-                    logger.warning(f"Cannot send goodbye message - no permission in {channel}")
+                    logger.warning("Cannot send goodbye message - no permission in {channel}", )
                 except Exception as e:
-                    logger.error(f"Error sending goodbye message: {e}")
+                    logger.error("Error sending goodbye message: {e}", )
         
         except Exception as e:
-            logger.error(f"Error in on_member_remove: {e}")
+            logger.error("Error in on_member_remove: {e}", )
     
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
         """Handle bot joining new guild"""
-        logger.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
+        logger.info("Joined new guild: {guild.name} (ID: {guild.id})", )
         
         # Try to send a welcome message to the system channel or first available channel
         embed = discord.Embed(
@@ -157,12 +157,12 @@ class MemberEvents(commands.Cog):
             try:
                 await target_channel.send(embed=embed)
             except Exception as e:
-                logger.error(f"Error sending welcome message to new guild: {e}")
+                logger.error("Error sending welcome message to new guild: {e}", )
     
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
         """Handle bot leaving guild"""
-        logger.info(f"Left guild: {guild.name} (ID: {guild.id})")
+        logger.info("Left guild: {guild.name} (ID: {guild.id})", )
         
         # Clean up guild data if needed
         try:
@@ -172,7 +172,7 @@ class MemberEvents(commands.Cog):
                 # collection.delete_one({'_id': guild.id})
                 pass
         except Exception as e:
-            logger.error(f"Error cleaning up guild data: {e}")
+            logger.error("Error cleaning up guild data: {e}", )
 
 async def setup(bot):
     await bot.add_cog(MemberEvents(bot))

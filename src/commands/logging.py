@@ -4,16 +4,16 @@ Author: aldinn
 Email: kferdoush617@gmail.com
 """
 
-import discord
-from discord.ext import commands
-from discord import app_commands
-import asyncio
 import logging
-from typing import Dict, List, Optional, Union
-from datetime import datetime, timedelta
-import json
+from datetime import datetime
+from typing import Optional
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+
 from src.database.connection import database
-from src.database.models import LoggingConfig, COLLECTIONS
+from src.database.models import COLLECTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,9 @@ class LoggingSystem(commands.Cog):
                 f"Loaded logging configs for {len(self.logging_configs)} guilds"
             )
         except Exception as e:
-            logger.error(f"Failed to load logging configs: {e}")
+            logger.error(
+                "Failed to load logging configs: {e}",
+            )
 
     async def cache_guild_invites(self):
         """Cache guild invites for invite tracking"""
@@ -80,7 +82,9 @@ class LoggingSystem(commands.Cog):
                 else:
                     return None
             except Exception as e:
-                logger.error(f"Failed to get logging config for guild {guild_id}: {e}")
+                logger.error(
+                    "Failed to get logging config for guild {guild_id}: {e}",
+                )
                 return None
         return self.logging_configs.get(guild_id)
 
@@ -126,7 +130,9 @@ class LoggingSystem(commands.Cog):
             if channel and channel.permissions_for(channel.guild.me).send_messages:
                 await channel.send(embed=embed)
         except Exception as e:
-            logger.error(f"Failed to send log to {channel_type}: {e}")
+            logger.error(
+                "Failed to send log to {channel_type}: {e}",
+            )
 
     # Message Logging Events
     @commands.Cog.listener()
@@ -648,7 +654,9 @@ class LoggingSystem(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"Failed to setup logging: {e}")
+            logger.error(
+                "Failed to setup logging: {e}",
+            )
             await interaction.followup.send(
                 f"❌ Failed to setup logging: {str(e)}", ephemeral=True
             )

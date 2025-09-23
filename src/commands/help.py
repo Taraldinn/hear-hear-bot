@@ -51,7 +51,7 @@ class HelpSystem(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            logger.error(f"Failed to send help: {e}")
+            logger.error("Failed to send help: {e}", )
             await interaction.followup.send(
                 "❌ Failed to load help information.", ephemeral=True
             )

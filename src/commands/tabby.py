@@ -11,10 +11,8 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import requests
-import json
 import logging
-import asyncio
-from src.utils.image_generator import image_generator
+from typing import Dict, Any, Optional
 from src.database.connection import Database
 
 logger = logging.getLogger(__name__)
@@ -108,10 +106,14 @@ class TabbyCommands(commands.Cog):
 
         except requests.exceptions.RequestException as e:
             await ctx.send(f"❌ Network error: {str(e)}")
-            logger.error(f"Network error in sync command: {e}")
+            logger.error(
+                "Network error in sync command: {e}",
+            )
         except Exception as e:
             await ctx.send(f"❌ An error occurred: {str(e)}")
-            logger.error(f"Error in sync command: {e}")
+            logger.error(
+                "Error in sync command: {e}",
+            )
 
     @commands.command()
     async def register(self, ctx, key):
@@ -155,7 +157,9 @@ class TabbyCommands(commands.Cog):
             if is_slash and not ctx.response.is_done():
                 await ctx.response.defer()
             await send_func("❌ Registration error.")
-            logger.error(f"Error in register command: {e}")
+            logger.error(
+                "Error in register command: {e}",
+            )
 
     @commands.command(aliases=["check-in"])
     async def checkin(self, ctx):
@@ -202,17 +206,17 @@ class TabbyCommands(commands.Cog):
         description="Add an email to adjudicator list",
     )
     async def addemai(self, ctx, email):
-        """Add an email to adjudicator list (temporarily disabled)"""
-        await ctx.send(
-            "⚠️ Adjudicator management temporarily disabled during PostgreSQL migration."
-        )
+        """Add email for tournament notifications (placeholder)"""
+        # TODO: Implement email registration functionality
+        _ = email  # Suppress unused argument warning
+        await ctx.send("📧 Email registration feature coming soon!")
 
-    @commands.command(name="announce")
+    @commands.command()
     async def announce(self, ctx, *, message):
-        """Make an announcement (temporarily disabled)"""
-        await ctx.send(
-            "⚠️ Announcement system temporarily disabled during PostgreSQL migration."
-        )
+        """Announce message to tournament participants (placeholder)"""
+        # TODO: Implement announcement functionality
+        _ = message  # Suppress unused argument warning
+        await ctx.send("📢 Announcement feature coming soon!")
 
     @commands.command(name="begin-debate", aliases=["start-debate"])
     async def begin_debate(self, ctx):
@@ -302,10 +306,14 @@ class TabbyCommands(commands.Cog):
 
         except requests.exceptions.RequestException as e:
             await interaction.followup.send(f"❌ Network error: {str(e)}")
-            logger.error(f"Network error in slash sync command: {e}")
+            logger.error(
+                "Network error in slash sync command: {e}",
+            )
         except Exception as e:
             await interaction.followup.send(f"❌ An error occurred: {str(e)}")
-            logger.error(f"Error in slash sync command: {e}")
+            logger.error(
+                "Error in slash sync command: {e}",
+            )
 
     @app_commands.command(name="checkin", description="Check in to the tournament")
     async def slash_checkin(self, interaction: discord.Interaction):
@@ -345,10 +353,11 @@ class TabbyCommands(commands.Cog):
     @app_commands.describe(message="The announcement message")
     @app_commands.default_permissions(administrator=True)
     async def slash_announce(self, interaction: discord.Interaction, message: str):
-        """Slash command version of announce"""
-        await interaction.response.defer()
-        await interaction.followup.send(
-            "⚠️ Announcement system temporarily disabled during PostgreSQL migration."
+        """Slash command for tournament announcements (placeholder)"""
+        # TODO: Implement announcement functionality
+        _ = message  # Suppress unused argument warning
+        await interaction.response.send_message(
+            "📢 Announcement feature coming soon!", ephemeral=True
         )
 
     @app_commands.command(name="motion", description="Get motion for a specific round")
@@ -413,7 +422,9 @@ class TabbyCommands(commands.Cog):
         except Exception as e:
             send_func = ctx.followup.send if is_slash else ctx.send
             await send_func("❌ Error processing check-in.")
-            logger.error(f"Error in checkin command: {e}")
+            logger.error(
+                "Error in checkin command: {e}",
+            )
 
     async def _checkout_logic(self, ctx, is_slash=False):
         """Shared logic for checkout commands"""
@@ -455,7 +466,9 @@ class TabbyCommands(commands.Cog):
         except Exception as e:
             send_func = ctx.followup.send if is_slash else ctx.send
             await send_func("❌ Error processing check-out.")
-            logger.error(f"Error in checkout command: {e}")
+            logger.error(
+                "Error in checkout command: {e}",
+            )
 
     async def _ballot_logic(self, ctx, is_slash=False):
         """Shared logic for ballot commands"""
@@ -503,7 +516,9 @@ class TabbyCommands(commands.Cog):
         except Exception as e:
             send_func = ctx.followup.send if is_slash else ctx.send
             await send_func("❌ Error fetching ballot information.")
-            logger.error(f"Error in ballot command: {e}")
+            logger.error(
+                "Error in ballot command: {e}",
+            )
 
     async def _pairings_logic(self, ctx, is_slash=False):
         """Shared logic for pairings commands"""
@@ -571,7 +586,7 @@ class TabbyCommands(commands.Cog):
             else:
                 # Format pairings - show first 10 debates
                 pairings_text = ""
-                for i, pairing in enumerate(pairings[:10], 1):
+                for pairing in pairings[:10]:
                     venue = pairing.get("venue", {}).get("display_name", "TBA")
 
                     # Get team names
@@ -605,7 +620,9 @@ class TabbyCommands(commands.Cog):
         except Exception as e:
             send_func = ctx.followup.send if is_slash else ctx.send
             await send_func("❌ Error fetching pairings.")
-            logger.error(f"Error in pairings command: {e}")
+            logger.error(
+                "Error in pairings command: {e}",
+            )
 
     async def _standings_logic(self, ctx, is_slash=False):
         """Shared logic for standings commands"""
@@ -656,7 +673,9 @@ class TabbyCommands(commands.Cog):
         except Exception as e:
             send_func = ctx.followup.send if is_slash else ctx.send
             await send_func("❌ Error fetching standings.")
-            logger.error(f"Error in standings command: {e}")
+            logger.error(
+                "Error in standings command: {e}",
+            )
 
     async def _motion_logic(self, ctx, round_abbrev, is_slash=False):
         """Shared logic for motion commands"""
@@ -729,7 +748,9 @@ class TabbyCommands(commands.Cog):
         except Exception as e:
             send_func = ctx.followup.send if is_slash else ctx.send
             await send_func("❌ Error fetching motion.")
-            logger.error(f"Error in motion command: {e}")
+            logger.error(
+                "Error in motion command: {e}",
+            )
 
     async def _status_logic(self, ctx, is_slash=False):
         """Shared logic for status commands"""
@@ -772,7 +793,9 @@ class TabbyCommands(commands.Cog):
         except Exception as e:
             send_func = ctx.followup.send if is_slash else ctx.send
             await send_func("❌ Error retrieving status.")
-            logger.error(f"Error in status command: {e}")
+            logger.error(
+                "Error in status command: {e}",
+            )
 
 
 async def setup(bot):

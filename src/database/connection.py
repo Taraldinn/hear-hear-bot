@@ -142,7 +142,7 @@ class Database:
 
             return clean_url, ssl_params
         except Exception as e:
-            logger.warning(f"Failed to parse PostgreSQL URL: {e}")
+            logger.warning("Failed to parse PostgreSQL URL: {e}", )
             return url, {}
 
     async def ensure_connected(self) -> bool:
