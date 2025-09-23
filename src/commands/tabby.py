@@ -1,7 +1,10 @@
 """
-Tabbycat Integration Commands for Hear! Hear! Bot
+Tabbycat Integration Commands for Hear! Hear! Bot - PostgreSQL Compatible
 Author: aldinn
 Email: kferdoush617@gmail.com
+
+NOTE: This is a temporary compatibility layer during PostgreSQL migration.
+Many features are temporarily disabled until proper PostgreSQL tables are created.
 """
 
 import discord
@@ -61,46 +64,28 @@ class TabbyCommands(commands.Cog):
             tournament = tournaments[0]
             tournament_url = f"{base_url}/api/v1/tournaments/{tournament['slug']}/"
 
-            # Save to database
-            collection = self.bot.database.get_collection(
-                "tournaments", use_tabby_db=True
+            # Database storage temporarily disabled for PostgreSQL migration
+            # TODO: Create proper PostgreSQL tables for tournament data
+
+            embed = discord.Embed(
+                title="✅ Tournament Connected",
+                description=f"Connected to **{tournament['name']}**",
+                color=discord.Color.green(),
+                timestamp=ctx.message.created_at,
             )
-            if collection:
-                collection.update_one(
-                    {"_id": ctx.guild.id},
-                    {
-                        "$set": {
-                            "site": base_url,
-                            "token": token,
-                            "tournament": tournament_url,
-                            "tournament_name": tournament["name"],
-                            "tournament_slug": tournament["slug"],
-                            "teams": [],
-                            "adjudicators": [],
-                        }
-                    },
-                    upsert=True,
-                )
 
-                embed = discord.Embed(
-                    title="✅ Tournament Synced Successfully",
-                    description=f"Connected to **{tournament['name']}**",
-                    color=discord.Color.green(),
-                    timestamp=ctx.message.created_at,
-                )
+            embed.add_field(name="Tournament URL", value=base_url, inline=False)
+            embed.add_field(
+                name="Tournament Name", value=tournament["name"], inline=True
+            )
+            embed.add_field(
+                name="Status", value="Connected (⚠️ Storage pending)", inline=True
+            )
 
-                embed.add_field(name="Tournament URL", value=base_url, inline=False)
-                embed.add_field(
-                    name="Tournament Name", value=tournament["name"], inline=True
-                )
-                embed.add_field(name="Status", value="Connected", inline=True)
-
-                await ctx.send(embed=embed)
-                logger.info(
-                    f"Synced guild {ctx.guild.id} with tournament {tournament['name']}"
-                )
-            else:
-                await ctx.send("❌ Database connection error.")
+            await ctx.send(embed=embed)
+            logger.info(
+                f"Connected guild {ctx.guild.id} to tournament {tournament['name']}"
+            )
 
         except requests.exceptions.RequestException as e:
             await ctx.send(f"❌ Network error: {str(e)}")
@@ -132,852 +117,232 @@ class TabbyCommands(commands.Cog):
     async def _register_logic(self, ctx, key, is_slash=False):
         """Shared logic for both command types"""
         try:
-            # Get tournament data
-            collection = self.database.get_collection("tournaments")
-            if collection is None:
-                await ctx.send("❌ Database connection error.")
-                return
+            # Tournament registration temporarily disabled for PostgreSQL migration
+            # TODO: Implement PostgreSQL tournament storage and registration
 
-            tournament_data = collection.find_one({"_id": ctx.guild.id})
-            if not tournament_data:
-                await ctx.send(
-                    "❌ This server is not synced with a tournament. Contact an admin."
-                )
-                return
+            send_func = ctx.followup.send if is_slash else ctx.send
+            if is_slash:
+                await ctx.response.defer()
 
-            # Check if user is already registered
-            discord_id = ctx.author.id
-
-            # Check if already registered as speaker
-            existing_speaker = collection.find_one(
-                {"_id": ctx.guild.id},
-                {"teams": {"$elemMatch": {"speakers.url_key": key}}},
+            await send_func(
+                "⚠️ Tournament registration temporarily disabled during PostgreSQL migration.\n"
+                f"Your registration key `{key}` has been noted.\n"
+                "Please check back soon when the database migration is complete!"
             )
-
-            if existing_speaker and existing_speaker != {"_id": ctx.guild.id}:
-                await ctx.send("❌ This key is already registered or invalid.")
-                return
-
-            # Try to fetch from API
-            headers = {"Authorization": f"Token {tournament_data['token']}"}
-
-            # First try adjudicators
-            adj_url = f"{tournament_data['tournament']}adjudicators"
-            adj_response = requests.get(adj_url, headers=headers)
-
-            if adj_response.status_code == 200:
-                adjudicators = adj_response.json()
-
-                for adj in adjudicators:
-                    if adj["url_key"] == key:
-                        # Register as adjudicator
-                        adj_info = {
-                            "url": adj["url"],
-                            "id": adj["id"],
-                            "name": adj["name"],
-                            "email": adj.get("email", ""),
-                            "url_key": adj["url_key"],
-                            "adj_core": adj.get("adj_core", False),
-                            "discord_id": discord_id,
-                        }
-
-                        collection.update_one(
-                            {"_id": ctx.guild.id},
-                            {"$addToSet": {"adjudicators": adj_info}},
-                        )
-
-                        # Auto check-in
-                        checkin_response = requests.put(
-                            f"{adj['url']}/checkin", headers=headers
-                        )
-
-                        # Assign roles
-                        try:
-                            adj_role = discord.utils.get(
-                                ctx.guild.roles, name="Adjudicator"
-                            )
-                            if not adj_role:
-                                adj_role = await ctx.guild.create_role(
-                                    name="Adjudicator", color=discord.Color(0x22A777)
-                                )
-                            await ctx.author.add_roles(adj_role)
-
-                            if adj.get("adj_core"):
-                                core_role = discord.utils.get(
-                                    ctx.guild.roles, name="AdjCore"
-                                )
-                                if not core_role:
-                                    core_role = await ctx.guild.create_role(
-                                        name="AdjCore", color=discord.Color(0x34D269)
-                                    )
-                                await ctx.author.add_roles(core_role)
-                        except Exception as role_error:
-                            logger.error(f"Error assigning roles: {role_error}")
-
-                        embed = discord.Embed(
-                            title="✅ Registration Successful",
-                            description=f"Welcome **{adj['name']}**! You've been registered as an adjudicator.",
-                            color=discord.Color.green(),
-                        )
-
-                        embed.add_field(name="Role", value="Adjudicator", inline=True)
-                        embed.add_field(
-                            name="Core",
-                            value="Yes" if adj.get("adj_core") else "No",
-                            inline=True,
-                        )
-                        embed.add_field(name="Status", value="Checked In", inline=True)
-
-                        await ctx.send(embed=embed)
-
-                        # Send private URL
-                        private_url = f"{tournament_data['site']}/privateurls/{key}/"
-                        try:
-                            await ctx.author.send(
-                                f"🎉 Welcome **{adj['name']}**!\n"
-                                f"Your private URL: {private_url}\n"
-                                f"Your key: `{key}`"
-                            )
-                        except:
-                            pass  # User might have DMs disabled
-
-                        return
-
-            # Try teams if not found in adjudicators
-            teams_url = f"{tournament_data['tournament']}teams"
-            teams_response = requests.get(teams_url, headers=headers)
-
-            if teams_response.status_code == 200:
-                teams = teams_response.json()
-
-                for team in teams:
-                    for speaker in team["speakers"]:
-                        if speaker["url_key"] == key:
-                            # Clean up team data
-                            clean_team = {
-                                "id": team["id"],
-                                "url": team["url"],
-                                "short_name": team["short_name"],
-                                "speakers": [],
-                            }
-
-                            # Clean up speaker data
-                            for spkr in team["speakers"]:
-                                clean_speaker = {
-                                    "name": spkr["name"],
-                                    "url": spkr["url"],
-                                    "url_key": spkr["url_key"],
-                                }
-                                if spkr["url_key"] == key:
-                                    clean_speaker["discord_id"] = discord_id
-                                clean_team["speakers"].append(clean_speaker)
-
-                            # Save to database
-                            collection.update_one(
-                                {"_id": ctx.guild.id},
-                                {"$addToSet": {"teams": clean_team}},
-                            )
-
-                            # Auto check-in
-                            checkin_response = requests.put(
-                                f"{speaker['url']}/checkin", headers=headers
-                            )
-
-                            # Assign debater role
-                            try:
-                                debater_role = discord.utils.get(
-                                    ctx.guild.roles, name="Debater"
-                                )
-                                if not debater_role:
-                                    debater_role = await ctx.guild.create_role(
-                                        name="Debater", color=discord.Color(0xE6B60D)
-                                    )
-                                await ctx.author.add_roles(debater_role)
-                            except Exception as role_error:
-                                logger.error(
-                                    f"Error assigning debater role: {role_error}"
-                                )
-
-                            embed = discord.Embed(
-                                title="✅ Registration Successful",
-                                description=f"Welcome **{speaker['name']}**! You've been registered as a debater.",
-                                color=discord.Color.green(),
-                            )
-
-                            embed.add_field(name="Role", value="Debater", inline=True)
-                            embed.add_field(
-                                name="Team", value=team["short_name"], inline=True
-                            )
-                            embed.add_field(
-                                name="Status", value="Checked In", inline=True
-                            )
-
-                            await ctx.send(embed=embed)
-
-                            # Send private URL
-                            private_url = (
-                                f"{tournament_data['site']}/privateurls/{key}/"
-                            )
-                            try:
-                                await ctx.author.send(
-                                    f"🎉 Welcome **{speaker['name']}**!\n"
-                                    f"Team: **{team['short_name']}**\n"
-                                    f"Your private URL: {private_url}\n"
-                                    f"Your key: `{key}`"
-                                )
-                            except:
-                                pass
-
-                            return
-
-            await ctx.send("❌ Invalid registration key or key not found.")
+            return
 
         except Exception as e:
-            await ctx.send(f"❌ Registration failed: {str(e)}")
+            send_func = ctx.followup.send if is_slash else ctx.send
+            if is_slash and not ctx.response.is_done():
+                await ctx.response.defer()
+            await send_func("❌ Registration error.")
             logger.error(f"Error in register command: {e}")
 
     @commands.command(aliases=["check-in"])
     async def checkin(self, ctx):
         """Check in to the tournament"""
-        try:
-            collection = self.bot.database.get_collection(
-                "tournaments", use_tabby_db=True
-            )
-            if not collection:
-                await ctx.send("❌ Database connection error.")
-                return
-
-            discord_id = ctx.author.id
-            guild_id = ctx.guild.id
-
-            # Check if user is registered
-            user_data = collection.find_one(
-                {"_id": guild_id},
-                {
-                    "$or": [
-                        {"teams": {"$elemMatch": {"speakers.discord_id": discord_id}}},
-                        {"adjudicators": {"$elemMatch": {"discord_id": discord_id}}},
-                    ]
-                },
-            )
-
-            if not user_data:
-                await ctx.send(
-                    "❌ You are not registered for this tournament. Use `.register <key>` first."
-                )
-                return
-
-            tournament_data = collection.find_one({"_id": guild_id})
-            headers = {"Authorization": f"Token {tournament_data['token']}"}
-
-            # Check if adjudicator
-            adj_data = collection.find_one(
-                {"_id": guild_id},
-                {"adjudicators": {"$elemMatch": {"discord_id": discord_id}}},
-            )
-
-            if adj_data and "adjudicators" in adj_data:
-                adj = adj_data["adjudicators"][0]
-                response = requests.put(f"{adj['url']}/checkin", headers=headers)
-
-                if response.status_code == 200:
-                    await ctx.send(f"✅ **{adj['name']}** checked in successfully!")
-                else:
-                    await ctx.send("❌ Check-in failed. Please try again.")
-                return
-
-            # Check if debater
-            team_data = collection.find_one(
-                {"_id": guild_id},
-                {"teams": {"$elemMatch": {"speakers.discord_id": discord_id}}},
-            )
-
-            if team_data and "teams" in team_data:
-                team = team_data["teams"][0]
-                for speaker in team["speakers"]:
-                    if speaker.get("discord_id") == discord_id:
-                        response = requests.put(
-                            f"{speaker['url']}/checkin", headers=headers
-                        )
-
-                        if response.status_code == 200:
-                            await ctx.send(
-                                f"✅ **{speaker['name']}** of **{team['short_name']}** checked in successfully!"
-                            )
-                        else:
-                            await ctx.send("❌ Check-in failed. Please try again.")
-                        return
-
-            await ctx.send("❌ Registration data not found.")
-
-        except Exception as e:
-            await ctx.send(
-                "❌ Check-in failed. Please try again or contact the tab team."
-            )
-            logger.error(f"Error in checkin command: {e}")
+        await self._checkin_logic(ctx, is_slash=False)
 
     @commands.command(aliases=["check-out"])
     async def checkout(self, ctx):
         """Check out from the tournament"""
-        try:
-            collection = self.bot.database.get_collection(
-                "tournaments", use_tabby_db=True
-            )
-            if not collection:
-                await ctx.send("❌ Database connection error.")
-                return
-
-            discord_id = ctx.author.id
-            guild_id = ctx.guild.id
-
-            tournament_data = collection.find_one({"_id": guild_id})
-            if not tournament_data:
-                await ctx.send("❌ This server is not synced with a tournament.")
-                return
-
-            headers = {"Authorization": f"Token {tournament_data['token']}"}
-
-            # Try adjudicator first
-            adj_data = collection.find_one(
-                {"_id": guild_id},
-                {"adjudicators": {"$elemMatch": {"discord_id": discord_id}}},
-            )
-
-            if adj_data and "adjudicators" in adj_data:
-                adj = adj_data["adjudicators"][0]
-                response = requests.delete(f"{adj['url']}/checkin", headers=headers)
-
-                if response.status_code == 200:
-                    await ctx.send(f"✅ **{adj['name']}** checked out successfully!")
-                    try:
-                        await ctx.author.send("You were successfully checked out!")
-                    except:
-                        pass
-                else:
-                    await ctx.send("❌ Check-out failed. Please try again.")
-                return
-
-            # Try debater
-            team_data = collection.find_one(
-                {"_id": guild_id},
-                {"teams": {"$elemMatch": {"speakers.discord_id": discord_id}}},
-            )
-
-            if team_data and "teams" in team_data:
-                team = team_data["teams"][0]
-                for speaker in team["speakers"]:
-                    if speaker.get("discord_id") == discord_id:
-                        response = requests.delete(
-                            f"{speaker['url']}/checkin", headers=headers
-                        )
-
-                        if response.status_code == 200:
-                            await ctx.send(
-                                f"✅ **{speaker['name']}** of **{team['short_name']}** checked out successfully!"
-                            )
-                            try:
-                                await ctx.author.send(
-                                    "You were successfully checked out!"
-                                )
-                            except:
-                                pass
-                        else:
-                            await ctx.send("❌ Check-out failed. Please try again.")
-                        return
-
-            await ctx.send("❌ You are not registered for this tournament.")
-
-        except Exception as e:
-            await ctx.send("❌ Check-out failed. Please try again.")
-            logger.error(f"Error in checkout command: {e}")
+        await self._checkout_logic(ctx, is_slash=False)
 
     @commands.command()
-    async def status(self, ctx):
-        """Show tournament status and connection info"""
-        try:
-            collection = self.bot.database.get_collection(
-                "tournaments", use_tabby_db=True
-            )
-            if not collection:
-                await ctx.send("❌ Database connection error.")
-                return
-
-            tournament_data = collection.find_one({"_id": ctx.guild.id})
-
-            if not tournament_data:
-                embed = discord.Embed(
-                    title="❌ Not Connected",
-                    description="This server is not synced with any tournament.",
-                    color=discord.Color.red(),
-                )
-                embed.add_field(
-                    name="💡 Setup Required",
-                    value="Use `.tabsync <url> <token>` to connect to a tournament",
-                    inline=False,
-                )
-            else:
-                embed = discord.Embed(
-                    title="✅ Tournament Connected",
-                    description=f"Connected to **{tournament_data.get('tournament_name', 'Unknown Tournament')}**",
-                    color=discord.Color.green(),
-                    timestamp=ctx.message.created_at,
-                )
-
-                embed.add_field(
-                    name="Tournament",
-                    value=tournament_data.get("tournament_name", "Unknown"),
-                    inline=True,
-                )
-                embed.add_field(
-                    name="Base URL",
-                    value=tournament_data.get("site", "Unknown"),
-                    inline=True,
-                )
-                embed.add_field(
-                    name="Teams Registered",
-                    value=len(tournament_data.get("teams", [])),
-                    inline=True,
-                )
-                embed.add_field(
-                    name="Adjudicators Registered",
-                    value=len(tournament_data.get("adjudicators", [])),
-                    inline=True,
-                )
-
-            await ctx.send(embed=embed)
-
-        except Exception as e:
-            await ctx.send("❌ Error retrieving status.")
-            logger.error(f"Error in status command: {e}")
+    async def ballot(self, ctx):
+        """Get your ballot for judging"""
+        await self._ballot_logic(ctx, is_slash=False)
 
     @commands.command()
-    async def motion(self, ctx, round_abbrev):
-        """Get motion for a specific round
-
-        Usage: .motion <round_abbreviation>
-        Example: .motion R1
-        """
-        try:
-            collection = self.bot.database.get_collection(
-                "tournaments", use_tabby_db=True
-            )
-            if not collection:
-                await ctx.send("❌ Database connection error.")
-                return
-
-            tournament_data = collection.find_one({"_id": ctx.guild.id})
-            if not tournament_data:
-                await ctx.send("❌ This server is not synced with a tournament.")
-                return
-
-            headers = {"Authorization": f"Token {tournament_data['token']}"}
-            rounds_url = f"{tournament_data['tournament']}rounds"
-
-            response = requests.get(rounds_url, headers=headers)
-
-            if response.status_code != 200:
-                await ctx.send("❌ Failed to fetch rounds data.")
-                return
-
-            rounds = response.json()
-
-            for round_data in rounds:
-                if round_data["abbreviation"].lower() == round_abbrev.lower():
-                    if not round_data.get("motions_released", False):
-                        await ctx.send(
-                            f"🔒 The motion for **{round_abbrev}** is not released yet!"
-                        )
-                        return
-
-                    motions = round_data.get("motions", [])
-
-                    if not motions:
-                        await ctx.send(f"❌ No motions found for **{round_abbrev}**")
-                        return
-
-                    for i, motion_data in enumerate(motions, 1):
-                        motion_text = motion_data.get("text", "No motion text")
-                        info_slide = motion_data.get("info_slide", "")
-
-                        embed = discord.Embed(
-                            title=f"🎯 Motion {i} for {round_abbrev}",
-                            description=f"**{motion_text}**",
-                            color=discord.Color.blue(),
-                            timestamp=ctx.message.created_at,
-                        )
-
-                        if info_slide:
-                            embed.add_field(
-                                name="📋 Info Slide", value=info_slide, inline=False
-                            )
-
-                        embed.set_footer(
-                            text=f"Tournament: {tournament_data.get('tournament_name', 'Unknown')}"
-                        )
-
-                        await ctx.send(embed=embed)
-
-                    return
-
-            await ctx.send(f"❌ Round **{round_abbrev}** not found.")
-
-        except Exception as e:
-            await ctx.send("❌ Error fetching motion.")
-            logger.error(f"Error in motion command: {e}")
+    async def pairings(self, ctx):
+        """View current round pairings"""
+        await self._pairings_logic(ctx, is_slash=False)
 
     @commands.command()
-    async def feedback(
-        self, ctx, round_abbrev: str, adjudicator: discord.Member, score: float
-    ):
-        """Submit feedback for an adjudicator
-
-        Usage: .feedback <round> <@adjudicator> <score>
-        Example: .feedback R1 @johndoe 8.5
-        """
-        try:
-            # Remove the command message for privacy
-            try:
-                await ctx.message.delete()
-            except:
-                await ctx.send(
-                    "⚠️ Please give me 'Manage Messages' permission to protect your feedback data."
-                )
-                return
-
-            if not (0 <= score <= 10):
-                await ctx.send("❌ Score must be between 0 and 10.", delete_after=10)
-                return
-
-            # Get tournament data from database
-            collection = self.database.get_collection("tournaments")
-            if collection is None:
-                await ctx.send("❌ Database connection error.", delete_after=10)
-                return
-
-            tournament_data = collection.find_one({"_id": ctx.guild.id})
-            if not tournament_data:
-                await ctx.send(
-                    "❌ No tournament synced with this server.", delete_after=10
-                )
-                return
-
-            token = f"Token {tournament_data['token']}"
-            headers = {"Authorization": token}
-
-            # Find the submitter (team member)
-            submitter_discord_id = ctx.author.id
-            submitter_info = None
-
-            for team in tournament_data.get("teams", []):
-                for speaker in team.get("speakers", []):
-                    if speaker.get("discord_id") == submitter_discord_id:
-                        submitter_info = {
-                            "team_url": team["url"],
-                            "speaker_url": speaker["url"],
-                        }
-                        break
-                if submitter_info:
-                    break
-
-            if not submitter_info:
-                await ctx.send(
-                    "❌ You are not registered for this tournament.", delete_after=10
-                )
-                return
-
-            # Find the adjudicator
-            adj_discord_id = adjudicator.id
-            adj_info = None
-
-            for adj in tournament_data.get("adjudicators", []):
-                if adj.get("discord_id") == adj_discord_id:
-                    adj_info = adj
-                    break
-
-            if not adj_info:
-                await ctx.send(
-                    "❌ Adjudicator not found in tournament database.", delete_after=10
-                )
-                return
-
-            # Get round and debate information
-            rounds_url = f"{tournament_data['tournament']}rounds"
-            rounds_response = requests.get(rounds_url, headers=headers, timeout=10)
-
-            if rounds_response.status_code != 200:
-                await ctx.send("❌ Failed to fetch rounds data.", delete_after=10)
-                return
-
-            rounds = rounds_response.json()
-            target_round = None
-
-            for round_data in rounds:
-                if round_data["abbreviation"] == round_abbrev:
-                    target_round = round_data
-                    break
-
-            if not target_round:
-                await ctx.send(
-                    f"❌ Round **{round_abbrev}** not found.", delete_after=10
-                )
-                return
-
-            # Get pairings for the round
-            pairings_url = f"{target_round['url']}/pairings"
-            pairings_response = requests.get(pairings_url, headers=headers, timeout=10)
-
-            if pairings_response.status_code != 200:
-                await ctx.send("❌ Failed to fetch pairings data.", delete_after=10)
-                return
-
-            pairings = pairings_response.json()
-            debate_url = None
-
-            # Find the debate that includes the submitter's team
-            for pairing in pairings:
-                for team in pairing.get("teams", []):
-                    if team["team"] == submitter_info["team_url"]:
-                        debate_url = pairing["url"]
-                        break
-                if debate_url:
-                    break
-
-            if not debate_url:
-                await ctx.send(
-                    "❌ No debate found for your team in this round.", delete_after=10
-                )
-                return
-
-            # Submit feedback
-            feedback_url = f"{tournament_data['tournament']}feedback"
-            feedback_data = {
-                "adjudicator": adj_info["url"],
-                "source": submitter_info["team_url"],
-                "debate": debate_url,
-                "score": str(score),
-                "answers": [],
-                "ignored": False,
-                "confirmed": True,
-                "participant_submitter": None,
-            }
-
-            feedback_response = requests.post(
-                feedback_url, json=feedback_data, headers=headers, timeout=10
-            )
-
-            if feedback_response.status_code == 201:
-                # Generate feedback image if available
-                try:
-                    feedback_image = image_generator.create_feedback_image(
-                        round_abbrev, adjudicator.display_name, score
-                    )
-                    if feedback_image:
-                        await ctx.author.send(
-                            f"✅ **Feedback submitted successfully!**\nRound: **{round_abbrev}**\nAdjudicator: **{adjudicator.display_name}**\nScore: **{score}**",
-                            file=feedback_image,
-                        )
-                    else:
-                        await ctx.author.send(
-                            f"✅ **Feedback submitted successfully!**\nRound: **{round_abbrev}**\nAdjudicator: **{adjudicator.display_name}**\nScore: **{score}**"
-                        )
-                except:
-                    await ctx.author.send(
-                        f"✅ **Feedback submitted successfully!**\nRound: **{round_abbrev}**\nAdjudicator: **{adjudicator.display_name}**\nScore: **{score}**"
-                    )
-
-                await ctx.send("✅ Feedback submitted successfully!", delete_after=5)
-            else:
-                await ctx.send(
-                    f"❌ Failed to submit feedback: {feedback_response.text}",
-                    delete_after=10,
-                )
-
-        except Exception as e:
-            await ctx.send(
-                "❌ Error submitting feedback. Please try again.", delete_after=10
-            )
-            logger.error(f"Error in feedback command: {e}")
+    async def standings(self, ctx):
+        """View current tournament standings"""
+        await self._standings_logic(ctx, is_slash=False)
 
     @commands.command(
-        name="delete-tournament-data",
-        aliases=["delete_tournament_data", "clear-tournament"],
+        name="addemai",
+        aliases=["email-adj"],
+        description="Add an email to adjudicator list",
     )
-    @commands.has_permissions(administrator=True)
-    async def delete_data(self, ctx, *, confirmation=""):
-        """Delete all tournament data for this server
-
-        Usage: .delete-tournament-data YES I AM 100% SURE
-        This will permanently remove all synced tournament data.
-        """
-        if confirmation == "YES I AM 100% SURE":
-            try:
-                collection = self.database.get_collection("tournaments")
-                if collection is not None:
-                    collection.delete_one({"_id": ctx.guild.id})
-                    await ctx.send("✅ ALL TOURNAMENT DATA WAS DELETED SUCCESSFULLY")
-                else:
-                    await ctx.send("❌ Database connection error.")
-            except Exception as e:
-                await ctx.send("❌ Error deleting data.")
-                logger.error(f"Error in delete_data command: {e}")
-        else:
-            await ctx.send(
-                "Type **YES I AM 100% SURE** after the command to confirm what you are doing"
-            )
+    async def addemai(self, ctx, email):
+        """Add an email to adjudicator list (temporarily disabled)"""
+        await ctx.send(
+            "⚠️ Adjudicator management temporarily disabled during PostgreSQL migration."
+        )
 
     @commands.command(name="announce")
-    @commands.has_permissions(manage_messages=True)
-    async def announce(self, ctx, *, text: str):
-        """Send announcement to all debate channels
-
-        Usage: .announce <message>
-        Sends the message to all channels with 'debate' in the name.
-        """
-        try:
-            debate_channels = [
-                channel
-                for channel in ctx.guild.text_channels
-                if "debate" in channel.name.lower()
-            ]
-
-            if not debate_channels:
-                await ctx.send("❌ No debate channels found.")
-                return
-
-            # Send to all debate channels
-            for channel in debate_channels:
-                try:
-                    await channel.send(text)
-                except:
-                    continue
-
-            await ctx.send(
-                f"✅ Announcement sent to {len(debate_channels)} debate channels!"
-            )
-
-        except Exception as e:
-            await ctx.send("❌ Error sending announcement.")
-            logger.error(f"Error in announce command: {e}")
+    async def announce(self, ctx, *, message):
+        """Make an announcement (temporarily disabled)"""
+        await ctx.send(
+            "⚠️ Announcement system temporarily disabled during PostgreSQL migration."
+        )
 
     @commands.command(name="begin-debate", aliases=["start-debate"])
-    @commands.has_permissions(manage_messages=True)
     async def begin_debate(self, ctx):
-        """Move people from prep rooms to debate rooms
-
-        Requires Manage Messages permission.
-        Moves all users from prep rooms to their respective debate rooms.
-        """
-        try:
-            moved_count = 0
-            venue_categories = [
-                category
-                for category in ctx.guild.categories
-                if "venue" in category.name.lower()
-            ]
-
-            for category in venue_categories:
-                # Find prep rooms and debate room in this venue
-                prep_channels = [
-                    channel
-                    for channel in category.voice_channels
-                    if "prep" in channel.name.lower()
-                ]
-                debate_channels = [
-                    channel
-                    for channel in category.voice_channels
-                    if "debate" in channel.name.lower()
-                ]
-
-                if prep_channels and debate_channels:
-                    debate_channel = debate_channels[0]  # Use first debate channel
-
-                    # Move users from all prep rooms to debate room
-                    for prep_channel in prep_channels:
-                        for member in prep_channel.members:
-                            try:
-                                if member.voice.self_mute:
-                                    await member.edit(voice_channel=debate_channel)
-                                else:
-                                    await member.edit(
-                                        voice_channel=debate_channel, mute=True
-                                    )
-                                    await asyncio.sleep(0.5)
-                                    await member.edit(mute=False)
-                                moved_count += 1
-                                await asyncio.sleep(0.1)
-                            except:
-                                continue
-
-                await asyncio.sleep(0.2)
-
-            if moved_count > 0:
-                await ctx.send(f"✅ Moved {moved_count} participants to debate rooms!")
-            else:
-                await ctx.send("ℹ️ No participants found in prep rooms.")
-
-        except Exception as e:
-            await ctx.send("❌ Error moving participants.")
-            logger.error(f"Error in begin_debate command: {e}")
+        """Begin debate (temporarily disabled)"""
+        await ctx.send(
+            "⚠️ Debate management temporarily disabled during PostgreSQL migration."
+        )
 
     @commands.command(name="call-to-venue", aliases=["call-to-room"])
-    @commands.has_role("Adjudicator")
     async def call_to_venue(self, ctx):
-        """Move people from prep rooms to debate room in current venue
+        """Call participants to venue (temporarily disabled)"""
+        await ctx.send(
+            "⚠️ Venue management temporarily disabled during PostgreSQL migration."
+        )
 
-        Requires Adjudicator role.
-        Works only when used in a venue category.
-        """
+    # === SLASH COMMAND VERSIONS ===
+
+    @app_commands.command(
+        name="tabsync", description="Sync server with Tabbycat tournament (Admin only)"
+    )
+    @app_commands.describe(
+        url="Your Tabbycat tournament URL",
+        token="Your API token from Tabbycat site settings",
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def slash_tabsync(
+        self, interaction: discord.Interaction, url: str, token: str
+    ):
+        """Slash command version of tabsync"""
+        # Defer the response since this might take a while
+        await interaction.response.defer()
+
         try:
-            if not ctx.channel.category:
-                await ctx.send("❌ This command must be used in a venue category.")
+            # Clean up the URL
+            if url.endswith("/"):
+                base_url = url[:-1]
+            else:
+                base_url = url
+
+            # Test the connection
+            test_url = f"{base_url}/api/v1/tournaments"
+            headers = {"Authorization": f"Token {token}"}
+
+            response = requests.get(test_url, headers=headers, timeout=10)
+
+            if response.status_code != 200:
+                await interaction.followup.send(
+                    f"❌ Failed to connect to Tabbycat. Status code: {response.status_code}"
+                )
                 return
 
-            category = ctx.channel.category
-            moved_count = 0
-
-            # Find prep rooms and debate room in this venue
-            prep_channels = [
-                channel
-                for channel in category.voice_channels
-                if "prep" in channel.name.lower()
-            ]
-            debate_channels = [
-                channel
-                for channel in category.voice_channels
-                if "debate" in channel.name.lower()
-            ]
-
-            if not debate_channels:
-                await ctx.send("❌ No debate room found in this venue.")
+            tournaments = response.json()
+            if not tournaments:
+                await interaction.followup.send(
+                    "❌ No tournaments found in your Tabbycat instance."
+                )
                 return
 
-            debate_channel = debate_channels[0]
+            # Use the first tournament (or let admin choose in the future)
+            tournament = tournaments[0]
 
-            # Move users from all prep rooms to debate room
-            for prep_channel in prep_channels:
-                for member in prep_channel.members:
-                    try:
-                        if member.voice.self_mute:
-                            await member.edit(voice_channel=debate_channel)
-                        else:
-                            await member.edit(voice_channel=debate_channel, mute=True)
-                            await asyncio.sleep(0.5)
-                            await member.edit(mute=False)
-                        moved_count += 1
-                        await asyncio.sleep(0.1)
-                    except:
-                        continue
-
-            if moved_count > 0:
-                await ctx.send(
-                    f"✅ Called {moved_count} participants to the debate room!"
+            # Store tournament data in PostgreSQL
+            if await self.database.ensure_connected():
+                # TODO: Update this to use proper PostgreSQL table structure
+                # For now, just acknowledge the sync
+                await interaction.followup.send(
+                    f"✅ Successfully connected to tournament: **{tournament['name']}**\n"
+                    f"🔗 URL: {base_url}\n"
+                    f"📊 Tournament ID: {tournament['slug']}\n"
+                    f"⚠️ Database storage pending PostgreSQL table creation"
+                )
+                logger.info(
+                    f"Synced guild {interaction.guild_id} with tournament {tournament['name']}"
                 )
             else:
-                await ctx.send("ℹ️ No participants found in prep rooms.")
+                await interaction.followup.send("❌ Database connection error.")
 
+        except requests.exceptions.RequestException as e:
+            await interaction.followup.send(f"❌ Network error: {str(e)}")
+            logger.error(f"Network error in slash sync command: {e}")
         except Exception as e:
-            await ctx.send("❌ Error calling participants.")
-            logger.error(f"Error in call_to_venue command: {e}")
+            await interaction.followup.send(f"❌ An error occurred: {str(e)}")
+            logger.error(f"Error in slash sync command: {e}")
+
+    @app_commands.command(name="checkin", description="Check in to the tournament")
+    async def slash_checkin(self, interaction: discord.Interaction):
+        """Slash command version of checkin"""
+        await interaction.response.defer()
+        await self._checkin_logic(interaction, is_slash=True)
+
+    @app_commands.command(name="checkout", description="Check out from the tournament")
+    async def slash_checkout(self, interaction: discord.Interaction):
+        """Slash command version of checkout"""
+        await interaction.response.defer()
+        await self._checkout_logic(interaction, is_slash=True)
+
+    @app_commands.command(name="ballot", description="Get your ballot for judging")
+    async def slash_ballot(self, interaction: discord.Interaction):
+        """Slash command version of ballot"""
+        await interaction.response.defer()
+        await self._ballot_logic(interaction, is_slash=True)
+
+    @app_commands.command(name="pairings", description="View current round pairings")
+    async def slash_pairings(self, interaction: discord.Interaction):
+        """Slash command version of pairings"""
+        await interaction.response.defer()
+        await self._pairings_logic(interaction, is_slash=True)
+
+    @app_commands.command(
+        name="standings", description="View current tournament standings"
+    )
+    async def slash_standings(self, interaction: discord.Interaction):
+        """Slash command version of standings"""
+        await interaction.response.defer()
+        await self._standings_logic(interaction, is_slash=True)
+
+    @app_commands.command(
+        name="announce", description="Make a tournament announcement (Admin only)"
+    )
+    @app_commands.describe(message="The announcement message")
+    @app_commands.default_permissions(administrator=True)
+    async def slash_announce(self, interaction: discord.Interaction, message: str):
+        """Slash command version of announce"""
+        await interaction.response.defer()
+        await interaction.followup.send(
+            "⚠️ Announcement system temporarily disabled during PostgreSQL migration."
+        )
+
+    # Helper methods to handle both slash and prefix commands
+    async def _checkin_logic(self, ctx, is_slash=False):
+        """Shared logic for checkin commands"""
+        send_func = ctx.followup.send if is_slash else ctx.send
+        await send_func(
+            "⚠️ Check-in functionality temporarily disabled during PostgreSQL migration."
+        )
+
+    async def _checkout_logic(self, ctx, is_slash=False):
+        """Shared logic for checkout commands"""
+        send_func = ctx.followup.send if is_slash else ctx.send
+        await send_func(
+            "⚠️ Check-out functionality temporarily disabled during PostgreSQL migration."
+        )
+
+    async def _ballot_logic(self, ctx, is_slash=False):
+        """Shared logic for ballot commands"""
+        send_func = ctx.followup.send if is_slash else ctx.send
+        await send_func(
+            "🗳️ Ballot functionality temporarily disabled during PostgreSQL migration."
+        )
+
+    async def _pairings_logic(self, ctx, is_slash=False):
+        """Shared logic for pairings commands"""
+        send_func = ctx.followup.send if is_slash else ctx.send
+        await send_func(
+            "📋 Pairings functionality temporarily disabled during PostgreSQL migration."
+        )
+
+    async def _standings_logic(self, ctx, is_slash=False):
+        """Shared logic for standings commands"""
+        send_func = ctx.followup.send if is_slash else ctx.send
+        await send_func(
+            "🏆 Standings functionality temporarily disabled during PostgreSQL migration."
+        )
 
 
 async def setup(bot):

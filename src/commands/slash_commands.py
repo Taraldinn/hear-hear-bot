@@ -41,7 +41,6 @@ class SlashCommands(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
-
     @app_commands.command(name="ping", description="Check bot latency")
     async def ping(self, interaction: discord.Interaction):
         """Check bot latency"""
@@ -67,50 +66,7 @@ class SlashCommands(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="help", description="Show bot help and commands")
-    async def help(self, interaction: discord.Interaction):
-        """Show help information"""
-        embed = discord.Embed(
-            title="🤖 Hear! Hear! Bot - Help",
-            description="A comprehensive debate bot with timing, motions, and tournament features",
-            color=discord.Color.blue(),
-        )
-
-        # Slash commands
-        slash_cmds = [
-            "`/timer` - Interactive debate timer with buttons",
-            "`/randommotion [lang]` - Get random motion",
-            "`/coinflip` - Flip a coin",
-            "`/diceroll [sides]` - Roll a dice",
-            "`/unmute <member>` - Unmute member (Admin)",
-            "`/undeafen <member>` - Undeafen member (Admin)",
-            "`/ping` - Check bot latency",
-            "`/help` - Show this help",
-        ]
-
-        # Legacy prefix commands
-        prefix_cmds = [
-            "`.tabsync <url> <token>` - Sync with Tabbycat (Admin)",
-            "`.register <key>` - Register for tournament",
-            "`.checkin/.checkout` - Tournament attendance",
-            "`.motion <round>` - Get round motion",
-            "`.setlanguage <lang>` - Set server language (Admin)",
-        ]
-
-        embed.add_field(
-            name="🆕 Slash Commands", value="\n".join(slash_cmds), inline=False
-        )
-        embed.add_field(
-            name="📝 Prefix Commands", value="\n".join(prefix_cmds), inline=False
-        )
-
-        embed.add_field(
-            name="💡 Note",
-            value="Slash commands (/) are the modern way to interact with bots!\nPrefix commands (.) are still supported for advanced features.",
-            inline=False,
-        )
-
-        await interaction.response.send_message(embed=embed)
+    # Note: Help command moved to src.commands.help module to avoid conflicts
 
 
 async def setup(bot):
