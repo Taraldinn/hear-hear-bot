@@ -9,6 +9,7 @@ logging, and production optimizations.
 
 import asyncio
 import logging
+import os
 import time
 from typing import Optional, List, Dict, Any, Union
 
@@ -18,6 +19,7 @@ from discord import app_commands
 
 from config.settings import Config
 from src.database.connection import database
+from src.utils.topgg_poster import TopGGPoster
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -96,6 +98,7 @@ class HearHearBot(commands.AutoShardedBot):
         self.database = database
         self.metrics = BotMetrics()
         self.web_server = None
+        self.topgg_poster = TopGGPoster(self)
         self._bot_ready: bool = False
         self._shutdown_requested: bool = False
 
@@ -119,6 +122,13 @@ class HearHearBot(commands.AutoShardedBot):
 
             # Start background tasks
             self.loop.create_task(self.heartbeat_task())
+
+            # Setup and start top.gg poster if configured
+            bot_id = str(self.user.id) if self.user else os.getenv("BOT_ID", "")
+            if self.topgg_poster.setup(bot_id, Config.TOPGG_TOKEN):
+                self.topgg_poster.start()
+            else:
+                logger.info("ℹ️  Top.gg integration not configured, skipping")
 
             logger.info("✅ Bot setup completed successfully")
 
@@ -300,6 +310,12 @@ class HearHearBot(commands.AutoShardedBot):
         if Config.TEST_GUILD_ID:
             logger.info("🧪 Test guild configured: %s", Config.TEST_GUILD_ID)
 
+        # Start top.gg poster if not already started
+        if not self.topgg_poster.is_running() and self.user:
+            bot_id = str(self.user.id)
+            if self.topgg_poster.setup(bot_id, Config.TOPGG_TOKEN):
+                self.topgg_poster.start()
+
         logger.info("=" * 60)
 
         # Set bot status
@@ -372,7 +388,7 @@ class HearHearBot(commands.AutoShardedBot):
 
     def get_stats(self) -> Dict[str, Any]:
         """Get comprehensive bot statistics"""
-        return {
+        stats = {
             "uptime": self.metrics.get_uptime(),
             "latency_ms": self.get_latency_ms(),
             "guilds": len(self.guilds),
@@ -384,6 +400,12 @@ class HearHearBot(commands.AutoShardedBot):
             "memory_usage": self._get_memory_usage(),
             "is_ready": self._bot_ready,
         }
+
+        # Add top.gg status if available
+        if self.topgg_poster:
+            stats["topgg"] = self.topgg_poster.get_status()
+
+        return stats
 
     def _get_memory_usage(self) -> Dict[str, Union[int, float, str]]:
         """Get memory usage statistics"""
@@ -409,6 +431,11 @@ class HearHearBot(commands.AutoShardedBot):
         logger.info("🛑 Bot shutdown initiated")
 
         try:
+            # Stop top.gg poster
+            if self.topgg_poster:
+                self.topgg_poster.stop()
+                logger.info("📊 Top.gg poster stopped")
+
             # Stop background tasks
             for task in asyncio.all_tasks():
                 if task != asyncio.current_task() and not task.done():

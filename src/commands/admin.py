@@ -646,6 +646,111 @@ class AdminCommands(commands.Cog):
 
         await interaction.followup.send(embed=embed)
 
+    @app_commands.command(
+        name="topgg", description="Manage top.gg integration and post stats"
+    )
+    @app_commands.describe(action="Action to perform (status, post)")
+    @app_commands.choices(
+        action=[
+            app_commands.Choice(name="Check Status", value="status"),
+            app_commands.Choice(name="Post Now", value="post"),
+        ]
+    )
+    @app_commands.default_permissions(administrator=True)
+    async def topgg_command(
+        self, interaction: discord.Interaction, action: app_commands.Choice[str]
+    ):
+        """Manage top.gg integration"""
+        await interaction.response.defer(ephemeral=True)
+
+        if action.value == "status":
+            # Get top.gg status
+            status = self.bot.topgg_poster.get_status()
+
+            embed = discord.Embed(
+                title="📊 Top.gg Integration Status",
+                color=discord.Color.blue(),
+                description="Current status of top.gg server count posting",
+            )
+
+            # Configuration status
+            config_status = (
+                "✅ Configured" if status["configured"] else "❌ Not Configured"
+            )
+            embed.add_field(name="Configuration", value=config_status, inline=True)
+
+            # Running status
+            running_status = "✅ Running" if status["running"] else "❌ Stopped"
+            embed.add_field(name="Status", value=running_status, inline=True)
+
+            # Bot ID
+            bot_id_display = status["bot_id"]
+            if len(bot_id_display) > 15:
+                bot_id_display = f"{bot_id_display[:4]}...{bot_id_display[-4:]}"
+            embed.add_field(name="Bot ID", value=bot_id_display, inline=True)
+
+            # Posting interval
+            interval_minutes = status["interval"] // 60
+            embed.add_field(
+                name="Posting Interval",
+                value=f"{interval_minutes} minutes",
+                inline=True,
+            )
+
+            # Current server count
+            embed.add_field(
+                name="Current Servers", value=str(status["server_count"]), inline=True
+            )
+
+            # Add configuration help if not configured
+            if not status["configured"]:
+                embed.add_field(
+                    name="⚠️ Configuration Required",
+                    value="Set `BOT_ID` and `TOPGG_TOKEN` in your environment variables.",
+                    inline=False,
+                )
+
+            embed.set_footer(text="Use /topgg post to manually post stats now")
+
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
+        elif action.value == "post":
+            # Manually post to top.gg
+            if not self.bot.topgg_poster.bot_id or not self.bot.topgg_poster.api_token:
+                await interaction.followup.send(
+                    "❌ Top.gg is not configured. Please set `BOT_ID` and "
+                    "`TOPGG_TOKEN` in your environment variables.",
+                    ephemeral=True,
+                )
+                return
+
+            # Post stats
+            success = await self.bot.topgg_poster.post_stats()
+
+            if success:
+                server_count = len(self.bot.guilds)
+                embed = discord.Embed(
+                    title="✅ Top.gg Stats Posted",
+                    color=discord.Color.green(),
+                    description="Successfully posted server count to top.gg!",
+                )
+                embed.add_field(name="Server Count", value=str(server_count))
+                embed.set_footer(text="Stats may take 5-10 minutes to update on top.gg")
+            else:
+                embed = discord.Embed(
+                    title="❌ Failed to Post Stats",
+                    color=discord.Color.red(),
+                    description="Failed to post server count to top.gg. Check logs for details.",
+                )
+                embed.add_field(
+                    name="Troubleshooting",
+                    value="• Check your API token\n"
+                    "• Verify your bot ID\n"
+                    "• Ensure your bot is listed on top.gg",
+                )
+
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
 
 async def setup(bot):
     """Set up the AdminCommands cog."""

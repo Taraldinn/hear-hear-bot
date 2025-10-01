@@ -5,6 +5,7 @@
 .env.test
 .env.development
 *.env
+ENV_CONFIGURATION_SUMMARY.md
 
 # Python
 __pycache__/

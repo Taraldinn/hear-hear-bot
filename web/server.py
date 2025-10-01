@@ -313,103 +313,159 @@ class WebServer:
         ]
 
     def _get_fallback_homepage(self, bot_stats: Dict[str, Any]) -> Response:
-        """Generate fallback HTML for homepage"""
+        """Generate fallback HTML for homepage with Shadcn UI theme"""
         bot_name = getattr(Config, "BOT_NAME", "Hear! Hear! Bot")
 
         html = f"""
         <!DOCTYPE html>
-        <html lang="en">
+        <html lang="en" class="dark">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>{bot_name} - Discord Debate Bot</title>
             <script src="https://cdn.tailwindcss.com"></script>
-            <meta name="description" content="Professional Discord bot for debate tournaments "
-                  "with Tabbycat integration">
-        </head>
-        <body class="bg-gray-50 font-sans">
-            <div class="min-h-screen">
-                <header class="bg-white shadow-sm">
-                    <div class="max-w-6xl mx-auto px-4 py-6">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="text-3xl">🎤</div>
-                                <div>
-                                    <h1 class="text-2xl font-bold text-gray-900">{bot_name}</h1>
-                                    <p class="text-gray-600">Professional Discord Bot for Debate Tournaments</p>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-sm text-gray-500">
-                                    Status: {bot_stats['status']}
-                                </div>
-                                <div class="text-lg font-semibold text-blue-600">
-                                    {bot_stats['guilds']} Servers
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </header>
+            <script>
+                tailwind.config = {{
+                    darkMode: 'class',
+                    theme: {{
+                        extend: {{
+                            colors: {{
+                                border: 'hsl(240 3.7% 15.9%)',
+                                background: 'hsl(240 10% 3.9%)',
+                                foreground: 'hsl(0 0% 98%)',
+                                primary: {{
+                                    DEFAULT: 'hsl(0 0% 98%)',
+                                    foreground: 'hsl(240 5.9% 10%)',
+                                }},
+                                card: {{
+                                    DEFAULT: 'hsl(240 10% 3.9%)',
+                                    foreground: 'hsl(0 0% 98%)',
+                                }},
+                                muted: {{
+                                    DEFAULT: 'hsl(240 3.7% 15.9%)',
+                                    foreground: 'hsl(240 5% 64.9%)',
+                                }},
+                            }},
+                        }},
+                    }},
+                }}
+            </script>
+            <meta name="description" content="Professional Discord bot for debate tournaments with Tabbycat integration">
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+                * {{ font-family: 'Inter', sans-serif; }}
                 
-                <main class="max-w-6xl mx-auto px-4 py-12">
-                    <div class="text-center mb-12">
-                        <h2 class="text-4xl font-bold text-gray-900 mb-4">Complete Tournament Management</h2>
-                        <p class="text-xl text-gray-600 max-w-3xl mx-auto">
-                            Advanced Discord bot for debate tournaments with Tabbycat integration,
-                            modern UI components, and comprehensive tournament management tools.
-                        </p>
+                .grid-pattern {{
+                    background-image: 
+                        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+                    background-size: 4rem 4rem;
+                }}
+                
+                .gradient-text {{
+                    background: linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                }}
+                
+                .glow {{
+                    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+                }}
+            </style>
+        </head>
+        <body class="bg-background text-foreground antialiased">
+            <div class="fixed inset-0 grid-pattern -z-10"></div>
+            
+            <nav class="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
+                <div class="container mx-auto flex h-16 items-center px-6">
+                    <div class="flex items-center gap-2">
+                        <span class="text-3xl">🎤</span>
+                        <span class="text-xl font-bold">{bot_name}</span>
+                        {('<span class="ml-2 flex h-2 w-2 rounded-full bg-green-500"><span class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-green-400 opacity-75"></span></span>' if bot_stats['status'] == 'Online' else '')}
                     </div>
                     
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center mb-12">
-                        <div class="bg-white p-6 rounded-lg shadow">
-                            <div class="text-3xl font-bold text-blue-600">
-                                {bot_stats['guilds']}
-                            </div>
-                            <div class="text-gray-600">Discord Servers</div>
+                    <div class="ml-auto flex items-center gap-4">
+                        <a href="/docs" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                            Documentation
+                        </a>
+                        <a href="/commands" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                            Commands
+                        </a>
+                        <a href="/invite" class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                            Add to Discord
+                        </a>
+                    </div>
+                </div>
+            </nav>
+            
+            <section class="container mx-auto px-4 py-20 md:py-32">
+                <div class="mx-auto max-w-5xl text-center space-y-8">
+                    <div class="inline-flex items-center rounded-full border border-border px-3 py-1 text-sm">
+                        <span class="mr-2">✨</span>
+                        <span class="text-muted-foreground">Professional Debate Tournament Management</span>
+                    </div>
+                    
+                    <h1 class="text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl">
+                        The Ultimate
+                        <span class="gradient-text block">Discord Debate Bot</span>
+                    </h1>
+                    
+                    <p class="mx-auto max-w-2xl text-lg text-muted-foreground sm:text-xl">
+                        Professional timing, comprehensive motion database, and seamless Tabbycat integration 
+                        for debate tournaments.
+                    </p>
+                    
+                    <div class="flex flex-wrap justify-center gap-8 pt-4">
+                        <div class="text-center">
+                            <div class="text-4xl font-bold">{bot_stats['guilds']}</div>
+                            <div class="text-sm text-muted-foreground">Servers</div>
                         </div>
-                        <div class="bg-white p-6 rounded-lg shadow">
-                            <div class="text-3xl font-bold text-purple-600">
-                                {bot_stats['users']}
-                            </div>
-                            <div class="text-gray-600">Users Served</div>
+                        <div class="text-center">
+                            <div class="text-4xl font-bold">{bot_stats['users']}</div>
+                            <div class="text-sm text-muted-foreground">Users</div>
                         </div>
-                        <div class="bg-white p-6 rounded-lg shadow">
-                            <div class="text-3xl font-bold text-green-600">
-                                {bot_stats['latency']}ms
-                            </div>
-                            <div class="text-gray-600">Response Time</div>
+                        <div class="text-center">
+                            <div class="text-4xl font-bold">{bot_stats['latency']}ms</div>
+                            <div class="text-sm text-muted-foreground">Latency</div>
                         </div>
-                        <div class="bg-white p-6 rounded-lg shadow">
-                            <div class="text-3xl font-bold text-orange-600">
-                                {bot_stats['uptime']}
-                            </div>
-                            <div class="text-gray-600">Uptime</div>
+                        <div class="text-center">
+                            <div class="text-4xl font-bold">{bot_stats['uptime']}</div>
+                            <div class="text-sm text-muted-foreground">Uptime</div>
                         </div>
                     </div>
                     
-                    <div class="text-center space-y-4">
-                        <a href="/docs" 
-                           class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                        <a href="/invite" class="inline-flex h-12 items-center justify-center rounded-md bg-primary px-8 text-base font-semibold text-primary-foreground hover:bg-primary/90 transition-all glow">
+                            <span class="mr-2">🚀</span>
+                            Add to Discord
+                        </a>
+                        <a href="/docs" class="inline-flex h-12 items-center justify-center rounded-md border border-border bg-background px-8 text-base font-semibold hover:bg-accent transition-colors">
+                            <span class="mr-2">📚</span>
                             View Documentation
                         </a>
-                        <div class="text-gray-600">
-                            <a href="/health" class="hover:text-blue-600">Health Check</a> |
-                            <a href="/api/stats" class="hover:text-blue-600">API Stats</a> |
-                            <a href="/commands" class="hover:text-blue-600">Commands</a>
+                    </div>
+                </div>
+            </section>
+            
+            <footer class="border-t border-border mt-20">
+                <div class="container mx-auto px-4 py-8">
+                    <div class="flex flex-col items-center justify-between gap-4 md:flex-row">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">🎤</span>
+                            <span class="font-semibold">{bot_name}</span>
+                        </div>
+                        <div class="flex gap-6 text-sm text-muted-foreground">
+                            <a href="/" class="hover:text-foreground transition-colors">Home</a>
+                            <a href="/docs" class="hover:text-foreground transition-colors">Documentation</a>
+                            <a href="/health" class="hover:text-foreground transition-colors">Status</a>
+                        </div>
+                        <div class="text-sm text-muted-foreground">
+                            <p>© 2025 aldinn. Version {bot_stats['version']}</p>
                         </div>
                     </div>
-                </main>
-                
-                <footer class="bg-gray-800 text-white py-8 mt-12">
-                    <div class="max-w-6xl mx-auto px-4 text-center">
-                        <p>&copy; 2025 {bot_name} by aldinn. Built for the debate community.</p>
-                        <p class="text-gray-400 text-sm mt-2">
-                            Version {bot_stats['version']} | 
-                            <a href="/health" class="hover:text-blue-400">Health Check</a>
-                        </p>
-                    </div>
-                </footer>
-            </div>
+                </div>
+            </footer>
         </body>
         </html>
         """
@@ -630,33 +686,213 @@ class WebServer:
             )
 
     async def invite(self, _request: Request) -> Response:
-        """Bot invitation page"""
+        """Bot invitation page with proper invite URL"""
         try:
-            invite_url = getattr(Config, "BOT_INVITE_URL", "#")
+            # Get invite URL from config (auto-generated or custom)
+            invite_url = Config.BOT_INVITE_URL
+
+            if not invite_url:
+                # Fallback: generate from BOT_ID if available
+                bot_id = Config.BOT_ID
+                if bot_id:
+                    invite_url = (
+                        f"https://discord.com/api/oauth2/authorize?"
+                        f"client_id={bot_id}"
+                        f"&permissions=8"
+                        f"&scope=bot%20applications.commands"
+                    )
+                else:
+                    invite_url = "#"  # Fallback if not configured
 
             html = f"""
             <!DOCTYPE html>
-            <html lang="en">
+            <html lang="en" class="dark">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Invite Hear! Hear! Bot</title>
+                <title>Invite {Config.BOT_NAME} - Discord Debate Bot</title>
+                <meta name="description" content="{Config.BOT_DESCRIPTION}">
+                <meta name="keywords" content="discord bot, debate bot, tournament management, discord invite">
                 <script src="https://cdn.tailwindcss.com"></script>
+                <script>
+                    tailwind.config = {{
+                        darkMode: 'class',
+                        theme: {{
+                            extend: {{
+                                colors: {{
+                                    border: 'hsl(240 3.7% 15.9%)',
+                                    background: 'hsl(240 10% 3.9%)',
+                                    foreground: 'hsl(0 0% 98%)',
+                                    primary: {{
+                                        DEFAULT: 'hsl(0 0% 98%)',
+                                        foreground: 'hsl(240 5.9% 10%)',
+                                    }},
+                                    card: {{
+                                        DEFAULT: 'hsl(240 10% 3.9%)',
+                                        foreground: 'hsl(0 0% 98%)',
+                                    }},
+                                    muted: {{
+                                        DEFAULT: 'hsl(240 3.7% 15.9%)',
+                                        foreground: 'hsl(240 5% 64.9%)',
+                                    }},
+                                }},
+                            }},
+                        }},
+                    }}
+                </script>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+                    * {{ font-family: 'Inter', sans-serif; }}
+                    
+                    .grid-pattern {{
+                        background-image: 
+                            linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                            linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+                        background-size: 4rem 4rem;
+                    }}
+                    
+                    .glow {{
+                        box-shadow: 0 0 30px rgba(59, 130, 246, 0.6), 0 0 60px rgba(59, 130, 246, 0.4);
+                    }}
+                    
+                    .glow:hover {{
+                        box-shadow: 0 0 40px rgba(59, 130, 246, 0.8), 0 0 80px rgba(59, 130, 246, 0.5);
+                        transform: translateY(-2px);
+                    }}
+                    
+                    .gradient-text {{
+                        background: linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        background-clip: text;
+                    }}
+                    
+                    @keyframes float {{
+                        0%, 100% {{ transform: translateY(0px); }}
+                        50% {{ transform: translateY(-20px); }}
+                    }}
+                    
+                    .float {{ animation: float 3s ease-in-out infinite; }}
+                </style>
             </head>
-            <body class="bg-gray-50">
-                <div class="min-h-screen flex items-center justify-center">
-                    <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
-                        <div class="text-6xl mb-4">🎤</div>
-                        <h1 class="text-2xl font-bold mb-4">Add Hear! Hear! Bot</h1>
-                        <p class="text-gray-600 mb-6">
-                            Add the most advanced Discord bot for debate tournaments to your server.
-                        </p>
-                        <a href="{invite_url}"
-                           class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                            Add to Discord
-                        </a>
-                        <div class="mt-4 text-sm text-gray-500">
-                            <a href="/" class="hover:text-blue-600">← Back to Homepage</a>
+            <body class="bg-background text-foreground antialiased min-h-screen flex items-center justify-center p-4">
+                <!-- Grid Background -->
+                <div class="fixed inset-0 grid-pattern -z-10"></div>
+                
+                <!-- Floating Orbs -->
+                <div class="fixed top-20 left-20 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl -z-10 float"></div>
+                <div class="fixed bottom-20 right-20 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl -z-10 float" style="animation-delay: -1.5s;"></div>
+                
+                <div class="max-w-4xl w-full">
+                    <div class="rounded-xl border border-border bg-card p-8 md:p-16 text-center space-y-8">
+                        <!-- Bot Icon -->
+                        <div class="flex justify-center">
+                            <div class="relative">
+                                <div class="text-8xl float">🎤</div>
+                                <div class="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full">
+                                    <div class="absolute w-4 h-4 bg-green-500 rounded-full animate-ping"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Title -->
+                        <div>
+                            <h1 class="text-4xl md:text-6xl font-black mb-4">
+                                Add <span class="gradient-text">{Config.BOT_NAME}</span>
+                            </h1>
+                            <p class="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+                                Professional debate tournament management for Discord. 
+                                Advanced timing, motion database, and Tabbycat integration.
+                            </p>
+                        </div>
+                        
+                        <!-- Features Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                            <div class="rounded-lg border border-border bg-muted/50 p-6 hover:bg-muted transition-colors">
+                                <div class="text-4xl mb-3">⏱️</div>
+                                <div class="font-semibold text-lg mb-1">Debate Timer</div>
+                                <div class="text-sm text-muted-foreground">Professional timing with protected time tracking</div>
+                            </div>
+                            <div class="rounded-lg border border-border bg-muted/50 p-6 hover:bg-muted transition-colors">
+                                <div class="text-4xl mb-3">📋</div>
+                                <div class="font-semibold text-lg mb-1">Motion Database</div>
+                                <div class="text-sm text-muted-foreground">1000+ curated debate motions</div>
+                            </div>
+                            <div class="rounded-lg border border-border bg-muted/50 p-6 hover:bg-muted transition-colors">
+                                <div class="text-4xl mb-3">🏆</div>
+                                <div class="font-semibold text-lg mb-1">Tournament Tools</div>
+                                <div class="text-sm text-muted-foreground">Full Tabbycat integration</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Stats -->
+                        <div class="flex flex-wrap justify-center gap-8 pt-4 pb-4">
+                            <div>
+                                <div class="text-3xl font-bold text-blue-400">1000+</div>
+                                <div class="text-sm text-muted-foreground">Motions</div>
+                            </div>
+                            <div>
+                                <div class="text-3xl font-bold text-purple-400">50ms</div>
+                                <div class="text-sm text-muted-foreground">Latency</div>
+                            </div>
+                            <div>
+                                <div class="text-3xl font-bold text-pink-400">24/7</div>
+                                <div class="text-sm text-muted-foreground">Uptime</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Invite Button -->
+                        <div>
+                            <a href="{invite_url}" 
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="inline-flex items-center justify-center h-14 px-10 text-lg font-bold rounded-lg bg-primary text-primary-foreground glow transition-all duration-300">
+                                <span class="mr-2">🚀</span>
+                                Add to Discord Now
+                            </a>
+                        </div>
+                        
+                        <!-- Features List -->
+                        <div class="rounded-lg border border-border bg-muted/30 p-6 text-left">
+                            <div class="text-sm font-medium mb-3">What's Included:</div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                                <div>✅ Unlimited debate timers</div>
+                                <div>✅ Multi-language motion support</div>
+                                <div>✅ Tabbycat tournament sync</div>
+                                <div>✅ Role & channel management</div>
+                                <div>✅ Real-time pairings</div>
+                                <div>✅ Automated announcements</div>
+                                <div>✅ Comprehensive analytics</div>
+                                <div>✅ Free forever</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Navigation -->
+                        <div class="pt-4 border-t border-border">
+                            <div class="flex flex-wrap justify-center gap-4 text-sm">
+                                <a href="/" class="text-muted-foreground hover:text-foreground transition-colors">
+                                    ← Home
+                                </a>
+                                <span class="text-muted-foreground">•</span>
+                                <a href="/docs" class="text-muted-foreground hover:text-foreground transition-colors">
+                                    📚 Documentation
+                                </a>
+                                <span class="text-muted-foreground">•</span>
+                                <a href="/commands" class="text-muted-foreground hover:text-foreground transition-colors">
+                                    🤖 Commands
+                                </a>
+                                <span class="text-muted-foreground">•</span>
+                                <a href="https://github.com/Taraldinn/hear-hear-bot" 
+                                   target="_blank" 
+                                   class="text-muted-foreground hover:text-foreground transition-colors">
+                                    💻 GitHub
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Footer -->
+                        <div class="text-xs text-muted-foreground">
+                            Version {Config.BOT_VERSION} • Made with ❤️ by {Config.BOT_AUTHOR}
                         </div>
                     </div>
                 </div>

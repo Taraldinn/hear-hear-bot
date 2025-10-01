@@ -19,19 +19,32 @@ def _load_environment_variables():
     """
     Load environment variables from .env file if available.
     Uses python-dotenv if installed, gracefully degrades if not.
+    Loads in priority order: .env.local > .env
     """
     try:
         spec = importlib.util.find_spec("python-dotenv")
         if spec is not None:
             dotenv = importlib.import_module("python-dotenv")
             if hasattr(dotenv, "load_dotenv"):
-                # Look for .env file in project root
-                env_file = Path(__file__).parent.parent / ".env"
-                if env_file.exists():
-                    dotenv.load_dotenv(env_file)
-                    print(f"✅ Loaded environment variables from {env_file}")
-                else:
-                    dotenv.load_dotenv()  # Load from current directory
+                project_root = Path(__file__).parent.parent
+
+                # Priority order: .env.local (local config) > .env (template/defaults)
+                env_files = [
+                    project_root / ".env.local",  # Local overrides (not committed)
+                    project_root / ".env",  # Default template
+                ]
+
+                loaded = False
+                for env_file in env_files:
+                    if env_file.exists():
+                        dotenv.load_dotenv(env_file, override=True)
+                        print(f"✅ Loaded environment variables from {env_file.name}")
+                        loaded = True
+
+                if not loaded:
+                    # Fallback to current directory
+                    dotenv.load_dotenv()
+                    print("✅ Loaded environment variables from current directory")
     except (ImportError, AttributeError, OSError) as e:
         print(f"⚠️  Could not load .env file: {e}")
 
@@ -80,11 +93,23 @@ class Config:
 
     # ==================== BOT CORE SETTINGS ====================
     BOT_TOKEN: str = os.getenv("DISCORD_BOT_TOKEN", "")
+    BOT_ID: str = os.getenv("BOT_ID", "")  # Discord bot ID for top.gg
     BOT_PREFIX: List[str] = [".", "?"]  # Legacy prefix support
     SHARD_COUNT: int = int(os.getenv("SHARD_COUNT", "2"))
     USE_SLASH_COMMANDS: bool = True
     GLOBAL_COMMANDS: bool = True
     TEST_GUILD_ID: Optional[int] = None
+
+    # Bot invite URL (auto-generated if not set)
+    BOT_INVITE_URL: str = os.getenv("BOT_INVITE_URL", "")
+    if not BOT_INVITE_URL and BOT_ID:
+        # Generate default invite URL with recommended permissions
+        BOT_INVITE_URL = (
+            f"https://discord.com/api/oauth2/authorize?"
+            f"client_id={BOT_ID}"
+            f"&permissions=8"
+            f"&scope=bot%20applications.commands"
+        )
     # Initialize TEST_GUILD_ID safely
     _test_guild_env = os.getenv("TEST_GUILD_ID")
     if _test_guild_env and _test_guild_env.isdigit():
@@ -123,6 +148,19 @@ class Config:
     BOT_DESCRIPTION: str = (
         "A comprehensive debate bot with timing, motions, and tournament features"
     )
+    BOT_TAGLINE: str = "The Ultimate Discord Bot for Debate Tournaments"
+    BOT_KEYWORDS: List[str] = [
+        "discord bot",
+        "debate bot",
+        "tournament bot",
+        "timer bot",
+        "motion database",
+        "tabbycat integration",
+        "debate tournaments",
+        "parliamentary debate",
+        "debate timer",
+        "debate management",
+    ]
 
     # ==================== SERVER SETTINGS ====================
     WEB_SERVER_PORT: int = int(os.getenv("PORT", "8080"))
