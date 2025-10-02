@@ -46,9 +46,10 @@ class ConfigurationCommands(commands.Cog):
             return
         try:
             # Type guard for MongoDB-style database
-            configs = (
-                await self.db[COLLECTIONS["guild_configs"]].find().to_list(length=None)  # type: ignore[index]
-            )
+            # pylint: disable=unsubscriptable-object
+            collection = self.db[COLLECTIONS["guild_configs"]]
+            configs = await collection.find().to_list(length=None)
+            # pylint: enable=unsubscriptable-object
             for config in configs:
                 self.guild_configs[config["guild_id"]] = config
             logger.info(
@@ -77,7 +78,10 @@ class ConfigurationCommands(commands.Cog):
 
             # Save to database
             if hasattr(self.db, "__getitem__"):
-                await self.db[COLLECTIONS["guild_configs"]].insert_one(default_config)  # type: ignore[index]
+                # pylint: disable=unsubscriptable-object
+                collection = self.db[COLLECTIONS["guild_configs"]]
+                await collection.insert_one(default_config)
+                # pylint: enable=unsubscriptable-object
             self.guild_configs[guild_id] = default_config
 
         return self.guild_configs[guild_id]
@@ -89,9 +93,12 @@ class ConfigurationCommands(commands.Cog):
 
         # Save to database
         if hasattr(self.db, "__getitem__"):
-            await self.db[COLLECTIONS["guild_configs"]].replace_one(  # type: ignore[index]
+            # pylint: disable=unsubscriptable-object
+            collection = self.db[COLLECTIONS["guild_configs"]]
+            await collection.replace_one(
                 {"guild_id": guild_id}, config, upsert=True
             )
+            # pylint: enable=unsubscriptable-object
 
         # Update cache
         self.guild_configs[guild_id] = config
@@ -105,7 +112,7 @@ class ConfigurationCommands(commands.Cog):
                 "❌ This command can only be used in a server.", ephemeral=True
             )
             return
-            
+
         try:
             await interaction.response.defer()
 
@@ -230,7 +237,7 @@ class ConfigurationCommands(commands.Cog):
                 "❌ This command can only be used in a server.", ephemeral=True
             )
             return
-            
+
         try:
             await interaction.response.defer()
 
@@ -318,7 +325,7 @@ class ConfigurationCommands(commands.Cog):
                 "❌ This command can only be used in a server.", ephemeral=True
             )
             return
-            
+
         try:
             await interaction.response.defer()
 
@@ -406,7 +413,7 @@ class ConfigurationCommands(commands.Cog):
                 "❌ This command can only be used in a server.", ephemeral=True
             )
             return
-            
+
         try:
             await interaction.response.defer()
 
@@ -560,7 +567,7 @@ class ConfigurationCommands(commands.Cog):
                 "❌ This command can only be used in a server.", ephemeral=True
             )
             return
-            
+
         try:
             await interaction.response.defer()
 
@@ -689,9 +696,11 @@ class ConfigurationCommands(commands.Cog):
                     "Added {len(roles_to_add)} auto roles to {member}",
                 )
 
-        except Exception as e:
+        except Exception as exc:
             logger.error(
-                "Failed to assign auto roles to {member}: {e}",
+                "Failed to assign auto roles to %s: %s",
+                member,
+                exc,
             )
 
 
