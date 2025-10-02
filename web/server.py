@@ -171,7 +171,12 @@ class WebServer:
                 ),
                 "latency": (
                     round(self.bot.latency * 1000)
-                    if hasattr(self.bot, "latency") and self.bot.latency
+                    if hasattr(self.bot, "latency")
+                    and self.bot.latency is not None
+                    and not (
+                        isinstance(self.bot.latency, float)
+                        and (self.bot.latency != self.bot.latency)
+                    )  # Check for NaN
                     else 0
                 ),
                 "version": getattr(Config, "BOT_VERSION", "1.0.0"),

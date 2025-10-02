@@ -23,30 +23,32 @@ class AdminCommands(commands.Cog):
     @commands.command()
     @commands.has_permissions(manage_roles=True)
     async def unmute(self, ctx, member: discord.Member):
-        """Unmute a member in voice chat"""
+        """Unmute a member in voice chat (prefix command - use /voice_unmute for slash command)"""
         try:
             await member.edit(mute=False)
-            await ctx.send(f"> {member.mention} was unmuted successfully")
-            logger.info("Unmuted %s in %s", member, ctx.guild)
+            await ctx.send(f"> {member.mention} was unmuted successfully in voice chat")
+            logger.info("Voice unmuted %s in %s", member, ctx.guild)
         except discord.Forbidden:
             await ctx.send("❌ I don't have permission to unmute members.")
         except (discord.HTTPException, discord.NotFound) as e:
             await ctx.send(f"❌ Error unmuting member: {str(e)}")
             logger.error("Error unmuting %s: %s", member, e)
 
-    @app_commands.command(name="unmute", description="Unmute a member in voice chat")
+    @app_commands.command(
+        name="voice_unmute", description="Unmute a member in voice chat"
+    )
     @app_commands.describe(member="The member to unmute")
     @app_commands.default_permissions(manage_roles=True)
     async def slash_unmute(
         self, interaction: discord.Interaction, member: discord.Member
     ):
-        """Slash command version of unmute"""
+        """Slash command version of voice unmute"""
         try:
             await member.edit(mute=False)
             await interaction.response.send_message(
-                f"> {member.mention} was unmuted successfully"
+                f"> {member.mention} was unmuted successfully in voice chat"
             )
-            logger.info("Unmuted %s in %s", member, interaction.guild)
+            logger.info("Voice unmuted %s in %s", member, interaction.guild)
         except discord.Forbidden:
             await interaction.response.send_message(
                 "❌ I don't have permission to unmute members.", ephemeral=True
