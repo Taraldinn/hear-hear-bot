@@ -47,7 +47,7 @@ class ConfigurationCommands(commands.Cog):
         try:
             # Type guard for MongoDB-style database
             # pylint: disable=unsubscriptable-object
-            collection = self.db[COLLECTIONS["guild_configs"]]
+            collection = self.db[COLLECTIONS["guild_configs"]]  # type: ignore[index]
             configs = await collection.find().to_list(length=None)
             # pylint: enable=unsubscriptable-object
             for config in configs:
@@ -79,7 +79,7 @@ class ConfigurationCommands(commands.Cog):
             # Save to database
             if hasattr(self.db, "__getitem__"):
                 # pylint: disable=unsubscriptable-object
-                collection = self.db[COLLECTIONS["guild_configs"]]
+                collection = self.db[COLLECTIONS["guild_configs"]]  # type: ignore[index]
                 await collection.insert_one(default_config)
                 # pylint: enable=unsubscriptable-object
             self.guild_configs[guild_id] = default_config
@@ -94,7 +94,7 @@ class ConfigurationCommands(commands.Cog):
         # Save to database
         if hasattr(self.db, "__getitem__"):
             # pylint: disable=unsubscriptable-object
-            collection = self.db[COLLECTIONS["guild_configs"]]
+            collection = self.db[COLLECTIONS["guild_configs"]]  # type: ignore[index]
             await collection.replace_one(
                 {"guild_id": guild_id}, config, upsert=True
             )
