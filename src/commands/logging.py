@@ -26,28 +26,64 @@ class LoggingSystem(commands.Cog):
         self.logging_configs = {}  # Cache guild logging configurations
         self.message_cache = {}  # Cache messages for edit/delete logging
         self.invite_cache = {}  # Cache invites for tracking
+        self._db_warning_logged = False
 
     async def cog_load(self):
         """Load logging configurations on startup"""
         await self.load_logging_configs()
         await self.cache_guild_invites()
 
+    async def _ensure_db(self) -> bool:
+        """Ensure the MongoDB connection is available for logging."""
+
+        if self.db is None:
+            if not self._db_warning_logged:
+                logger.error("Database instance not configured - logging disabled")
+                self._db_warning_logged = True
+            return False
+
+        try:
+            if await self.db.ensure_connected():
+                self._db_warning_logged = False
+                return True
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            if not self._db_warning_logged:
+                logger.error("Logging database connection failed: %s", exc)
+                self._db_warning_logged = True
+            return False
+
+        if not self._db_warning_logged:
+            logger.warning("Database not available - logging features disabled")
+            self._db_warning_logged = True
+        return False
+
     async def load_logging_configs(self):
         """Load all guild logging configurations"""
-        # Check if database is available
-        if self.db is None or not self.db.is_connected:
-            logger.warning("Database not available - skipping logging config load")
+        if not await self._ensure_db():
             return
 
         try:
-            # For PostgreSQL, we need to use a proper query
-            # Since this is a MongoDB-style logging system, we'll disable it for now
-            # NOTE: PostgreSQL-compatible logging configuration storage needed
+            collection = await self.db.get_collection("logging_configs")
+            if collection is None:
+                logger.info("Logging config collection not available yet")
+                return
+
+            self.logging_configs.clear()
+            async for document in collection.find({}):
+                guild_id = document.get("guild_id")
+                if guild_id is None:
+                    continue
+
+                # Normalize config dictionary and remove Mongo _id
+                document.pop("_id", None)
+                self.logging_configs[int(guild_id)] = document
+
             logger.info(
-                "Logging config loading disabled - requires PostgreSQL migration"
+                "Loaded logging configuration for %d guild(s)",
+                len(self.logging_configs),
             )
-        except (ConnectionError, OSError, AttributeError) as e:
-            logger.error("Failed to load logging configs: %s", e)
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to load logging configs: %s", exc)
 
     async def cache_guild_invites(self):
         """Cache guild invites for invite tracking"""
@@ -62,17 +98,27 @@ class LoggingSystem(commands.Cog):
 
     async def get_logging_config(self, guild_id: int) -> Optional[dict]:
         """Get logging configuration for a guild"""
-        # Check if database is available
-        if self.db is None or not self.db.is_connected:
-            logger.warning("Database not available - logging features disabled")
+        if guild_id in self.logging_configs:
+            return self.logging_configs[guild_id]
+
+        if not await self._ensure_db():
             return None
 
-        if guild_id not in self.logging_configs:
-            # For PostgreSQL compatibility, we'll disable this for now
-            # NOTE: PostgreSQL-compatible logging configuration storage needed
-            logger.info("Logging config disabled - requires PostgreSQL migration")
-            return None
-        return self.logging_configs.get(guild_id)
+        try:
+            collection = await self.db.get_collection("logging_configs")
+            if collection is None:
+                return None
+
+            document = await collection.find_one({"guild_id": guild_id})
+            if document:
+                document.pop("_id", None)
+                self.logging_configs[guild_id] = document
+                return document
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.error(
+                "Failed to fetch logging config for guild %s: %s", guild_id, exc
+            )
+        return None
 
     async def should_log_event(self, guild_id: int, event_type: str, **kwargs) -> bool:
         """Check if an event should be logged based on configuration"""
