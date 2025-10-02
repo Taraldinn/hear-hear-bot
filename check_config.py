@@ -7,16 +7,15 @@ Verifies all environment variables are properly configured
 import sys
 from pathlib import Path
 
-# Add project root to path
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
-
 from dotenv import load_dotenv
-import os
+
+# Add project root to path
+PROJECT_ROOT = Path(__file__).parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 # Load environment variables manually
-env_local = project_root / ".env.local"
-env_file = project_root / ".env"
+ENV_LOCAL = PROJECT_ROOT / ".env.local"
+ENV_FILE = PROJECT_ROOT / ".env"
 
 print("=" * 80)
 print("🔍 HEAR! HEAR! BOT - ENVIRONMENT CONFIGURATION CHECK")
@@ -25,21 +24,21 @@ print("=" * 80)
 # Check which files exist
 print("\n📁 ENVIRONMENT FILES:")
 files_status = []
-if env_local.exists():
-    print(f"  ✅ .env.local - EXISTS ({env_local.stat().st_size} bytes)")
-    files_status.append((".env.local", env_local))
+if ENV_LOCAL.exists():
+    print(f"  ✅ .env.local - EXISTS ({ENV_LOCAL.stat().st_size} bytes)")
+    files_status.append((".env.local", ENV_LOCAL))
 else:
-    print(f"  ❌ .env.local - NOT FOUND")
+    print("  ❌ .env.local - NOT FOUND")
 
-if env_file.exists():
-    print(f"  ✅ .env - EXISTS ({env_file.stat().st_size} bytes)")
-    files_status.append((".env", env_file))
+if ENV_FILE.exists():
+    print(f"  ✅ .env - EXISTS ({ENV_FILE.stat().st_size} bytes)")
+    files_status.append((".env", ENV_FILE))
 else:
-    print(f"  ❌ .env - NOT FOUND")
+    print("  ❌ .env - NOT FOUND")
 
 # Load environment variables in priority order
 print("\n🔄 LOADING ENVIRONMENT VARIABLES...")
-loaded_from = None
+loaded_from = None  # pylint: disable=invalid-name
 for name, path in files_status:
     if load_dotenv(path, override=True):
         print(f"  ✅ Loaded from {name}")
@@ -63,14 +62,16 @@ critical = [
     ("DATABASE_URL", Config.DATABASE_URL, "PostgreSQL database connection"),
 ]
 
-all_critical_ok = True
+all_critical_ok = True  # pylint: disable=invalid-name
 for name, value, description in critical:
     if value:
         # Mask the value for security
+        # pylint: disable=invalid-name
         if len(value) > 8:
             masked = f"{value[:4]}...{value[-4:]}"
         else:
             masked = "***"
+        # pylint: enable=invalid-name
         print(f"  ✅ {name}")
         print(f"     Value: {masked} ({len(value)} chars)")
         print(f"     Purpose: {description}")
@@ -86,13 +87,15 @@ topgg_settings = [
     ("TOPGG_TOKEN", Config.TOPGG_TOKEN, "Top.gg API token"),
 ]
 
-topgg_ok = True
+topgg_ok = True  # pylint: disable=invalid-name
 for name, value, description in topgg_settings:
     if value:
+        # pylint: disable=invalid-name
         if len(value) > 8:
             masked = f"{value[:4]}...{value[-4:]}"
         else:
             masked = value
+        # pylint: enable=invalid-name
         print(f"  ✅ {name}")
         print(f"     Value: {masked} ({len(value)} chars)")
         print(f"     Purpose: {description}")
