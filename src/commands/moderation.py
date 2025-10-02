@@ -5,6 +5,7 @@ Email: kferdoush617@gmail.com
 """
 
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional, Union
 import uuid
@@ -66,7 +67,7 @@ class ModerationSystem(commands.Cog):
             logger.info(
                 "Loaded sticky roles for %d guilds", len(self.sticky_roles_cache)
             )
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to load sticky roles: %s", exc)
 
     async def load_temporary_actions(self):
@@ -87,7 +88,7 @@ class ModerationSystem(commands.Cog):
                 }
 
             logger.info("Loaded %d temporary actions", len(self.temp_actions))
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to load temporary actions: %s", exc)
 
     @tasks.loop(minutes=1)
@@ -119,7 +120,7 @@ class ModerationSystem(commands.Cog):
                     )
                     # pylint: enable=unsubscriptable-object
 
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-exception-caught
                 logger.error("Failed to handle expired action %s: %s", key, exc)
 
     @check_temp_actions.before_loop
@@ -143,11 +144,9 @@ class ModerationSystem(commands.Cog):
                 return
 
             await member.remove_roles(role, reason="Temporary role expired")
-            logger.info(
-                "Removed expired temporary role %s from %s", role.name, member
-            )
+            logger.info("Removed expired temporary role %s from %s", role.name, member)
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to remove expired temporary role: %s", exc)
 
     async def log_moderation_action(
@@ -162,7 +161,7 @@ class ModerationSystem(commands.Cog):
         """Log a moderation action"""
         if reason is None:
             reason = "No reason provided"
-        
+
         try:
             case_id = str(uuid.uuid4())[:8]
 
@@ -192,7 +191,7 @@ class ModerationSystem(commands.Cog):
 
             return case_id
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to log moderation action: %s", exc)
             return None
 
@@ -294,9 +293,14 @@ class ModerationSystem(commands.Cog):
                     inline=True,
                 )
 
+                expires_timestamp = int(
+                    (
+                        datetime.utcnow() + timedelta(seconds=timeout_duration)
+                    ).timestamp()
+                )
                 embed.add_field(
                     name="🕒 Expires",
-                    value=f"<t:{int((datetime.utcnow() + timedelta(seconds=timeout_duration)).timestamp())}:R>",
+                    value=f"<t:{expires_timestamp}:R>",
                     inline=True,
                 )
 
@@ -329,7 +333,7 @@ class ModerationSystem(commands.Cog):
             await interaction.followup.send(
                 "❌ I don't have permission to mute this member.", ephemeral=True
             )
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to mute member: %s", exc)
             await interaction.followup.send(
                 f"❌ Failed to mute member: {str(exc)}", ephemeral=True
@@ -389,7 +393,7 @@ class ModerationSystem(commands.Cog):
             await interaction.followup.send(
                 "❌ I don't have permission to unmute this member.", ephemeral=True
             )
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to unmute member: %s", exc)
             await interaction.followup.send(
                 f"❌ Failed to unmute member: {str(exc)}", ephemeral=True
@@ -481,7 +485,7 @@ class ModerationSystem(commands.Cog):
             await interaction.followup.send(
                 "❌ I don't have permission to kick this member.", ephemeral=True
             )
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to kick member: %s", exc)
             await interaction.followup.send(
                 f"❌ Failed to kick member: {str(exc)}", ephemeral=True
@@ -625,9 +629,12 @@ class ModerationSystem(commands.Cog):
                     inline=True,
                 )
 
+                expires_timestamp = int(
+                    (datetime.utcnow() + timedelta(seconds=ban_duration)).timestamp()
+                )
                 embed.add_field(
                     name="🕒 Expires",
-                    value=f"<t:{int((datetime.utcnow() + timedelta(seconds=ban_duration)).timestamp())}:R>",
+                    value=f"<t:{expires_timestamp}:R>",
                     inline=True,
                 )
             else:
@@ -651,7 +658,7 @@ class ModerationSystem(commands.Cog):
             await interaction.followup.send(
                 "❌ I don't have permission to ban this member.", ephemeral=True
             )
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to ban member: %s", exc)
             await interaction.followup.send(
                 f"❌ Failed to ban member: {str(exc)}", ephemeral=True
@@ -691,7 +698,7 @@ class ModerationSystem(commands.Cog):
 
             self.sticky_roles_cache[member.guild.id][member.id] = roles_to_save
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to save sticky roles for %s: %s", member, exc)
 
     @commands.Cog.listener()
@@ -723,7 +730,7 @@ class ModerationSystem(commands.Cog):
                         "Restored %d sticky roles to %s", len(roles_to_add), member
                     )
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to restore sticky roles for %s: %s", member, exc)
 
     def parse_duration(self, duration: str) -> Optional[int]:
@@ -732,8 +739,6 @@ class ModerationSystem(commands.Cog):
             duration = duration.lower().strip()
 
             # Extract number and unit
-            import re
-
             match = re.match(r"(\d+)([smhd]?)", duration)
             if not match:
                 return None

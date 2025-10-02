@@ -37,7 +37,7 @@ class ConfigurationCommands(commands.Cog):
             return
         try:
             await self.load_guild_configs()
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to load guild configs: %s", exc)
 
     async def load_guild_configs(self):
@@ -56,7 +56,7 @@ class ConfigurationCommands(commands.Cog):
                 "Loaded configurations for %d guilds",
                 len(self.guild_configs),
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             # Already logged in cog_load
             pass
 
@@ -95,9 +95,7 @@ class ConfigurationCommands(commands.Cog):
         if hasattr(self.db, "__getitem__"):
             # pylint: disable=unsubscriptable-object
             collection = self.db[COLLECTIONS["guild_configs"]]  # type: ignore[index]
-            await collection.replace_one(
-                {"guild_id": guild_id}, config, upsert=True
-            )
+            await collection.replace_one({"guild_id": guild_id}, config, upsert=True)
             # pylint: enable=unsubscriptable-object
 
         # Update cache
@@ -209,7 +207,7 @@ class ConfigurationCommands(commands.Cog):
 
             await interaction.followup.send(embed=embed)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Failed to view config: {e}",
             )
@@ -297,7 +295,7 @@ class ConfigurationCommands(commands.Cog):
 
             await interaction.followup.send(embed=embed)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Failed to setup moderation: {e}",
             )
@@ -378,7 +376,7 @@ class ConfigurationCommands(commands.Cog):
 
             await interaction.followup.send(embed=embed)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Failed to setup welcome: {e}",
             )
@@ -536,7 +534,7 @@ class ConfigurationCommands(commands.Cog):
 
             await interaction.followup.send(embed=embed)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Failed to manage autorole: {e}",
             )
@@ -665,7 +663,7 @@ class ConfigurationCommands(commands.Cog):
 
             await interaction.followup.send(embed=embed)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Failed to manage prefixes: {e}",
             )
@@ -696,7 +694,7 @@ class ConfigurationCommands(commands.Cog):
                     "Added {len(roles_to_add)} auto roles to {member}",
                 )
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Failed to assign auto roles to %s: %s",
                 member,

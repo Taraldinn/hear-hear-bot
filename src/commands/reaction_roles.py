@@ -47,7 +47,7 @@ class ReactionRolesSystem(commands.Cog):
             # pylint: disable=unsubscriptable-object
             config_collection = self.db[COLLECTIONS["reaction_role_configs"]]  # type: ignore[index]
             configs = await config_collection.find().to_list(length=None)
-            
+
             role_collection = self.db[COLLECTIONS["reaction_roles"]]  # type: ignore[index]
             roles = await role_collection.find().to_list(length=None)
             # pylint: enable=unsubscriptable-object
@@ -76,7 +76,7 @@ class ReactionRolesSystem(commands.Cog):
                 "Loaded %d reaction role messages", len(self.reaction_roles_cache)
             )
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to load reaction roles: %s", exc)
 
     async def schedule_self_destruct(self, message_id: int, delay: int):
@@ -103,10 +103,8 @@ class ReactionRolesSystem(commands.Cog):
                 # Clean up from database and cache
                 await self.remove_reaction_role_message(message_id)
 
-            except Exception as exc:
-                logger.error(
-                    "Failed to self-destruct message %d: %s", message_id, exc
-                )
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                logger.error("Failed to self-destruct message %d: %s", message_id, exc)
             finally:
                 # Clean up task reference
                 if message_id in self.self_destruct_tasks:
@@ -276,7 +274,7 @@ class ReactionRolesSystem(commands.Cog):
                 f"📝 Use `/add-reaction-role message_id:{message.id}` to add roles!"
             )
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to create reaction role message: %s", exc)
             await interaction.followup.send(
                 f"❌ Failed to create reaction role message: {str(exc)}",
@@ -409,7 +407,7 @@ class ReactionRolesSystem(commands.Cog):
                 f"👥 **Max Uses:** {max_uses or 'Unlimited'}"
             )
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to add reaction role: %s", exc)
             await interaction.followup.send(
                 f"❌ Failed to add reaction role: {str(exc)}", ephemeral=True
@@ -507,7 +505,7 @@ class ReactionRolesSystem(commands.Cog):
 
             await message.edit(embed=embed)
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Failed to update reaction role embed: %s", exc)
 
     async def remove_reaction_role_message(self, message_id: int):
@@ -518,7 +516,7 @@ class ReactionRolesSystem(commands.Cog):
                 # pylint: disable=unsubscriptable-object
                 config_collection = self.db[COLLECTIONS["reaction_role_configs"]]  # type: ignore[index]
                 await config_collection.delete_one({"message_id": message_id})
-                
+
                 role_collection = self.db[COLLECTIONS["reaction_roles"]]  # type: ignore[index]
                 await role_collection.delete_many({"message_id": message_id})
                 # pylint: enable=unsubscriptable-object
@@ -532,7 +530,7 @@ class ReactionRolesSystem(commands.Cog):
                 self.self_destruct_tasks[message_id].cancel()
                 del self.self_destruct_tasks[message_id]
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Failed to remove reaction role message %d: %s", message_id, exc
             )
@@ -586,7 +584,7 @@ class ReactionRolesSystem(commands.Cog):
             role = guild.get_role(target_role_data["role_id"])
             if not role:
                 logger.warning(
-                    f"Role {target_role_data['role_id']} not found for reaction role"
+                    "Role %s not found for reaction role", target_role_data["role_id"]
                 )
                 return
 
@@ -608,7 +606,7 @@ class ReactionRolesSystem(commands.Cog):
                     member, role, target_role_data, config
                 )
 
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             logger.error("Error handling reaction role: %s", exc)
 
     async def check_reaction_role_permissions(
@@ -730,9 +728,7 @@ class ReactionRolesSystem(commands.Cog):
         # Add the role
         try:
             await member.add_roles(role, reason=f"Reaction role ({mode} mode)")
-            logger.info(
-                "Added role %s to %s via reaction role", role.name, member
-            )
+            logger.info("Added role %s to %s via reaction role", role.name, member)
 
             # Send confirmation DM if possible
             try:
@@ -753,10 +749,8 @@ class ReactionRolesSystem(commands.Cog):
             logger.error(
                 "Failed to add role %s to %s: Missing permissions", role.name, member
             )
-        except Exception as exc:
-            logger.error(
-                "Failed to add role %s to %s: %s", role.name, member, exc
-            )
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to add role %s to %s: %s", role.name, member, exc)
 
     async def remove_role_from_member(
         self,
@@ -790,9 +784,7 @@ class ReactionRolesSystem(commands.Cog):
             await member.remove_roles(
                 role, reason=f"Reaction role removal ({mode} mode)"
             )
-            logger.info(
-                "Removed role %s from %s via reaction role", role.name, member
-            )
+            logger.info("Removed role %s from %s via reaction role", role.name, member)
 
             # Send confirmation DM if possible
             try:
@@ -811,10 +803,8 @@ class ReactionRolesSystem(commands.Cog):
                 role.name,
                 member,
             )
-        except Exception as exc:
-            logger.error(
-                "Failed to remove role %s from %s: %s", role.name, member, exc
-            )
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.error("Failed to remove role %s from %s: %s", role.name, member, exc)
 
 
 async def setup(bot):
