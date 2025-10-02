@@ -522,14 +522,22 @@ class TabbyCommands(commands.Cog):
 
             # First get current round info
             rounds_url = f"{tournament_data['tournament']}rounds"
-            rounds_response = requests.get(rounds_url, headers=headers, timeout=10)
-
-            if rounds_response.status_code != 200:
+            try:
+                rounds_response = requests.get(rounds_url, headers=headers, timeout=10)
+                rounds_response.raise_for_status()
+            except requests.exceptions.RequestException as exc:
                 send_func = ctx.followup.send if is_slash else ctx.send
                 await send_func("❌ Failed to fetch rounds data.")
+                logger.error("Error fetching rounds from %s: %s", rounds_url, exc)
                 return
 
-            rounds = rounds_response.json()
+            try:
+                rounds = rounds_response.json()
+            except ValueError as exc:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ Invalid rounds data received from tab system.")
+                logger.error("Invalid JSON for rounds response: %s", exc)
+                return
 
             # Find the current round (first non-completed round)
             current_round = None
@@ -548,18 +556,44 @@ class TabbyCommands(commands.Cog):
                 return
 
             # Get pairings for the current round
-            pairings_url = f"{current_round['url']}/pairings"
-            pairings_response = requests.get(pairings_url, headers=headers, timeout=10)
+            round_url = current_round.get("url") or current_round.get("links", {}).get(
+                "pairings"
+            )
+            if not round_url:
+                round_id = current_round.get("id")
+                if round_id is not None:
+                    round_url = f"{tournament_data['tournament']}rounds/{round_id}"
 
-            if pairings_response.status_code != 200:
+            pairings_url = f"{round_url}/pairings" if round_url else None
+            if not pairings_url:
                 send_func = ctx.followup.send if is_slash else ctx.send
-                await send_func("❌ Failed to fetch pairings data.")
+                await send_func("❌ Pairings endpoint not provided by tab system.")
+                logger.error("Round data missing pairings URL: %s", current_round)
                 return
 
-            pairings = pairings_response.json()
+            try:
+                pairings_response = requests.get(
+                    pairings_url, headers=headers, timeout=10
+                )
+                pairings_response.raise_for_status()
+            except requests.exceptions.RequestException as exc:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ Failed to fetch pairings data.")
+                logger.error("Error fetching pairings from %s: %s", pairings_url, exc)
+                return
+
+            try:
+                pairings = pairings_response.json()
+            except ValueError as exc:
+                send_func = ctx.followup.send if is_slash else ctx.send
+                await send_func("❌ Invalid pairings data received from tab system.")
+                logger.error("Invalid JSON for pairings response: %s", exc)
+                return
 
             embed = discord.Embed(
-                title=f"📋 Round {current_round['abbreviation']} Pairings",
+                title=(
+                    f"📋 Round {current_round.get('abbreviation') or current_round.get('name', '?')} Pairings"
+                ),
                 description=f"Draw for **{tournament_data['tournament_name']}**",
                 color=discord.Color.blue(),
             )
@@ -597,7 +631,7 @@ class TabbyCommands(commands.Cog):
                         inline=False,
                     )
 
-            embed.set_footer(text=f"Round: {current_round['name']}")
+            embed.set_footer(text=f"Round: {current_round.get('name', 'Unknown')}")
 
             send_func = ctx.followup.send if is_slash else ctx.send
             await send_func(embed=embed)
