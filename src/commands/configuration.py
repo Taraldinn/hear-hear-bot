@@ -4,14 +4,16 @@ Author: aldinn
 Email: kferdoush617@gmail.com
 """
 
-import discord
-from discord.ext import commands
-from discord import app_commands
 import logging
-from typing import Dict, List, Optional, Union
 from datetime import datetime
+from typing import Optional
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+
 from src.database.connection import database
-from src.database.models import GuildConfig, COLLECTIONS
+from src.database.models import COLLECTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -33,23 +35,29 @@ class ConfigurationCommands(commands.Cog):
                 "Current database is PostgreSQL. This feature needs migration."
             )
             return
-        await self.load_guild_configs()
+        try:
+            await self.load_guild_configs()
+        except Exception as exc:
+            logger.error("Failed to load guild configs: %s", exc)
 
     async def load_guild_configs(self):
         """Load all guild configurations"""
+        if not hasattr(self.db, "__getitem__"):
+            return
         try:
+            # Type guard for MongoDB-style database
             configs = (
-                await self.db[COLLECTIONS["guild_configs"]].find().to_list(length=None)
+                await self.db[COLLECTIONS["guild_configs"]].find().to_list(length=None)  # type: ignore[index]
             )
             for config in configs:
                 self.guild_configs[config["guild_id"]] = config
             logger.info(
-                "Loaded configurations for {len(self.guild_configs)} guilds",
+                "Loaded configurations for %d guilds",
+                len(self.guild_configs),
             )
-        except Exception as e:
-            logger.error(
-                "Failed to load guild configs: {e}",
-            )
+        except Exception:
+            # Already logged in cog_load
+            pass
 
     async def get_guild_config(self, guild_id: int) -> dict:
         """Get or create guild configuration"""
@@ -68,7 +76,8 @@ class ConfigurationCommands(commands.Cog):
             }
 
             # Save to database
-            await self.db[COLLECTIONS["guild_configs"]].insert_one(default_config)
+            if hasattr(self.db, "__getitem__"):
+                await self.db[COLLECTIONS["guild_configs"]].insert_one(default_config)  # type: ignore[index]
             self.guild_configs[guild_id] = default_config
 
         return self.guild_configs[guild_id]
@@ -79,9 +88,10 @@ class ConfigurationCommands(commands.Cog):
         config.update(updates)
 
         # Save to database
-        await self.db[COLLECTIONS["guild_configs"]].replace_one(
-            {"guild_id": guild_id}, config, upsert=True
-        )
+        if hasattr(self.db, "__getitem__"):
+            await self.db[COLLECTIONS["guild_configs"]].replace_one(  # type: ignore[index]
+                {"guild_id": guild_id}, config, upsert=True
+            )
 
         # Update cache
         self.guild_configs[guild_id] = config
@@ -90,6 +100,12 @@ class ConfigurationCommands(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     async def view_config(self, interaction: discord.Interaction):
         """View current server configuration"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+            
         try:
             await interaction.response.defer()
 
@@ -120,9 +136,10 @@ class ConfigurationCommands(commands.Cog):
             )
 
             # Moderation settings
+            mute_role_id = config.get("mute_role_id")
             mute_role = (
-                interaction.guild.get_role(config.get("mute_role_id"))
-                if config.get("mute_role_id")
+                interaction.guild.get_role(mute_role_id)
+                if mute_role_id is not None
                 else None
             )
             embed.add_field(
@@ -131,9 +148,10 @@ class ConfigurationCommands(commands.Cog):
                 inline=True,
             )
 
+            drama_channel_id = config.get("drama_channel_id")
             drama_channel = (
-                interaction.guild.get_channel(config.get("drama_channel_id"))
-                if config.get("drama_channel_id")
+                interaction.guild.get_channel(drama_channel_id)
+                if drama_channel_id is not None
                 else None
             )
             embed.add_field(
@@ -143,9 +161,10 @@ class ConfigurationCommands(commands.Cog):
             )
 
             # Welcome/Farewell
+            welcome_channel_id = config.get("welcome_channel_id")
             welcome_channel = (
-                interaction.guild.get_channel(config.get("welcome_channel_id"))
-                if config.get("welcome_channel_id")
+                interaction.guild.get_channel(welcome_channel_id)
+                if welcome_channel_id is not None
                 else None
             )
             embed.add_field(
@@ -154,9 +173,10 @@ class ConfigurationCommands(commands.Cog):
                 inline=True,
             )
 
+            farewell_channel_id = config.get("farewell_channel_id")
             farewell_channel = (
-                interaction.guild.get_channel(config.get("farewell_channel_id"))
-                if config.get("farewell_channel_id")
+                interaction.guild.get_channel(farewell_channel_id)
+                if farewell_channel_id is not None
                 else None
             )
             embed.add_field(
@@ -205,6 +225,12 @@ class ConfigurationCommands(commands.Cog):
         drama_channel: Optional[discord.TextChannel] = None,
     ):
         """Set up moderation settings"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+            
         try:
             await interaction.response.defer()
 
@@ -214,8 +240,10 @@ class ConfigurationCommands(commands.Cog):
                 # Check if bot can manage this role
                 if mute_role >= interaction.guild.me.top_role:
                     await interaction.followup.send(
-                        f"❌ I cannot manage the role **{mute_role.name}** because it's higher than my highest role.\n"
-                        f"Please move my role above **{mute_role.name}** in the server settings.",
+                        f"❌ I cannot manage the role **{mute_role.name}** "
+                        f"because it's higher than my highest role.\n"
+                        f"Please move my role above **{mute_role.name}** "
+                        f"in the server settings.",
                         ephemeral=True,
                     )
                     return
@@ -285,28 +313,34 @@ class ConfigurationCommands(commands.Cog):
         farewell_channel: Optional[discord.TextChannel] = None,
     ):
         """Set up welcome and farewell channels"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+            
         try:
             await interaction.response.defer()
 
             updates = {}
 
             if welcome_channel:
-                if not welcome_channel.permissions_for(
-                    interaction.guild.me
-                ).send_messages:
+                perms = welcome_channel.permissions_for(interaction.guild.me)
+                if not perms.send_messages:
                     await interaction.followup.send(
-                        f"❌ I don't have permission to send messages in {welcome_channel.mention}.",
+                        f"❌ I don't have permission to send messages in "
+                        f"{welcome_channel.mention}.",
                         ephemeral=True,
                     )
                     return
                 updates["welcome_channel_id"] = welcome_channel.id
 
             if farewell_channel:
-                if not farewell_channel.permissions_for(
-                    interaction.guild.me
-                ).send_messages:
+                perms = farewell_channel.permissions_for(interaction.guild.me)
+                if not perms.send_messages:
                     await interaction.followup.send(
-                        f"❌ I don't have permission to send messages in {farewell_channel.mention}.",
+                        f"❌ I don't have permission to send messages in "
+                        f"{farewell_channel.mention}.",
                         ephemeral=True,
                     )
                     return
@@ -367,6 +401,12 @@ class ConfigurationCommands(commands.Cog):
         role: Optional[discord.Role] = None,
     ):
         """Manage auto roles for new members"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+            
         try:
             await interaction.response.defer()
 
@@ -388,7 +428,8 @@ class ConfigurationCommands(commands.Cog):
 
                 if role >= interaction.guild.me.top_role:
                     await interaction.followup.send(
-                        f"❌ I cannot manage the role **{role.name}** because it's higher than my highest role.",
+                        f"❌ I cannot manage the role **{role.name}** "
+                        f"because it's higher than my highest role.",
                         ephemeral=True,
                     )
                     return
@@ -400,7 +441,10 @@ class ConfigurationCommands(commands.Cog):
 
                 embed = discord.Embed(
                     title="✅ Auto Role Added",
-                    description=f"**{role.name}** will now be given to new members automatically.",
+                    description=(
+                        f"**{role.name}** will now be given to new members "
+                        f"automatically."
+                    ),
                     color=discord.Color.green(),
                 )
 
@@ -424,7 +468,10 @@ class ConfigurationCommands(commands.Cog):
 
                 embed = discord.Embed(
                     title="✅ Auto Role Removed",
-                    description=f"**{role.name}** will no longer be given to new members automatically.",
+                    description=(
+                        f"**{role.name}** will no longer be given to new "
+                        f"members automatically."
+                    ),
                     color=discord.Color.orange(),
                 )
 
@@ -466,7 +513,17 @@ class ConfigurationCommands(commands.Cog):
 
                 embed = discord.Embed(
                     title="🗑️ Auto Roles Cleared",
-                    description="All auto roles have been removed. New members will no longer receive automatic roles.",
+                    description=(
+                        "All auto roles have been removed. New members will no "
+                        "longer receive automatic roles."
+                    ),
+                    color=discord.Color.red(),
+                )
+            else:
+                # Should never reach here, but initialize embed for type safety
+                embed = discord.Embed(
+                    title="❌ Unknown Action",
+                    description="Invalid action specified.",
                     color=discord.Color.red(),
                 )
 
@@ -498,6 +555,12 @@ class ConfigurationCommands(commands.Cog):
         prefix: Optional[str] = None,
     ):
         """Manage command prefixes for this server"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+            
         try:
             await interaction.response.defer()
 
@@ -585,6 +648,13 @@ class ConfigurationCommands(commands.Cog):
                     description="Server prefixes have been reset to default: `.` and `?`",
                     color=discord.Color.blue(),
                 )
+            else:
+                # Should never reach here, but initialize embed for type safety
+                embed = discord.Embed(
+                    title="❌ Unknown Action",
+                    description="Invalid action specified.",
+                    color=discord.Color.red(),
+                )
 
             await interaction.followup.send(embed=embed)
 
@@ -626,4 +696,5 @@ class ConfigurationCommands(commands.Cog):
 
 
 async def setup(bot):
+    """Load the ConfigurationCommands cog"""
     await bot.add_cog(ConfigurationCommands(bot))
