@@ -1,4 +1,4 @@
-# 🎙️ Hear! Hear! Bot
+# 🎙️ AldinnBot (Hear! Hear! Bot)
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://python.org)
 [![Discord.py](https://img.shields.io/badge/discord.py-2.4%2B-blue.svg)](https://discordpy.readthedocs.io/)
@@ -6,6 +6,8 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](Dockerfile)
 
 A comprehensive, production-ready Discord bot designed for debate tournaments and discussion management. Built with modern Python, featuring robust error handling, comprehensive logging, and scalable architecture.
+
+> 📚 **[View Complete Documentation](./docs/INDEX.md)** | [Quick Start](./docs/QUICK_START.md) | [User Guide](./docs/guides/USER_GUIDE.md)
 
 ## ✨ Features
 
@@ -130,7 +132,48 @@ TOPGG_TOKEN=your_topgg_token_here
 
 ## 📖 Documentation
 
-### Command Reference
+> 📚 **Complete documentation is now organized in the [`docs/`](./docs/) folder**
+
+### Quick Links
+
+#### 🚀 Getting Started
+- **[Quick Start Guide](./docs/QUICK_START.md)** - Get up and running in 5 minutes
+- **[Quick Reference](./docs/QUICK_REFERENCE.md)** - Command reference card
+- **[User Guide](./docs/guides/USER_GUIDE.md)** - Complete user manual
+
+#### 🎨 Design & UI
+- **[Web Redesign](./docs/design/WEB_REDESIGN_SUMMARY.md)** - Modern Shadcn UI theme
+- **[Design System](./docs/design/SHADCN_UI_REDESIGN.md)** - Complete design documentation
+- **[Visual Reference](./docs/design/SHADCN_VISUAL_REFERENCE.md)** - Color system and components
+
+#### 🚀 Deployment
+- **[Deployment Guide](./docs/deployment/DEPLOYMENT_GUIDE.md)** - Platform-specific guides
+- **[Deployment Checklist](./docs/deployment/DEPLOYMENT_CHECKLIST.md)** - Pre-deployment checklist
+- **[Environment Setup](./docs/deployment/ENVIRONMENT_VERIFICATION.md)** - Configuration verification
+
+#### 🔌 Integrations
+- **[Top.gg Integration](./docs/integrations/TOPGG_INTEGRATION.md)** - Bot listing integration
+- **[Database Setup](./docs/database/DATABASE_FIX_SUMMARY.md)** - Database configuration
+
+#### ⚙️ Features
+- **[Commands](./docs/features/COMMANDS.md)** - All available commands
+- **[Timer System](./docs/features/TIMER_RESTORATION_COMPLETE.md)** - Advanced timing features
+- **[Tournament Management](./docs/features/TOURNAMENT.md)** - Tournament organization
+
+#### 🛠️ Development
+- **[Development Setup](./docs/development/SETUP.md)** - Dev environment setup
+- **[Complete Docs](./docs/development/COMPLETE_DOCUMENTATION.md)** - Full technical documentation
+
+#### ❗ Troubleshooting
+- **[Common Issues](./docs/troubleshooting/)** - Solutions to common problems
+- **[Permission Guide](./docs/troubleshooting/PERMISSION_FIX_GUIDE.md)** - Permission fixes
+
+### 📑 Full Documentation Index
+**→ [View Complete Documentation Index](./docs/INDEX.md)**
+
+---
+
+## 📖 Command Reference
 
 #### Slash Commands
 - `/timer` - Start debate timers with various presets
