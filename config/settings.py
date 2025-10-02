@@ -22,9 +22,9 @@ def _load_environment_variables():
     Loads in priority order: .env.local > .env
     """
     try:
-        spec = importlib.util.find_spec("python-dotenv")
+        spec = importlib.util.find_spec("dotenv")
         if spec is not None:
-            dotenv = importlib.import_module("python-dotenv")
+            dotenv = importlib.import_module("dotenv")
             if hasattr(dotenv, "load_dotenv"):
                 project_root = Path(__file__).parent.parent
 

@@ -23,15 +23,22 @@ class ModerationSystem(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.db = database.get_database()
+        self.db = database  # database is already the Database instance
         self.sticky_roles_cache = {}  # Cache sticky roles
         self.temp_actions = {}  # Track temporary actions
         self.check_temp_actions.start()  # Start the cleanup task
 
     async def cog_load(self):
         """Load moderation data on startup"""
+        # Check if database supports MongoDB operations  
+        if not hasattr(self.db, '__getitem__'):
+            logger.warning(
+                "Moderation system disabled - requires MongoDB support. "
+                "Current database is PostgreSQL. This feature needs migration."
+            )
+            return
         await self.load_sticky_roles()
-        await self.load_temporary_actions()
+        self.check_temporary_roles.start()
 
     async def cog_unload(self):
         """Clean up when cog unloads"""

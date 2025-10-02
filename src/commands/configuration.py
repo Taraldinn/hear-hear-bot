@@ -21,11 +21,18 @@ class ConfigurationCommands(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.db = database.get_database()
+        self.db = database  # database is already the Database instance
         self.guild_configs = {}  # Cache guild configurations
 
     async def cog_load(self):
         """Load guild configurations on startup"""
+        # Check if database supports MongoDB operations
+        if not hasattr(self.db, '__getitem__'):
+            logger.warning(
+                "Configuration system disabled - requires MongoDB support. "
+                "Current database is PostgreSQL. This feature needs migration."
+            )
+            return
         await self.load_guild_configs()
 
     async def load_guild_configs(self):

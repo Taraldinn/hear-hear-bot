@@ -23,12 +23,19 @@ class ReactionRolesSystem(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.db = database.get_database()
+        self.db = database  # database is already the Database instance
         self.reaction_roles_cache = {}  # Cache for active reaction role messages
         self.self_destruct_tasks = {}  # Track self-destructing messages
 
     async def cog_load(self):
         """Load existing reaction role configurations on startup"""
+        # Check if database supports MongoDB operations
+        if not hasattr(self.db, '__getitem__'):
+            logger.warning(
+                "Reaction roles system disabled - requires MongoDB support. "
+                "Current database is PostgreSQL. This feature needs migration."
+            )
+            return
         await self.load_reaction_roles()
 
     async def load_reaction_roles(self):
