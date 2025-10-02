@@ -231,7 +231,7 @@ class WebServer:
                 "index.html",
                 request,
                 {
-                    "bot_name": getattr(Config, "BOT_NAME", "Hear! Hear! Bot"),
+                    "bot_name": getattr(Config, "BOT_NAME", "AldinnBot"),
                     "bot_author": getattr(Config, "BOT_AUTHOR", "aldinn"),
                     "bot_stats": bot_stats,
                     "features": self._get_features_list(),
@@ -319,7 +319,7 @@ class WebServer:
 
     def _get_fallback_homepage(self, bot_stats: Dict[str, Any]) -> Response:
         """Generate fallback HTML for homepage with Shadcn UI theme"""
-        bot_name = getattr(Config, "BOT_NAME", "Hear! Hear! Bot")
+        bot_name = getattr(Config, "BOT_NAME", "AldinnBot")
 
         html = f"""
         <!DOCTYPE html>

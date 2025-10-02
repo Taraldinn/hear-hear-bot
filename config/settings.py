@@ -140,7 +140,7 @@ class Config:
     TABBYCAT_API_KEY: str = os.getenv("TABBYCAT_API_KEY", "")
 
     # ==================== BOT METADATA ====================
-    BOT_NAME: str = "Hear! Hear!"
+    BOT_NAME: str = "AldinnBot"
     BOT_AUTHOR: str = "aldinn"
     BOT_EMAIL: str = "kferdoush617@gmail.com"
     BOT_GITHUB: str = "https://github.com/Taraldinn/hear-hear-bot"
