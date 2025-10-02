@@ -28,11 +28,9 @@ class ConfigurationCommands(commands.Cog):
 
     async def cog_load(self):
         """Load guild configurations on startup"""
-        # Check if database supports MongoDB operations
-        if not hasattr(self.db, "__getitem__"):
+        if not await self.db.ensure_connected():
             logger.warning(
-                "Configuration system disabled - requires MongoDB support. "
-                "Current database is PostgreSQL. This feature needs migration."
+                "Configuration system disabled - MongoDB connection unavailable."
             )
             return
         try:
@@ -42,14 +40,14 @@ class ConfigurationCommands(commands.Cog):
 
     async def load_guild_configs(self):
         """Load all guild configurations"""
-        if not hasattr(self.db, "__getitem__"):
+        if not await self.db.ensure_connected():
             return
         try:
-            # Type guard for MongoDB-style database
-            # pylint: disable=unsubscriptable-object
-            collection = self.db[COLLECTIONS["guild_configs"]]  # type: ignore[index]
+            collection = await self.db.get_collection(COLLECTIONS["guild_configs"])
+            if not collection:
+                logger.warning("Guild configuration collection not available")
+                return
             configs = await collection.find().to_list(length=None)
-            # pylint: enable=unsubscriptable-object
             for config in configs:
                 self.guild_configs[config["guild_id"]] = config
             logger.info(
@@ -77,11 +75,10 @@ class ConfigurationCommands(commands.Cog):
             }
 
             # Save to database
-            if hasattr(self.db, "__getitem__"):
-                # pylint: disable=unsubscriptable-object
-                collection = self.db[COLLECTIONS["guild_configs"]]  # type: ignore[index]
-                await collection.insert_one(default_config)
-                # pylint: enable=unsubscriptable-object
+            if await self.db.ensure_connected():
+                collection = await self.db.get_collection(COLLECTIONS["guild_configs"])
+                if collection:
+                    await collection.insert_one(default_config)
             self.guild_configs[guild_id] = default_config
 
         return self.guild_configs[guild_id]
@@ -92,11 +89,12 @@ class ConfigurationCommands(commands.Cog):
         config.update(updates)
 
         # Save to database
-        if hasattr(self.db, "__getitem__"):
-            # pylint: disable=unsubscriptable-object
-            collection = self.db[COLLECTIONS["guild_configs"]]  # type: ignore[index]
-            await collection.replace_one({"guild_id": guild_id}, config, upsert=True)
-            # pylint: enable=unsubscriptable-object
+        if await self.db.ensure_connected():
+            collection = await self.db.get_collection(COLLECTIONS["guild_configs"])
+            if collection:
+                await collection.replace_one(
+                    {"guild_id": guild_id}, config, upsert=True
+                )
 
         # Update cache
         self.guild_configs[guild_id] = config

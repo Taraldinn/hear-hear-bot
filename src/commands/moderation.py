@@ -32,11 +32,9 @@ class ModerationSystem(commands.Cog):
 
     async def cog_load(self):
         """Load moderation data on startup"""
-        # Check if database supports MongoDB operations
-        if not hasattr(self.db, "__getitem__"):
+        if not await self.db.ensure_connected():
             logger.warning(
-                "Moderation system disabled - requires MongoDB support. "
-                "Current database is PostgreSQL. This feature needs migration."
+                "Moderation system disabled - MongoDB connection unavailable."
             )
             return
         await self.load_sticky_roles()
@@ -48,13 +46,13 @@ class ModerationSystem(commands.Cog):
 
     async def load_sticky_roles(self):
         """Load sticky roles from database"""
-        if not hasattr(self.db, "__getitem__"):
+        if not await self.db.ensure_connected():
             return
         try:
-            # pylint: disable=unsubscriptable-object
-            collection = self.db[COLLECTIONS["sticky_roles"]]  # type: ignore[index]
+            collection = await self.db.get_collection(COLLECTIONS["sticky_roles"])
+            if not collection:
+                return
             sticky_roles = await collection.find().to_list(length=None)
-            # pylint: enable=unsubscriptable-object
             for role_data in sticky_roles:
                 guild_id = role_data["guild_id"]
                 user_id = role_data["user_id"]
@@ -72,13 +70,13 @@ class ModerationSystem(commands.Cog):
 
     async def load_temporary_actions(self):
         """Load temporary actions from database"""
-        if not hasattr(self.db, "__getitem__"):
+        if not await self.db.ensure_connected():
             return
         try:
-            # pylint: disable=unsubscriptable-object
-            collection = self.db[COLLECTIONS["temporary_roles"]]  # type: ignore[index]
+            collection = await self.db.get_collection(COLLECTIONS["temporary_roles"])
+            if not collection:
+                return
             temp_roles = await collection.find().to_list(length=None)
-            # pylint: enable=unsubscriptable-object
             for role_data in temp_roles:
                 key = f"{role_data['guild_id']}_{role_data['user_id']}_{role_data['role_id']}"
                 self.temp_actions[key] = {
@@ -108,17 +106,18 @@ class ModerationSystem(commands.Cog):
 
                 # Remove from cache and database
                 del self.temp_actions[key]
-                if hasattr(self.db, "__getitem__"):
-                    # pylint: disable=unsubscriptable-object
-                    collection = self.db[COLLECTIONS["temporary_roles"]]  # type: ignore[index]
-                    await collection.delete_one(
-                        {
-                            "guild_id": action["data"]["guild_id"],
-                            "user_id": action["data"]["user_id"],
-                            "role_id": action["data"]["role_id"],
-                        }
+                if await self.db.ensure_connected():
+                    collection = await self.db.get_collection(
+                        COLLECTIONS["temporary_roles"]
                     )
-                    # pylint: enable=unsubscriptable-object
+                    if collection:
+                        await collection.delete_one(
+                            {
+                                "guild_id": action["data"]["guild_id"],
+                                "user_id": action["data"]["user_id"],
+                                "role_id": action["data"]["role_id"],
+                            }
+                        )
 
             except Exception as exc:  # pylint: disable=broad-exception-caught
                 logger.error("Failed to handle expired action %s: %s", key, exc)
@@ -180,11 +179,12 @@ class ModerationSystem(commands.Cog):
                 case_id=case_id,
             )
 
-            if hasattr(self.db, "__getitem__"):
-                # pylint: disable=unsubscriptable-object
-                collection = self.db[COLLECTIONS["moderation_logs"]]  # type: ignore[index]
-                await collection.insert_one(mod_log.__dict__)
-                # pylint: enable=unsubscriptable-object
+            if await self.db.ensure_connected():
+                collection = await self.db.get_collection(
+                    COLLECTIONS["moderation_logs"]
+                )
+                if collection:
+                    await collection.insert_one(mod_log.__dict__)
 
             # Send to moderation log channel if configured
             # ... (implement modlog channel sending)
@@ -682,15 +682,14 @@ class ModerationSystem(commands.Cog):
             )
 
             # Save to database
-            if hasattr(self.db, "__getitem__"):
-                # pylint: disable=unsubscriptable-object
-                collection = self.db[COLLECTIONS["sticky_roles"]]  # type: ignore[index]
-                await collection.replace_one(
-                    {"guild_id": member.guild.id, "user_id": member.id},
-                    sticky_role.__dict__,
-                    upsert=True,
-                )
-                # pylint: enable=unsubscriptable-object
+            if await self.db.ensure_connected():
+                collection = await self.db.get_collection(COLLECTIONS["sticky_roles"])
+                if collection:
+                    await collection.replace_one(
+                        {"guild_id": member.guild.id, "user_id": member.id},
+                        sticky_role.__dict__,
+                        upsert=True,
+                    )
 
             # Update cache
             if member.guild.id not in self.sticky_roles_cache:

@@ -138,14 +138,19 @@ class AdminCommands(commands.Cog):
 
         # Save to database
         try:
-            collection = self.bot.database.get_collection("guilds")
-            if collection:
-                collection.update_one(
-                    {"_id": ctx.guild.id}, {"$set": {"autorole": role.id}}, upsert=True
-                )
-                await ctx.send(f"✅ Auto-role set to **{role.name}**")
-            else:
+            if not await self.bot.database.ensure_connected():
                 await ctx.send("❌ Database connection error.")
+                return
+
+            collection = await self.bot.database.get_collection("guilds")
+            if not collection:
+                await ctx.send("❌ Database connection error.")
+                return
+
+            await collection.update_one(
+                {"_id": ctx.guild.id}, {"$set": {"autorole": role.id}}, upsert=True
+            )
+            await ctx.send(f"✅ Auto-role set to **{role.name}**")
         except (AttributeError, ConnectionError, OSError) as e:
             await ctx.send("❌ Failed to set auto-role.")
             logger.error("Error setting autorole: %s", e)
@@ -155,14 +160,19 @@ class AdminCommands(commands.Cog):
     async def removeautorole(self, ctx):
         """Remove automatic role assignment"""
         try:
-            collection = self.bot.database.get_collection("guilds")
-            if collection:
-                collection.update_one(
-                    {"_id": ctx.guild.id}, {"$unset": {"autorole": ""}}, upsert=True
-                )
-                await ctx.send("✅ Auto-role removed")
-            else:
+            if not await self.bot.database.ensure_connected():
                 await ctx.send("❌ Database connection error.")
+                return
+
+            collection = await self.bot.database.get_collection("guilds")
+            if not collection:
+                await ctx.send("❌ Database connection error.")
+                return
+
+            await collection.update_one(
+                {"_id": ctx.guild.id}, {"$unset": {"autorole": ""}}, upsert=True
+            )
+            await ctx.send("✅ Auto-role removed")
         except (AttributeError, ConnectionError, OSError) as e:
             await ctx.send("❌ Failed to remove auto-role.")
             logger.error("Error removing autorole: %s", e)
@@ -180,16 +190,20 @@ class AdminCommands(commands.Cog):
 
         try:
             # Delete from both databases
-            main_collection = self.bot.database.get_collection("guilds")
-            tabby_collection = self.bot.database.get_collection(
+            if not await self.bot.database.ensure_connected():
+                await ctx.send("❌ Database connection error.")
+                return
+
+            main_collection = await self.bot.database.get_collection("guilds")
+            tabby_collection = await self.bot.database.get_collection(
                 "tournaments", use_tabby_db=True
             )
 
             if main_collection:
-                main_collection.delete_one({"_id": ctx.guild.id})
+                await main_collection.delete_one({"_id": ctx.guild.id})
 
             if tabby_collection:
-                tabby_collection.delete_one({"_id": ctx.guild.id})
+                await tabby_collection.delete_one({"_id": ctx.guild.id})
 
             await ctx.send("✅ ALL DATA FOR THIS SERVER WAS DELETED SUCCESSFULLY")
             logger.warning(
@@ -211,8 +225,11 @@ class AdminCommands(commands.Cog):
 
         # Get autorole setting
         try:
-            collection = self.bot.database.get_collection("guilds")
-            guild_data = collection.find_one({"_id": guild.id}) if collection else None
+            guild_data = None
+            if await self.bot.database.ensure_connected():
+                collection = await self.bot.database.get_collection("guilds")
+                if collection:
+                    guild_data = await collection.find_one({"_id": guild.id})
             autorole_id = guild_data.get("autorole") if guild_data else None
             autorole = guild.get_role(autorole_id) if autorole_id else None
         except (AttributeError, KeyError, TypeError):

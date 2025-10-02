@@ -1,495 +1,200 @@
 """
-Enhanced PostgreSQL Database Connection Manager - Production Ready
+MongoDB Database Connection Manager
 Author: aldinn
 Email: kferdoush617@gmail.com
 
-Robust PostgreSQL database connection management with enhanced error handling,
-connection pooling, and production optimizations using asyncpg and SQLAlchemy.
+Asynchronous MongoDB connection management built on top of Motor with
+robust error handling, pooling, and health checks.
 """
+
+from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Dict, Any
-from urllib.parse import urlparse, parse_qs
+from typing import Optional, Dict, Any
 
-try:
-    import asyncpg
-
-    AsyncpgException = asyncpg.PostgresError
-    ASYNCPG_AVAILABLE = True
-except ImportError:
-    asyncpg = None  # type: ignore[assignment]
-
-    class _AsyncpgFallbackError(Exception):
-        """Fallback asyncpg exception type when asyncpg is unavailable."""
-
-        CODE = "ASYNC_PG_FALLBACK"
-
-    AsyncpgException = _AsyncpgFallbackError
-    ASYNCPG_AVAILABLE = False
-
-try:
-    from sqlalchemy.ext.asyncio import (
-        create_async_engine,
-        AsyncSession,
-        async_sessionmaker,
-    )
-    from sqlalchemy.ext.declarative import declarative_base
-    from sqlalchemy import text
-
-    # Note: Specific SQLAlchemy exceptions are imported on-demand where needed
-
-    SQLALCHEMY_AVAILABLE = True
-    # SQLAlchemy Base for ORM models
-    BASE = declarative_base()
-except ImportError:
-    SQLALCHEMY_AVAILABLE = False
-    BASE = None
-    # Provide fallbacks for type checkers when SQLAlchemy is unavailable
-    create_async_engine = None  # type: ignore[assignment]
-    AsyncSession = None  # type: ignore[assignment]
-    async_sessionmaker = None  # type: ignore[assignment]
-    text = None  # type: ignore[assignment]
+from motor.motor_asyncio import (  # type: ignore[import]
+    AsyncIOMotorClient,
+    AsyncIOMotorDatabase,
+    AsyncIOMotorCollection,
+)
+from pymongo.errors import ConfigurationError, ConnectionFailure, PyMongoError
 
 from config.settings import Config
 
 logger = logging.getLogger(__name__)
 
 
-class DatabaseHealthChecker:
-    """Monitor PostgreSQL database connection health"""
-
-    def __init__(self, pool):
-        self.pool = pool
-        self.last_health_check = None
-        self.health_check_interval = 300  # 5 minutes
-
-    async def check_health(self) -> bool:
-        """Check if database connection is healthy"""
-        if not self.pool or not ASYNCPG_AVAILABLE:
-            return False
-
-        try:
-            async with self.pool.acquire() as connection:
-                await connection.execute("SELECT 1")
-                self.last_health_check = asyncio.get_event_loop().time()
-                return True
-        except AsyncpgException as e:  # type: ignore[misc]
-            logger.warning("Database health check failed: %s", str(e))
-            return False
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning("Database health check unexpected error: %s", str(e))
-            return False
-
-
-class Database:
-    """
-    Enhanced PostgreSQL database connection and operations manager
-
-    Features:
-    - Automatic connection retry with exponential backoff
-    - Connection health monitoring
-    - Comprehensive error handling
-    - Connection pooling optimization
-    - Graceful degradation when database is unavailable
-    - Support for both asyncpg (raw SQL) and SQLAlchemy (ORM)
-    """
+class MongoDatabase:
+    """Asynchronous MongoDB connection manager."""
 
     def __init__(self):
-        self.pool: Any = None  # dynamic type from asyncpg pool
-        self.engine: Any = None
-        self.session_factory: Any = None
-        self.health_checker = None
-        self.connection_attempts = 0
-        self.max_connection_attempts = 3
-        self.is_connected = False
-        self._connection_initialized = False
-
-        # Check for required dependencies
-        if not ASYNCPG_AVAILABLE:
-            logger.warning("asyncpg not available - PostgreSQL features disabled")
-            logger.info("Install with: pip install asyncpg")
-            return
-
-        if not SQLALCHEMY_AVAILABLE:
-            logger.warning("SQLAlchemy not available - ORM features disabled")
-            logger.info("Install with: pip install sqlalchemy[asyncio]")
-
-        # Don't initialize connection during import - wait for explicit call
-
-    def _parse_postgres_url(self, url: str) -> tuple:
-        """Parse PostgreSQL URL and extract connection parameters
-
-        Args:
-            url: PostgreSQL connection URL
-
-        Returns:
-            tuple: (clean_url, ssl_params) where clean_url has no query params
-        """
-        try:
-            parsed = urlparse(url)
-
-            # Build clean URL without query parameters
-            clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-
-            # Extract SSL parameters
-            ssl_params = {}
-            if parsed.query:
-                query_params = parse_qs(parsed.query)
-
-                # Handle sslmode parameter
-                if "sslmode" in query_params:
-                    ssl_mode = query_params["sslmode"][0]
-                    if ssl_mode in ["require", "verify-full", "verify-ca"]:
-                        ssl_params["ssl"] = True
-                    elif ssl_mode == "prefer":
-                        ssl_params["ssl"] = "prefer"  # Let asyncpg decide
-                    # 'disable' or other values: no ssl param
-
-                # Handle channel_binding parameter (used by Neon)
-                if "channel_binding" in query_params:
-                    # Note: asyncpg handles this automatically when ssl=True
-                    # We just need to ensure SSL is enabled
-                    ssl_params["ssl"] = True
-
-            return clean_url, ssl_params
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning("Failed to parse PostgreSQL URL: %s", e)
-            return url, {}
-
-    async def ensure_connected(self) -> bool:
-        """Ensure database connection is established"""
-        if not self._connection_initialized:
-            self._connection_initialized = True
-            try:
-                return await self.connect()
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error("Failed to initialize database connection: %s", e)
-                return False
-        return self.is_connected
+        self.client: Optional[AsyncIOMotorClient] = None
+        self.db: Optional[AsyncIOMotorDatabase] = None
+        self.tabby_db: Optional[AsyncIOMotorDatabase] = None
+        self.is_connected: bool = False
+        self.connection_attempts: int = 0
+        self.max_connection_attempts: int = 3
+        self._lock = asyncio.Lock()
 
     async def connect(self) -> bool:
-        """
-        Establish PostgreSQL database connection with comprehensive error handling
-
-        Returns:
-            bool: True if connection successful, False otherwise
-        """
-        if not ASYNCPG_AVAILABLE:
-            logger.warning("⚠️  asyncpg not available - database features disabled")
-            self._set_disconnected_state()
-            return False
-
-        postgres_url = Config.get_postgres_url()
-
-        if not postgres_url:
-            logger.warning(
-                "⚠️  PostgreSQL connection URL not provided - database features disabled"
-            )
-            logger.info(
-                "💡 Set DATABASE_URL or individual POSTGRES_* environment variables"
-            )
-            self._set_disconnected_state()
-            return False
-
-        for attempt in range(1, self.max_connection_attempts + 1):
-            try:
-                logger.info(
-                    "🔌 Attempting PostgreSQL connection (attempt %d/%d)...",
-                    attempt,
-                    self.max_connection_attempts,
-                )
-
-                # Parse URL to handle SSL parameters
-                clean_url, ssl_params = self._parse_postgres_url(postgres_url)
-
-                # Create asyncpg connection pool if available
-                if ASYNCPG_AVAILABLE and asyncpg is not None:
-                    connection_kwargs = {
-                        "dsn": clean_url,
-                        "min_size": Config.DATABASE_MIN_POOL_SIZE,
-                        "max_size": Config.DATABASE_MAX_POOL_SIZE,
-                        "command_timeout": Config.DATABASE_TIMEOUT,
-                        "server_settings": {
-                            "application_name": f"{Config.BOT_NAME}-v{Config.BOT_VERSION}",
-                            "jit": "off",  # Disable JIT for better compatibility
-                        },
-                    }
-
-                    # Add SSL parameters if present
-                    if ssl_params:
-                        connection_kwargs.update(ssl_params)
-                        logger.info(
-                            "Using SSL configuration for asyncpg: %s", ssl_params
-                        )
-
-                    self.pool = await asyncpg.create_pool(**connection_kwargs)
-
-                # Create SQLAlchemy async engine if available
-                if (
-                    SQLALCHEMY_AVAILABLE
-                    and create_async_engine is not None
-                    and async_sessionmaker is not None
-                    and AsyncSession is not None
-                    and text is not None
-                ):
-                    # Use the clean URL for SQLAlchemy too
-                    sqlalchemy_url = clean_url.replace(
-                        "postgresql://", "postgresql+asyncpg://", 1
-                    )
-                    self.engine = create_async_engine(
-                        sqlalchemy_url,
-                        pool_size=Config.DATABASE_MAX_POOL_SIZE,
-                        max_overflow=10,
-                        pool_timeout=Config.DATABASE_TIMEOUT,
-                        pool_recycle=3600,  # Recycle connections every hour
-                        echo=Config.IS_DEVELOPMENT,  # Log SQL in development
-                        connect_args=(
-                            ssl_params if ssl_params else {}
-                        ),  # Pass SSL params to SQLAlchemy
-                    )
-
-                    # Create session factory
-                    self.session_factory = async_sessionmaker(
-                        self.engine, class_=AsyncSession, expire_on_commit=False
-                    )
-
-                # Test connection with both asyncpg and SQLAlchemy
-                async with self.pool.acquire() as connection:
-                    await connection.execute("SELECT 1")
-
-                if SQLALCHEMY_AVAILABLE and self.engine and text is not None:
-                    async with self.engine.begin() as conn:
-                        await conn.execute(text("SELECT 1"))
-
-                # Initialize health checker
-                self.health_checker = DatabaseHealthChecker(self.pool)
-
-                self.is_connected = True
-                self.connection_attempts = attempt
-
-                logger.info("✅ Successfully connected to PostgreSQL!")
-                logger.info(
-                    "📊 Database: %s, Host: %s:%s",
-                    Config.POSTGRES_DB,
-                    Config.POSTGRES_HOST,
-                    Config.POSTGRES_PORT,
-                )
-
+        """Establish a connection to MongoDB if needed."""
+        async with self._lock:
+            if self.is_connected and self.client:
                 return True
 
-            except (OSError, ConnectionError) as e:
-                logger.warning(
-                    "❌ Database connection failed (attempt %d): %s", attempt, str(e)
+            connection_string = Config.get_mongo_connection_string()
+            if not connection_string:
+                logger.error(
+                    "❌ MongoDB connection string missing. "
+                    "Set MONGODB_CONNECTION_STRING in the environment."
                 )
+                await self.close()
+                return False
 
-            except Exception as e:  # pylint: disable=broad-except
-                # Handle specific asyncpg errors if available
-                error_type = type(e).__name__
-                if "InvalidAuthorizationSpecification" in error_type:
-                    logger.error("🔐 Database authentication failed: %s", str(e))
-                    break  # Don't retry auth failures
-                elif "InvalidCatalogName" in error_type:
-                    logger.error("📂 Database does not exist: %s", str(e))
+            for attempt in range(1, self.max_connection_attempts + 1):
+                try:
                     logger.info(
-                        "💡 Please create the database first: CREATE DATABASE %s;",
-                        Config.POSTGRES_DB,
+                        "🔌 Connecting to MongoDB (attempt %d/%d)...",
+                        attempt,
+                        self.max_connection_attempts,
                     )
-                    break  # Don't retry if database doesn't exist
-                else:
+
+                    client = AsyncIOMotorClient(
+                        connection_string,
+                        maxPoolSize=Config.MONGODB_MAX_POOL_SIZE,
+                        minPoolSize=Config.MONGODB_MIN_POOL_SIZE,
+                        serverSelectionTimeoutMS=Config.MONGODB_CONNECT_TIMEOUT_MS,
+                        socketTimeoutMS=Config.MONGODB_SOCKET_TIMEOUT_MS,
+                        uuidRepresentation="standard",
+                    )
+
+                    await client.admin.command("ping")
+
+                    primary_db_name = Config.DATABASE_NAME or "hearhear-bot"
+                    tabby_db_name = Config.TABBY_DATABASE_NAME or "tabbybot"
+
+                    self.client = client
+                    self.db = client[primary_db_name]
+                    self.tabby_db = client[tabby_db_name]
+
+                    self.is_connected = True
+                    self.connection_attempts = attempt
+
+                    logger.info("✅ Connected to MongoDB database: %s", primary_db_name)
+                    return True
+
+                except (ConfigurationError, ConnectionFailure, PyMongoError) as exc:
                     logger.error(
-                        "💥 Unexpected database error (attempt %d): %s", attempt, str(e)
+                        "❌ MongoDB connection failed on attempt %d: %s", attempt, exc
                     )
+                    await asyncio.sleep(min(2**attempt, 10))
+                except Exception as exc:  # pylint: disable=broad-exception-caught
+                    logger.error(
+                        "💥 Unexpected error while connecting to MongoDB: %s", exc
+                    )
+                    await asyncio.sleep(min(2**attempt, 10))
 
-            # Wait before retrying (exponential backoff)
-            if attempt < self.max_connection_attempts:
-                wait_time = 2**attempt
-                logger.info("⏰ Retrying in %d seconds...", wait_time)
-                await asyncio.sleep(wait_time)
+            logger.error(
+                "❌ Failed to connect to MongoDB after %d attempts",
+                self.max_connection_attempts,
+            )
+            await self.close()
+            return False
 
-        # All connection attempts failed
-        logger.error(
-            "❌ Failed to establish database connection after %d attempts",
-            self.max_connection_attempts,
-        )
-        logger.info(
-            "🔄 Bot will continue in database-free mode with reduced functionality:"
-        )
-        logger.info("   ✅ Discord commands will work normally")
-        logger.info("   ✅ Timer functionality will work")
-        logger.info("   ❌ User preferences won't be saved")
-        logger.info("   ❌ Persistent data features disabled")
-        logger.info("   ❌ Analytics and logging reduced")
+    async def ensure_connected(self) -> bool:
+        """Ensure the MongoDB connection is active."""
+        if self.is_connected and self.client:
+            return True
+        return await self.connect()
 
-        logger.info("🔧 To fix this issue:")
-        logger.info(
-            "   1. Install required packages: pip install asyncpg sqlalchemy[asyncio]"
-        )
-        logger.info("   2. Verify PostgreSQL server is running")
-        logger.info("   3. Check DATABASE_URL or POSTGRES_* environment variables")
-        logger.info("   4. Ensure database and user exist")
-        logger.info("   5. Verify network connectivity to database server")
-
-        self._set_disconnected_state()
-        return False
-
-    def _set_disconnected_state(self):
-        """Set the database to disconnected state"""
-        self.pool = None
-        self.engine = None
-        self.session_factory = None
-        self.health_checker = None
-        self.is_connected = False
-
-    async def get_connection(self):
-        """
-        Get a raw asyncpg connection for direct SQL operations
-
-        Returns:
-            asyncpg.Connection or None if unavailable
-        """
-        await self.ensure_connected()
-
-        if not self.is_connected or not self.pool:
-            logger.debug("Database not connected - connection unavailable")
-            return None
-
-        try:
-            return await self.pool.acquire()
-        except AsyncpgException as e:  # type: ignore[misc]
-            logger.error("Error acquiring database connection: %s", str(e))
-            return None
-
-    async def get_session(self):
-        """
-        Get a SQLAlchemy async session for ORM operations
-
-        Returns:
-            AsyncSession or None if unavailable
-        """
-        await self.ensure_connected()
-
-        if not self.is_connected or not self.session_factory:
-            logger.debug("Database not connected - session unavailable")
-            return None
-
-        try:
-            return self.session_factory()
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("Error creating database session: %s", str(e))
-            return None
-
-    async def execute_query(self, query: str, *args):
-        """
-        Execute a raw SQL query and return results
-
-        Args:
-            query: SQL query string
-            *args: Query parameters
-
-        Returns:
-            Query results or None if failed
-        """
-        if not self.is_connected:
-            return None
-
-        try:
-            async with self.pool.acquire() as connection:
-                return await connection.fetch(query, *args)
-        except AsyncpgException as e:  # type: ignore[misc]
-            logger.error("Error executing query: %s", str(e))
-            return None
-
-    async def execute_command(self, command: str, *args) -> bool:
-        """
-        Execute a SQL command (INSERT, UPDATE, DELETE)
-
-        Args:
-            command: SQL command string
-            *args: Command parameters
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        if not self.is_connected:
+    async def ping(self) -> bool:
+        """Ping the MongoDB server to verify connectivity."""
+        if not await self.ensure_connected() or not self.client:
             return False
 
         try:
-            async with self.pool.acquire() as connection:
-                await connection.execute(command, *args)
-                return True
-        except AsyncpgException as e:  # type: ignore[misc]
-            logger.error("Error executing command: %s", str(e))
+            client = self.client
+            if client is None:
+                return False
+
+            await client.admin.command("ping")
+            return True
+        except PyMongoError as exc:
+            logger.error("MongoDB ping failed: %s", exc)
+            await self.close()
             return False
 
-    async def health_check(self) -> bool:
-        """
-        Perform a health check on the database connection
+    async def get_collection(
+        self, name: str, *, use_tabby_db: bool = False
+    ) -> Optional[AsyncIOMotorCollection]:
+        """Return a MongoDB collection, ensuring the connection first."""
+        if not await self.ensure_connected():
+            return None
 
-        Returns:
-            bool: True if database is healthy, False otherwise
-        """
-        if not self.health_checker:
-            return False
+        target_db = self.tabby_db if use_tabby_db else self.db
+        if target_db is None:
+            logger.error(
+                "MongoDB database reference missing (use_tabby_db=%s)", use_tabby_db
+            )
+            return None
 
-        return await self.health_checker.check_health()
+        collection: AsyncIOMotorCollection = target_db[name]
+        return collection
+
+    def __getitem__(self, name: str) -> AsyncIOMotorCollection:
+        """Allow dict-style access to collections for compatibility."""
+        if self.db is None:
+            raise KeyError("MongoDB is not connected")
+        return self.db[name]
 
     def get_connection_stats(self) -> Dict[str, Any]:
-        """Get connection statistics and health information"""
-        stats = {
+        """Return diagnostic information about the current connection."""
+        stats: Dict[str, Any] = {
             "is_connected": self.is_connected,
             "connection_attempts": self.connection_attempts,
-            "database_type": "PostgreSQL",
-            "asyncpg_available": ASYNCPG_AVAILABLE,
-            "sqlalchemy_available": SQLALCHEMY_AVAILABLE,
+            "database_type": "MongoDB",
             "database": {
-                "host": Config.POSTGRES_HOST,
-                "port": Config.POSTGRES_PORT,
-                "database": Config.POSTGRES_DB,
-                "user": Config.POSTGRES_USER,
+                "primary": Config.DATABASE_NAME,
+                "tabby": Config.TABBY_DATABASE_NAME,
+                "max_pool_size": Config.MONGODB_MAX_POOL_SIZE,
+                "min_pool_size": Config.MONGODB_MIN_POOL_SIZE,
             },
         }
 
-        if self.pool and self.is_connected and ASYNCPG_AVAILABLE:
-            try:
-                stats.update(
-                    {
-                        "pool_size": self.pool.get_size(),
-                        "pool_min_size": Config.DATABASE_MIN_POOL_SIZE,
-                        "pool_max_size": Config.DATABASE_MAX_POOL_SIZE,
-                        "timeout_seconds": Config.DATABASE_TIMEOUT,
-                    }
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning("Could not retrieve pool stats: %s", str(e))
+        client = self.client
+        if client is not None:
+            address = getattr(client, "address", None)
+            if callable(address):
+                address = address()
+            if isinstance(address, tuple) and len(address) == 2:
+                host, port = address
+                stats["address"] = f"{host}:{port}"
 
         return stats
 
     async def close(self):
-        """Close all database connections gracefully"""
-        if self.pool:
-            await self.pool.close()
-        if self.engine:
-            await self.engine.dispose()
-        self._set_disconnected_state()
-        logger.info("🔌 Database connections closed")
+        """Close the MongoDB client and reset state."""
+        if self.client:
+            self.client.close()
+        self.client = None
+        self.db = None
+        self.tabby_db = None
+        self.is_connected = False
+        self.connection_attempts = 0
+        logger.info("🔌 MongoDB connection closed")
 
 
-# Global database instance
-database = Database()
+# Global database instance for the bot
+_database_instance = MongoDatabase()
 
 
-# Backward compatibility functions
-async def get_connection():
-    """Get a raw connection from the global database instance"""
-    return await database.get_connection()
+def get_database() -> MongoDatabase:
+    """Internal helper to return the shared database instance."""
+    return _database_instance
 
 
-async def get_session():
-    """Get a session from the global database instance"""
-    return await database.get_session()
+# Backwards compatibility alias used across the codebase
+Database = MongoDatabase
 
-
-def is_database_available() -> bool:
-    """Check if database is available"""
-    return database.is_connected
+database: MongoDatabase = _database_instance

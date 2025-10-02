@@ -3,9 +3,7 @@
 discord.py>=2.4.0
 
 # Database and Data Handling
-asyncpg>=0.29.0
-sqlalchemy[asyncio]>=2.0.0
-psycopg2-binary>=2.9.0
+motor>=3.4.0
 pymongo>=4.6.0
 dnspython>=2.4.0
 

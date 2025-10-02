@@ -116,3 +116,4 @@ error.log*
 
 # Legacy files (archived old code with credentials)
 legacy/
+.env.mongo.example

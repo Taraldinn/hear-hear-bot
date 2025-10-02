@@ -116,24 +116,20 @@ class Config:
         TEST_GUILD_ID = int(_test_guild_env)
 
     # ==================== DATABASE SETTINGS ====================
-    # PostgreSQL Configuration
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
-    POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", "5432"))
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "hearhear_user")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "")
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "hearhear_bot")
-    POSTGRES_SSL_MODE: str = os.getenv("POSTGRES_SSL_MODE", "prefer")
-
-    # Connection pool settings
-    DATABASE_TIMEOUT: int = int(os.getenv("DATABASE_TIMEOUT", "30"))  # seconds
-    DATABASE_MAX_POOL_SIZE: int = int(os.getenv("DATABASE_MAX_POOL_SIZE", "20"))
-    DATABASE_MIN_POOL_SIZE: int = int(os.getenv("DATABASE_MIN_POOL_SIZE", "5"))
-
-    # Legacy MongoDB settings (for backward compatibility during migration)
+    # MongoDB configuration (primary database)
     MONGODB_CONNECTION_STRING: str = os.getenv("MONGODB_CONNECTION_STRING", "")
     DATABASE_NAME: str = os.getenv("DATABASE_NAME", "hearhear-bot")
     TABBY_DATABASE_NAME: str = os.getenv("TABBY_DATABASE_NAME", "tabbybot")
+
+    # MongoDB client tuning
+    MONGODB_MAX_POOL_SIZE: int = int(os.getenv("MONGODB_MAX_POOL_SIZE", "50"))
+    MONGODB_MIN_POOL_SIZE: int = int(os.getenv("MONGODB_MIN_POOL_SIZE", "5"))
+    MONGODB_CONNECT_TIMEOUT_MS: int = int(
+        os.getenv("MONGODB_CONNECT_TIMEOUT_MS", "10000")
+    )
+    MONGODB_SOCKET_TIMEOUT_MS: int = int(
+        os.getenv("MONGODB_SOCKET_TIMEOUT_MS", "20000")
+    )
 
     # ==================== EXTERNAL SERVICES ====================
     TOPGG_TOKEN: str = os.getenv("TOPGG_TOKEN", "")
@@ -214,43 +210,9 @@ class Config:
     IS_TESTING: bool = ENVIRONMENT == "testing"
 
     @classmethod
-    def get_postgres_url(cls) -> str:
-        """
-        Build PostgreSQL connection URL from individual components or use DATABASE_URL
-
-        Returns:
-            str: PostgreSQL connection URL
-        """
-        if cls.DATABASE_URL:
-            return cls.DATABASE_URL
-
-        # Build URL from components
-        if not cls.POSTGRES_PASSWORD:
-            return ""
-
-        url = (
-            f"postgresql://{cls.POSTGRES_USER}:{cls.POSTGRES_PASSWORD}"
-            f"@{cls.POSTGRES_HOST}:{cls.POSTGRES_PORT}/{cls.POSTGRES_DB}"
-        )
-
-        # Add SSL mode if specified
-        if cls.POSTGRES_SSL_MODE and cls.POSTGRES_SSL_MODE != "disable":
-            url += f"?sslmode={cls.POSTGRES_SSL_MODE}"
-
-        return url
-
-    @classmethod
-    def get_async_postgres_url(cls) -> str:
-        """
-        Get async PostgreSQL URL for asyncpg
-
-        Returns:
-            str: Async PostgreSQL connection URL
-        """
-        url = cls.get_postgres_url()
-        if url.startswith("postgresql://"):
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return url
+    def get_mongo_connection_string(cls) -> str:
+        """Return the MongoDB connection string configured for the bot."""
+        return cls.MONGODB_CONNECTION_STRING
 
     @classmethod
     def validate_config(cls) -> bool:
@@ -277,7 +239,7 @@ class Config:
         }
 
         # Required variables
-        required_vars = ["BOT_TOKEN"]
+        required_vars = ["BOT_TOKEN", "MONGODB_CONNECTION_STRING"]
         missing_required = ConfigValidator.validate_required_vars(
             required_vars, config_dict
         )
@@ -290,7 +252,6 @@ class Config:
 
         # Optional but recommended variables
         optional_vars = {
-            "MONGODB_CONNECTION_STRING": "database features disabled",
             "TOPGG_TOKEN": "Top.gg integration disabled",
             "TABBYCAT_API_KEY": "Tabbycat integration limited",
         }
@@ -320,9 +281,6 @@ class Config:
             raise ValueError("SHARD_COUNT must be at least 1")
 
         # Validate timeouts
-        if cls.DATABASE_TIMEOUT < 1:
-            raise ValueError("DATABASE_TIMEOUT must be at least 1 second")
-
         if cls.COMMAND_TIMEOUT < 1:
             raise ValueError("COMMAND_TIMEOUT must be at least 1 second")
 

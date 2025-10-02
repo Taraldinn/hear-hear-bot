@@ -32,10 +32,12 @@ class Timer(commands.Cog):
     async def get_language(self, guild_id):
         """Get language setting for a guild"""
         try:
-            if self.bot.database and self.bot.database.db:
-                collection = self.bot.database.get_collection("language")
+            if self.bot.database:
+                if not await self.bot.database.ensure_connected():
+                    return "en"
+                collection = await self.bot.database.get_collection("language")
                 if collection:
-                    find = collection.find_one({"_id": str(guild_id)})
+                    find = await collection.find_one({"_id": str(guild_id)})
                     if find:
                         return find.get("ln", "en")
         except (AttributeError, KeyError, TypeError) as e:

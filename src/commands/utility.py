@@ -22,13 +22,15 @@ class UtilityCommands(commands.Cog):
     async def get_language(self, guild_id):
         """Get language setting for a guild"""
         try:
-            if self.bot.database and self.bot.database.db:
-                collection = self.bot.database.get_collection("language")
+            if self.bot.database:
+                if not await self.bot.database.ensure_connected():
+                    return "en"
+                collection = await self.bot.database.get_collection("language")
                 if collection:
-                    find = collection.find_one({"_id": str(guild_id)})
+                    find = await collection.find_one({"_id": str(guild_id)})
                     if find:
                         return find.get("ln", "en")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception("Error getting language: %s", e)
         return "en"
 
@@ -195,13 +197,14 @@ class UtilityCommands(commands.Cog):
             import time
 
             start_time = time.time()
-            if self.bot.database.client:
-                self.bot.database.client.admin.command("ping")
+            if self.bot.database and await self.bot.database.ping():
                 db_latency = round((time.time() - start_time) * 1000)
                 embed.add_field(
                     name="Database Latency", value=f"{db_latency}ms", inline=True
                 )
-        except Exception:
+            else:
+                embed.add_field(name="Database", value="❌ Offline", inline=True)
+        except Exception:  # pylint: disable=broad-exception-caught
             embed.add_field(name="Database", value="❌ Offline", inline=True)
 
         # Status indicator
