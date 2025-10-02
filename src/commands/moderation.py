@@ -4,16 +4,17 @@ Author: aldinn
 Email: kferdoush617@gmail.com
 """
 
-import discord
-from discord.ext import commands, tasks
-from discord import app_commands
-import asyncio
 import logging
-from typing import Dict, List, Optional, Union
 from datetime import datetime, timedelta
+from typing import Optional, Union
 import uuid
+
+import discord
+from discord import app_commands
+from discord.ext import commands, tasks
+
 from src.database.connection import database
-from src.database.models import ModerationLog, StickyRole, TemporaryRole, COLLECTIONS
+from src.database.models import COLLECTIONS, ModerationLog, StickyRole
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class ModerationSystem(commands.Cog):
             )
             return
         await self.load_sticky_roles()
-        self.check_temporary_roles.start()
+        await self.load_temporary_actions()
 
     async def cog_unload(self):
         """Clean up when cog unloads"""
@@ -46,10 +47,13 @@ class ModerationSystem(commands.Cog):
 
     async def load_sticky_roles(self):
         """Load sticky roles from database"""
+        if not hasattr(self.db, "__getitem__"):
+            return
         try:
-            sticky_roles = (
-                await self.db[COLLECTIONS["sticky_roles"]].find().to_list(length=None)
-            )
+            # pylint: disable=unsubscriptable-object
+            collection = self.db[COLLECTIONS["sticky_roles"]]  # type: ignore[index]
+            sticky_roles = await collection.find().to_list(length=None)
+            # pylint: enable=unsubscriptable-object
             for role_data in sticky_roles:
                 guild_id = role_data["guild_id"]
                 user_id = role_data["user_id"]
@@ -60,21 +64,20 @@ class ModerationSystem(commands.Cog):
                 self.sticky_roles_cache[guild_id][user_id] = role_data["role_ids"]
 
             logger.info(
-                f"Loaded sticky roles for {len(self.sticky_roles_cache)} guilds"
+                "Loaded sticky roles for %d guilds", len(self.sticky_roles_cache)
             )
-        except Exception as e:
-            logger.error(
-                "Failed to load sticky roles: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to load sticky roles: %s", exc)
 
     async def load_temporary_actions(self):
         """Load temporary actions from database"""
+        if not hasattr(self.db, "__getitem__"):
+            return
         try:
-            temp_roles = (
-                await self.db[COLLECTIONS["temporary_roles"]]
-                .find()
-                .to_list(length=None)
-            )
+            # pylint: disable=unsubscriptable-object
+            collection = self.db[COLLECTIONS["temporary_roles"]]  # type: ignore[index]
+            temp_roles = await collection.find().to_list(length=None)
+            # pylint: enable=unsubscriptable-object
             for role_data in temp_roles:
                 key = f"{role_data['guild_id']}_{role_data['user_id']}_{role_data['role_id']}"
                 self.temp_actions[key] = {
@@ -83,13 +86,9 @@ class ModerationSystem(commands.Cog):
                     "data": role_data,
                 }
 
-            logger.info(
-                "Loaded {len(self.temp_actions)} temporary actions",
-            )
-        except Exception as e:
-            logger.error(
-                "Failed to load temporary actions: {e}",
-            )
+            logger.info("Loaded %d temporary actions", len(self.temp_actions))
+        except Exception as exc:
+            logger.error("Failed to load temporary actions: %s", exc)
 
     @tasks.loop(minutes=1)
     async def check_temp_actions(self):
@@ -108,18 +107,20 @@ class ModerationSystem(commands.Cog):
 
                 # Remove from cache and database
                 del self.temp_actions[key]
-                await self.db[COLLECTIONS["temporary_roles"]].delete_one(
-                    {
-                        "guild_id": action["data"]["guild_id"],
-                        "user_id": action["data"]["user_id"],
-                        "role_id": action["data"]["role_id"],
-                    }
-                )
+                if hasattr(self.db, "__getitem__"):
+                    # pylint: disable=unsubscriptable-object
+                    collection = self.db[COLLECTIONS["temporary_roles"]]  # type: ignore[index]
+                    await collection.delete_one(
+                        {
+                            "guild_id": action["data"]["guild_id"],
+                            "user_id": action["data"]["user_id"],
+                            "role_id": action["data"]["role_id"],
+                        }
+                    )
+                    # pylint: enable=unsubscriptable-object
 
-            except Exception as e:
-                logger.error(
-                    "Failed to handle expired action {key}: {e}",
-                )
+            except Exception as exc:
+                logger.error("Failed to handle expired action %s: %s", key, exc)
 
     @check_temp_actions.before_loop
     async def before_check_temp_actions(self):
@@ -143,24 +144,25 @@ class ModerationSystem(commands.Cog):
 
             await member.remove_roles(role, reason="Temporary role expired")
             logger.info(
-                "Removed expired temporary role {role.name} from {member}",
+                "Removed expired temporary role %s from %s", role.name, member
             )
 
-        except Exception as e:
-            logger.error(
-                "Failed to remove expired temporary role: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to remove expired temporary role: %s", exc)
 
     async def log_moderation_action(
         self,
         guild_id: int,
         action: str,
-        target_user: discord.User,
-        moderator: discord.User,
-        reason: str,
+        target_user: Union[discord.User, discord.Member],
+        moderator: Union[discord.User, discord.Member],
+        reason: Optional[str] = None,
         duration: Optional[int] = None,
     ):
         """Log a moderation action"""
+        if reason is None:
+            reason = "No reason provided"
+        
         try:
             case_id = str(uuid.uuid4())[:8]
 
@@ -179,17 +181,19 @@ class ModerationSystem(commands.Cog):
                 case_id=case_id,
             )
 
-            await self.db[COLLECTIONS["moderation_logs"]].insert_one(mod_log.__dict__)
+            if hasattr(self.db, "__getitem__"):
+                # pylint: disable=unsubscriptable-object
+                collection = self.db[COLLECTIONS["moderation_logs"]]  # type: ignore[index]
+                await collection.insert_one(mod_log.__dict__)
+                # pylint: enable=unsubscriptable-object
 
             # Send to moderation log channel if configured
             # ... (implement modlog channel sending)
 
             return case_id
 
-        except Exception as e:
-            logger.error(
-                "Failed to log moderation action: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to log moderation action: %s", exc)
             return None
 
     # Moderation Commands
@@ -210,8 +214,14 @@ class ModerationSystem(commands.Cog):
         reason: Optional[str] = "No reason provided",
     ):
         """Mute a member"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+
         if (
-            member.top_role >= interaction.user.top_role
+            member.top_role >= interaction.user.top_role  # type: ignore[union-attr]
             and interaction.user != interaction.guild.owner
         ):
             await interaction.response.send_message(
@@ -319,12 +329,10 @@ class ModerationSystem(commands.Cog):
             await interaction.followup.send(
                 "❌ I don't have permission to mute this member.", ephemeral=True
             )
-        except Exception as e:
-            logger.error(
-                "Failed to mute member: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to mute member: %s", exc)
             await interaction.followup.send(
-                f"❌ Failed to mute member: {str(e)}", ephemeral=True
+                f"❌ Failed to mute member: {str(exc)}", ephemeral=True
             )
 
     @app_commands.command(name="unmute", description="Unmute a member")
@@ -337,6 +345,12 @@ class ModerationSystem(commands.Cog):
         reason: Optional[str] = "No reason provided",
     ):
         """Unmute a member"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+
         try:
             await interaction.response.defer()
 
@@ -375,12 +389,10 @@ class ModerationSystem(commands.Cog):
             await interaction.followup.send(
                 "❌ I don't have permission to unmute this member.", ephemeral=True
             )
-        except Exception as e:
-            logger.error(
-                "Failed to unmute member: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to unmute member: %s", exc)
             await interaction.followup.send(
-                f"❌ Failed to unmute member: {str(e)}", ephemeral=True
+                f"❌ Failed to unmute member: {str(exc)}", ephemeral=True
             )
 
     @app_commands.command(name="kick", description="Kick a member from the server")
@@ -393,8 +405,14 @@ class ModerationSystem(commands.Cog):
         reason: Optional[str] = "No reason provided",
     ):
         """Kick a member"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+
         if (
-            member.top_role >= interaction.user.top_role
+            member.top_role >= interaction.user.top_role  # type: ignore[union-attr]
             and interaction.user != interaction.guild.owner
         ):
             await interaction.response.send_message(
@@ -463,12 +481,10 @@ class ModerationSystem(commands.Cog):
             await interaction.followup.send(
                 "❌ I don't have permission to kick this member.", ephemeral=True
             )
-        except Exception as e:
-            logger.error(
-                "Failed to kick member: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to kick member: %s", exc)
             await interaction.followup.send(
-                f"❌ Failed to kick member: {str(e)}", ephemeral=True
+                f"❌ Failed to kick member: {str(exc)}", ephemeral=True
             )
 
     @app_commands.command(name="ban", description="Ban a member from the server")
@@ -488,9 +504,15 @@ class ModerationSystem(commands.Cog):
         reason: Optional[str] = "No reason provided",
     ):
         """Ban a member"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+
         if isinstance(member, discord.Member):
             if (
-                member.top_role >= interaction.user.top_role
+                member.top_role >= interaction.user.top_role  # type: ignore[union-attr]
                 and interaction.user != interaction.guild.owner
             ):
                 await interaction.response.send_message(
@@ -506,7 +528,9 @@ class ModerationSystem(commands.Cog):
                 )
                 return
 
-        if delete_messages < 0 or delete_messages > 7:
+        # Validate delete_messages parameter
+        delete_days = delete_messages if delete_messages is not None else 0
+        if delete_days < 0 or delete_days > 7:
             await interaction.response.send_message(
                 "❌ Delete messages value must be between 0 and 7 days.", ephemeral=True
             )
@@ -548,9 +572,10 @@ class ModerationSystem(commands.Cog):
             except (discord.Forbidden, AttributeError):
                 pass
 
-            # Ban the member
+            # Ban the member (ensure delete_messages has a value)
+            delete_days = delete_messages if delete_messages is not None else 0
             await interaction.guild.ban(
-                member, reason=reason, delete_message_days=delete_messages
+                member, reason=reason, delete_message_days=delete_days
             )
 
             # Schedule unban if temporary
@@ -608,10 +633,10 @@ class ModerationSystem(commands.Cog):
             else:
                 embed.add_field(name="⏰ Duration", value="Permanent", inline=True)
 
-            if delete_messages > 0:
+            if delete_days > 0:
                 embed.add_field(
                     name="🗑️ Messages Deleted",
-                    value=f"Last {delete_messages} day(s)",
+                    value=f"Last {delete_days} day(s)",
                     inline=True,
                 )
 
@@ -626,12 +651,10 @@ class ModerationSystem(commands.Cog):
             await interaction.followup.send(
                 "❌ I don't have permission to ban this member.", ephemeral=True
             )
-        except Exception as e:
-            logger.error(
-                "Failed to ban member: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to ban member: %s", exc)
             await interaction.followup.send(
-                f"❌ Failed to ban member: {str(e)}", ephemeral=True
+                f"❌ Failed to ban member: {str(exc)}", ephemeral=True
             )
 
     async def save_sticky_roles(self, member: discord.Member):
@@ -652,11 +675,15 @@ class ModerationSystem(commands.Cog):
             )
 
             # Save to database
-            await self.db[COLLECTIONS["sticky_roles"]].replace_one(
-                {"guild_id": member.guild.id, "user_id": member.id},
-                sticky_role.__dict__,
-                upsert=True,
-            )
+            if hasattr(self.db, "__getitem__"):
+                # pylint: disable=unsubscriptable-object
+                collection = self.db[COLLECTIONS["sticky_roles"]]  # type: ignore[index]
+                await collection.replace_one(
+                    {"guild_id": member.guild.id, "user_id": member.id},
+                    sticky_role.__dict__,
+                    upsert=True,
+                )
+                # pylint: enable=unsubscriptable-object
 
             # Update cache
             if member.guild.id not in self.sticky_roles_cache:
@@ -664,10 +691,8 @@ class ModerationSystem(commands.Cog):
 
             self.sticky_roles_cache[member.guild.id][member.id] = roles_to_save
 
-        except Exception as e:
-            logger.error(
-                "Failed to save sticky roles for {member}: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to save sticky roles for %s: %s", member, exc)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -695,13 +720,11 @@ class ModerationSystem(commands.Cog):
                         *roles_to_add, reason="Sticky roles restoration"
                     )
                     logger.info(
-                        f"Restored {len(roles_to_add)} sticky roles to {member}"
+                        "Restored %d sticky roles to %s", len(roles_to_add), member
                     )
 
-        except Exception as e:
-            logger.error(
-                "Failed to restore sticky roles for {member}: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to restore sticky roles for %s: %s", member, exc)
 
     def parse_duration(self, duration: str) -> Optional[int]:
         """Parse duration string into seconds"""
@@ -741,4 +764,5 @@ class ModerationSystem(commands.Cog):
 
 
 async def setup(bot):
+    """Load the ModerationSystem cog"""
     await bot.add_cog(ModerationSystem(bot))
