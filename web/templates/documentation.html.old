@@ -1,609 +1,306 @@
-<!DOCTYPE html><!DOCTYPE html>
-
-<html lang="en" class="dark"><html lang="en">
-
-<head><head>
-
-    <meta charset="UTF-8">    <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Documentation - AldinnBot</title>    <title>Hear! Hear! Bot - Complete Documentation</title>
-
-    <meta name="description" content="Complete documentation for AldinnBot - Discord debate tournament management">    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
-
-    <!-- Tailwind CSS -->    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-
-    <script src="https://cdn.tailwindcss.com"></script>    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
-
-    <script>    <style>
-
-        tailwind.config = {        :root {
-
-            darkMode: 'class',            --primary-color: #5865F2;
-
-            theme: {            --secondary-color: #57F287;
-
-                extend: {            --bg-color: #2C2F33;
-
-                    colors: {            --card-bg: #36393F;
-
-                        border: 'hsl(240 3.7% 15.9%)',            --text-color: #DCDDDE;
-
-                        input: 'hsl(240 3.7% 15.9%)',            --text-muted: #8E9297;
-
-                        ring: 'hsl(240 4.9% 83.9%)',            --border-color: #4F545C;
-
-                        background: 'hsl(240 10% 3.9%)',            --success-color: #57F287;
-
-                        foreground: 'hsl(0 0% 98%)',            --warning-color: #FEE75C;
-
-                        primary: {            --error-color: #ED4245;
-
-                            DEFAULT: 'hsl(0 0% 98%)',        }
-
-                            foreground: 'hsl(240 5.9% 10%)',
-
-                        },        * {
-
-                        secondary: {            margin: 0;
-
-                            DEFAULT: 'hsl(240 3.7% 15.9%)',            padding: 0;
-
-                            foreground: 'hsl(0 0% 98%)',            box-sizing: border-box;
-
-                        },        }
-
-                        muted: {
-
-                            DEFAULT: 'hsl(240 3.7% 15.9%)',        body {
-
-                            foreground: 'hsl(240 5% 64.9%)',            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-
-                        },            background-color: var(--bg-color);
-
-                        accent: {            color: var(--text-color);
-
-                            DEFAULT: 'hsl(240 3.7% 15.9%)',            line-height: 1.6;
-
-                            foreground: 'hsl(0 0% 98%)',        }
-
-                        },
-
-                        card: {        .container {
-
-                            DEFAULT: 'hsl(240 10% 3.9%)',            max-width: 1200px;
-
-                            foreground: 'hsl(0 0% 98%)',            margin: 0 auto;
-
-                        },            padding: 0 20px;
-
-                    },        }
-
-                },
-
-            },        header {
-
-        }            background: linear-gradient(135deg, var(--primary-color) 0%, #4752C4 100%);
-
-    </script>            padding: 2rem 0;
-
-                text-align: center;
-
-    <style>            margin-bottom: 3rem;
-
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');        }
-
-        * { font-family: 'Inter', sans-serif; }
-
-        .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }        .logo {
-
-        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); }            font-size: 3rem;
-
-        .grid-pattern {            font-weight: bold;
-
-            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),            margin-bottom: 0.5rem;
-
-                              linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);        }
-
-            background-size: 4rem 4rem;
-
-        }        .subtitle {
-
-        .prose { max-width: none; }            font-size: 1.2rem;
-
-        .prose h2 { color: hsl(0 0% 98%); font-size: 1.875rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; }            color: rgba(255, 255, 255, 0.9);
-
-        .prose h3 { color: hsl(240 5% 64.9%); font-size: 1.5rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }        }
-
-        .prose p { color: hsl(240 5% 64.9%); margin-bottom: 1rem; line-height: 1.75; }
-
-        .prose ul { list-style: disc; padding-left: 1.5rem; color: hsl(240 5% 64.9%); }        .nav {
-
-        .prose li { margin-bottom: 0.5rem; }            background-color: var(--card-bg);
-
-        .prose code { background: hsl(240 3.7% 15.9%); padding: 0.2rem 0.4rem; border-radius: 0.25rem; font-family: monospace; color: #60a5fa; }            padding: 1rem 0;
-
-        .prose pre { background: hsl(240 3.7% 15.9%); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 1rem 0; }            margin-bottom: 2rem;
-
-    </style>            border-radius: 10px;
-
-</head>            position: sticky;
-
-<body class="bg-background text-foreground antialiased">            top: 20px;
-
-    <div class="fixed inset-0 grid-pattern -z-10"></div>            z-index: 100;
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hear! Hear! Bot - Complete Documentation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #5865F2;
+            --secondary-color: #57F287;
+            --bg-color: #2C2F33;
+            --card-bg: #36393F;
+            --text-color: #DCDDDE;
+            --text-muted: #8E9297;
+            --border-color: #4F545C;
+            --success-color: #57F287;
+            --warning-color: #FEE75C;
+            --error-color: #ED4245;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #4752C4 100%);
+            padding: 2rem 0;
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .nav {
+            background-color: var(--card-bg);
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+        }
+
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        .nav-link {
+            color: var(--text-color);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .section {
+            background-color: var(--card-bg);
+            margin-bottom: 2rem;
+            padding: 2rem;
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+        }
+
+        .section h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .section h3 {
+            color: var(--secondary-color);
+            font-size: 1.5rem;
+            margin: 1.5rem 0 1rem 0;
+        }
+
+        .command-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .command-card {
+            background-color: var(--bg-color);
+            padding: 1.5rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+        }
+
+        .command-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color);
+        }
+
+        .command-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--secondary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .command-description {
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .command-usage {
+            background-color: rgba(87, 242, 135, 0.1);
+            padding: 0.8rem;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            border-left: 3px solid var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .permission-tag {
+            display: inline-block;
+            background-color: var(--warning-color);
+            color: var(--bg-color);
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .feature-list li:before {
+            content: "✅";
+            position: absolute;
+            left: 0;
+            top: 0.5rem;
+        }
+
+        .code-block {
+            background-color: var(--bg-color);
+            padding: 1rem;
+            border-radius: 5px;
+            border-left: 3px solid var(--primary-color);
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+
+        .architecture-diagram {
+            background-color: var(--bg-color);
+            padding: 2rem;
+            border-radius: 10px;
+            margin: 1.5rem 0;
+            text-align: center;
+        }
+
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .tech-item {
+            background-color: var(--bg-color);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .tech-item h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-left: 0.5rem;
+        }
+
+        .status-active {
+            background-color: var(--success-color);
+            color: var(--bg-color);
+        }
+
+        .status-planned {
+            background-color: var(--warning-color);
+            color: var(--bg-color);
+        }
+
+        .toc {
+            background-color: var(--bg-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .toc h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 1rem;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            display: block;
+            padding: 0.3rem 0;
+            transition: color 0.3s ease;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+        }
+
+        .warning-box {
+            background-color: rgba(254, 231, 92, 0.1);
+            border: 1px solid var(--warning-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .warning-box h4 {
+            color: var(--warning-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box {
+            background-color: rgba(88, 101, 242, 0.1);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .info-box h4 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .command-grid {
+                grid-template-columns: 1fr;
             }
-
-    <!-- Navigation -->
-
-    <nav class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">        .nav-links {
-
-        <div class="container mx-auto flex h-16 items-center px-4 md:px-6">            display: flex;
-
-            <div class="flex items-center gap-2">            justify-content: center;
-
-                <span class="text-3xl">🎤</span>            flex-wrap: wrap;
-
-                <span class="text-xl font-bold">AldinnBot</span>            gap: 2rem;
-
-            </div>        }
-
             
-
-            <div class="ml-auto flex items-center gap-4">        .nav-link {
-
-                <a href="/" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Home</a>            color: var(--text-color);
-
-                <a href="/docs" class="text-sm font-medium text-foreground">Documentation</a>            text-decoration: none;
-
-                <a href="/commands" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Commands</a>            padding: 0.5rem 1rem;
-
-                <a href="https://github.com/Taraldinn/hear-hear-bot" target="_blank" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">            border-radius: 5px;
-
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">            transition: all 0.3s ease;
-
-                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>        }
-
-                    </svg>
-
-                </a>        .nav-link:hover {
-
-                <a href="/invite" class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">            background-color: var(--primary-color);
-
-                    Add to Discord            color: white;
-
-                </a>        }
-
-            </div>
-
-        </div>        .section {
-
-    </nav>            background-color: var(--card-bg);
-
-                margin-bottom: 2rem;
-
-    <!-- Hero -->            padding: 2rem;
-
-    <section class="container mx-auto px-4 py-16 md:py-24">            border-radius: 15px;
-
-        <div class="mx-auto max-w-5xl text-center">            border: 1px solid var(--border-color);
-
-            <h1 class="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl mb-6">        }
-
-                <span class="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Documentation</span>
-
-            </h1>        .section h2 {
-
-            <p class="text-xl text-muted-foreground mb-8">            color: var(--primary-color);
-
-                Everything you need to know about AldinnBot            font-size: 2rem;
-
-            </p>            margin-bottom: 1rem;
-
-        </div>            border-bottom: 2px solid var(--primary-color);
-
-    </section>            padding-bottom: 0.5rem;
-
-            }
-
-    <!-- Content -->
-
-    <section class="container mx-auto px-4 py-12 mb-20">        .section h3 {
-
-        <div class="mx-auto max-w-4xl">            color: var(--secondary-color);
-
-            <!-- Introduction -->            font-size: 1.5rem;
-
-            <div class="rounded-lg border border-border bg-card p-8 mb-8">            margin: 1.5rem 0 1rem 0;
-
-                <div class="prose">        }
-
-                    <h2>🎯 Introduction</h2>
-
-                    <p>        .command-grid {
-
-                        AldinnBot is a powerful Discord bot designed specifically for debate tournament management.            display: grid;
-
-                        It provides professional timing features, an extensive motion database, Tabbycat integration,            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-
-                        and comprehensive tournament organization tools.            gap: 1.5rem;
-
-                    </p>            margin-top: 1.5rem;
-
-                </div>        }
-
-            </div>
-
-                    .command-card {
-
-            <!-- Features -->            background-color: var(--bg-color);
-
-            <div class="rounded-lg border border-border bg-card p-8 mb-8">            padding: 1.5rem;
-
-                <div class="prose">            border-radius: 10px;
-
-                    <h2>✨ Key Features</h2>            border: 1px solid var(--border-color);
-
-                    <h3>⏱️ Advanced Timer System</h3>            transition: transform 0.3s ease;
-
-                    <ul>        }
-
-                        <li>Multiple debate format support (BP, WSDC, AP, Parliamentary)</li>
-
-                        <li>Automatic protected time tracking</li>        .command-card:hover {
-
-                        <li>Real-time updates with Discord embeds</li>            transform: translateY(-5px);
-
-                        <li>Speaker time management</li>            border-color: var(--primary-color);
-
-                    </ul>        }
-
-                    
-
-                    <h3>📋 Motion Database</h3>        .command-name {
-
-                    <ul>            font-size: 1.2rem;
-
-                        <li>1000+ debate motions in multiple languages</li>            font-weight: bold;
-
-                        <li>Smart search and filtering</li>            color: var(--secondary-color);
-
-                        <li>Random motion generation</li>            margin-bottom: 0.5rem;
-
-                        <li>Google Sheets integration for custom motion lists</li>        }
-
-                    </ul>
-
-                            .command-description {
-
-                    <h3>🏆 Tournament Management</h3>            color: var(--text-muted);
-
-                    <ul>            margin-bottom: 1rem;
-
-                        <li>Tabbycat API integration</li>        }
-
-                        <li>Automatic role and channel setup</li>
-
-                        <li>Participant registration</li>        .command-usage {
-
-                        <li>Round announcements</li>            background-color: rgba(87, 242, 135, 0.1);
-
-                    </ul>            padding: 0.8rem;
-
-                                border-radius: 5px;
-
-                    <h3>🛠️ Administration</h3>            font-family: 'Courier New', monospace;
-
-                    <ul>            border-left: 3px solid var(--secondary-color);
-
-                        <li>Comprehensive moderation tools</li>            margin-bottom: 1rem;
-
-                        <li>Server configuration</li>        }
-
-                        <li>Logging and audit trails</li>
-
-                        <li>Reaction roles</li>        .permission-tag {
-
-                    </ul>            display: inline-block;
-
-                </div>            background-color: var(--warning-color);
-
-            </div>            color: var(--bg-color);
-
-                        padding: 0.2rem 0.5rem;
-
-            <!-- Getting Started -->            border-radius: 3px;
-
-            <div class="rounded-lg border border-border bg-card p-8 mb-8">            font-size: 0.8rem;
-
-                <div class="prose">            font-weight: bold;
-
-                    <h2>🚀 Getting Started</h2>            margin-bottom: 0.5rem;
-
-                    <h3>1. Add Bot to Server</h3>        }
-
-                    <p>
-
-                        Click the "Add to Discord" button and select your server. Make sure to grant the bot        .feature-list {
-
-                        the necessary permissions for full functionality.            list-style: none;
-
-                    </p>            padding: 0;
-
-                            }
-
-                    <h3>2. Basic Configuration</h3>
-
-                    <p>Use the following commands to set up your server:</p>        .feature-list li {
-
-                    <pre><code>/help           # View all available commands            padding: 0.5rem 0;
-
-/timer start BP # Start a debate timer            border-bottom: 1px solid var(--border-color);
-
-/motion random  # Get a random motion</code></pre>            position: relative;
-
-                                padding-left: 2rem;
-
-                    <h3>3. Tournament Setup</h3>        }
-
-                    <p>Connect your Tabbycat tournament:</p>
-
-                    <pre><code>.tabsync &lt;tournament_url&gt; &lt;api_key&gt;        .feature-list li:before {
-
-.register &lt;registration_code&gt;            content: "✅";
-
-.motion R1  # Get motion for Round 1</code></pre>            position: absolute;
-
-                </div>            left: 0;
-
-            </div>            top: 0.5rem;
-
-                    }
-
-            <!-- Timer Commands -->
-
-            <div class="rounded-lg border border-border bg-card p-8 mb-8">        .code-block {
-
-                <div class="prose">            background-color: var(--bg-color);
-
-                    <h2>⏱️ Timer Commands</h2>            padding: 1rem;
-
-                    <p>The timer system supports multiple debate formats with automatic protected time tracking.</p>            border-radius: 5px;
-
-                                border-left: 3px solid var(--primary-color);
-
-                    <h3>Supported Formats</h3>            margin: 1rem 0;
-
-                    <ul>            overflow-x: auto;
-
-                        <li><strong>BP</strong> - British Parliamentary (7 minutes)</li>        }
-
-                        <li><strong>WSDC</strong> - World Schools Debate Championship (8 minutes)</li>
-
-                        <li><strong>AP</strong> - Asian Parliamentary (7 minutes)</li>        .architecture-diagram {
-
-                        <li><strong>Parl</strong> - Parliamentary (5-7 minutes, configurable)</li>            background-color: var(--bg-color);
-
-                    </ul>            padding: 2rem;
-
-                                border-radius: 10px;
-
-                    <h3>Usage Examples</h3>            margin: 1.5rem 0;
-
-                    <pre><code>/timer start BP      # Start BP format timer            text-align: center;
-
-/timer check         # Check current time        }
-
-/timer pause         # Pause the timer
-
-/timer resume        # Resume paused timer        .tech-stack {
-
-/timer stop          # Stop and display final time            display: grid;
-
-/timer reset         # Reset timer to 00:00</code></pre>            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-
-                </div>            gap: 1rem;
-
-            </div>            margin: 1.5rem 0;
-
-                    }
-
-            <!-- Motion Database -->
-
-            <div class="rounded-lg border border-border bg-card p-8 mb-8">        .tech-item {
-
-                <div class="prose">            background-color: var(--bg-color);
-
-                    <h2>📋 Motion Database</h2>            padding: 1rem;
-
-                    <p>Access thousands of debate motions for practice and tournaments.</p>            border-radius: 8px;
-
-                                text-align: center;
-
-                    <h3>Available Commands</h3>            border: 1px solid var(--border-color);
-
-                    <pre><code>/motion random English    # Get random English motion        }
-
-/motion search climate    # Search for motions about climate
-
-/motion category policy   # Get motions from policy category        .tech-item h4 {
-
-/motion recent           # Get recently added motions</code></pre>            color: var(--primary-color);
-
-                                margin-bottom: 0.5rem;
-
-                    <h3>Custom Motion Lists</h3>        }
-
-                    <p>
-
-                        You can connect your own Google Sheets with custom motions. Configure the        .status-badge {
-
-                        <code>MOTIONS_CSV_URL_ENGLISH</code> environment variable with your sheet URL.            display: inline-block;
-
-                    </p>            padding: 0.3rem 0.8rem;
-
-                </div>            border-radius: 15px;
-
-            </div>            font-size: 0.8rem;
-
-                        font-weight: bold;
-
-            <!-- Tabbycat Integration -->            margin-left: 0.5rem;
-
-            <div class="rounded-lg border border-border bg-card p-8 mb-8">        }
-
-                <div class="prose">
-
-                    <h2>🏆 Tabbycat Integration</h2>        .status-active {
-
-                    <p>Connect AldinnBot with Tabbycat for seamless tournament management.</p>            background-color: var(--success-color);
-
-                                color: var(--bg-color);
-
-                    <h3>Setup Steps</h3>        }
-
-                    <ol>
-
-                        <li>Get your Tabbycat API key from your tournament dashboard</li>        .status-planned {
-
-                        <li>Use <code>.tabsync &lt;url&gt; &lt;api_key&gt;</code> to connect</li>            background-color: var(--warning-color);
-
-                        <li>Participants can register using <code>.register &lt;code&gt;</code></li>            color: var(--bg-color);
-
-                        <li>Get round motions with <code>.motion R1</code></li>        }
-
-                    </ol>
-
-                            .toc {
-
-                    <h3>Available Features</h3>            background-color: var(--bg-color);
-
-                    <ul>            padding: 1.5rem;
-
-                        <li>Automatic participant registration</li>            border-radius: 8px;
-
-                        <li>Round motion announcements</li>            margin-bottom: 2rem;
-
-                        <li>Room assignments</li>        }
-
-                        <li>Results posting</li>
-
-                    </ul>        .toc h3 {
-
-                </div>            color: var(--primary-color);
-
-            </div>            margin-bottom: 1rem;
-
-                    }
-
-            <!-- Support -->
-
-            <div class="rounded-lg border border-border bg-card p-8">        .toc ul {
-
-                <div class="prose">            list-style: none;
-
-                    <h2>💬 Support & Contributing</h2>            padding-left: 1rem;
-
-                    <p>        }
-
-                        Need help or want to contribute? Visit our GitHub repository for issues,
-
-                        feature requests, and contribution guidelines.        .toc a {
-
-                    </p>            color: var(--text-color);
-
-                    <div class="flex gap-4 mt-4">            text-decoration: none;
-
-                        <a href="https://github.com/Taraldinn/hear-hear-bot" target="_blank"             display: block;
-
-                           class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors no-underline">            padding: 0.3rem 0;
-
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">            transition: color 0.3s ease;
-
-                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>        }
-
-                            </svg>
-
-                            Visit GitHub        .toc a:hover {
-
-                        </a>            color: var(--primary-color);
-
-                        <a href="/commands"         }
-
-                           class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-card hover:bg-accent transition-colors no-underline">
-
-                            View All Commands        .warning-box {
-
-                        </a>            background-color: rgba(254, 231, 92, 0.1);
-
-                    </div>            border: 1px solid var(--warning-color);
-
-                </div>            border-radius: 8px;
-
-            </div>            padding: 1rem;
-
-        </div>            margin: 1rem 0;
-
-    </section>        }
-
-    
-
-    <!-- Footer -->        .warning-box h4 {
-
-    <footer class="border-t border-border">            color: var(--warning-color);
-
-        <div class="container mx-auto px-4 py-8">            margin-bottom: 0.5rem;
-
-            <div class="flex flex-col items-center justify-between gap-4 md:flex-row">        }
-
-                <div class="flex items-center gap-2">
-
-                    <span class="text-2xl">🎤</span>        .info-box {
-
-                    <span class="font-semibold">AldinnBot</span>            background-color: rgba(88, 101, 242, 0.1);
-
-                </div>            border: 1px solid var(--primary-color);
-
-                <div class="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">            border-radius: 8px;
-
-                    <a href="/" class="hover:text-foreground transition-colors">Home</a>            padding: 1rem;
-
-                    <a href="/docs" class="hover:text-foreground transition-colors">Documentation</a>            margin: 1rem 0;
-
-                    <a href="/commands" class="hover:text-foreground transition-colors">Commands</a>        }
-
-                    <a href="/health" class="hover:text-foreground transition-colors">Status</a>
-
-                    <a href="https://github.com/Taraldinn/hear-hear-bot" target="_blank" class="hover:text-foreground transition-colors flex items-center gap-1">        .info-box h4 {
-
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">            color: var(--primary-color);
-
-                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>            margin-bottom: 0.5rem;
-
-                        </svg>        }
-
-                        GitHub
-
-                    </a>        @media (max-width: 768px) {
-
-                </div>            .command-grid {
-
-                <div class="text-sm text-muted-foreground"><p>© 2025 aldinn. Version 2.1.0</p></div>                grid-template-columns: 1fr;
-
-            </div>            }
-
-        </div>            
-
-    </footer>            .nav-links {
-
-</body>                flex-direction: column;
-
-</html>                gap: 1rem;
-
+            .nav-links {
+                flex-direction: column;
+                gap: 1rem;
                 text-align: center;
             }
             

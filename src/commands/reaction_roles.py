@@ -30,7 +30,7 @@ class ReactionRolesSystem(commands.Cog):
     async def cog_load(self):
         """Load existing reaction role configurations on startup"""
         # Check if database supports MongoDB operations
-        if not hasattr(self.db, '__getitem__'):
+        if not hasattr(self.db, "__getitem__"):
             logger.warning(
                 "Reaction roles system disabled - requires MongoDB support. "
                 "Current database is PostgreSQL. This feature needs migration."
@@ -75,7 +75,9 @@ class ReactionRolesSystem(commands.Cog):
             )
 
         except Exception as e:
-            logger.error("Failed to load reaction roles: {e}", )
+            logger.error(
+                "Failed to load reaction roles: {e}",
+            )
 
     async def schedule_self_destruct(self, message_id: int, delay: int):
         """Schedule a message for self-destruction"""
@@ -102,7 +104,9 @@ class ReactionRolesSystem(commands.Cog):
                 await self.remove_reaction_role_message(message_id)
 
             except Exception as e:
-                logger.error("Failed to self-destruct message {message_id}: {e}", )
+                logger.error(
+                    "Failed to self-destruct message {message_id}: {e}",
+                )
             finally:
                 # Clean up task reference
                 if message_id in self.self_destruct_tasks:
@@ -258,7 +262,9 @@ class ReactionRolesSystem(commands.Cog):
             )
 
         except Exception as e:
-            logger.error("Failed to create reaction role message: {e}", )
+            logger.error(
+                "Failed to create reaction role message: {e}",
+            )
             await interaction.followup.send(
                 f"❌ Failed to create reaction role message: {str(e)}", ephemeral=True
             )
@@ -382,7 +388,9 @@ class ReactionRolesSystem(commands.Cog):
             )
 
         except Exception as e:
-            logger.error("Failed to add reaction role: {e}", )
+            logger.error(
+                "Failed to add reaction role: {e}",
+            )
             await interaction.followup.send(
                 f"❌ Failed to add reaction role: {str(e)}", ephemeral=True
             )
@@ -480,7 +488,9 @@ class ReactionRolesSystem(commands.Cog):
             await message.edit(embed=embed)
 
         except Exception as e:
-            logger.error("Failed to update reaction role embed: {e}", )
+            logger.error(
+                "Failed to update reaction role embed: {e}",
+            )
 
     async def remove_reaction_role_message(self, message_id: int):
         """Remove a reaction role message from database and cache"""
@@ -503,7 +513,9 @@ class ReactionRolesSystem(commands.Cog):
                 del self.self_destruct_tasks[message_id]
 
         except Exception as e:
-            logger.error("Failed to remove reaction role message {message_id}: {e}", )
+            logger.error(
+                "Failed to remove reaction role message {message_id}: {e}",
+            )
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
@@ -577,7 +589,9 @@ class ReactionRolesSystem(commands.Cog):
                 )
 
         except Exception as e:
-            logger.error("Error handling reaction role: {e}", )
+            logger.error(
+                "Error handling reaction role: {e}",
+            )
 
     async def check_reaction_role_permissions(
         self, member: discord.Member, config: dict, role: discord.Role
@@ -698,7 +712,9 @@ class ReactionRolesSystem(commands.Cog):
         # Add the role
         try:
             await member.add_roles(role, reason=f"Reaction role ({mode} mode)")
-            logger.info("Added role {role.name} to {member} via reaction role", )
+            logger.info(
+                "Added role {role.name} to {member} via reaction role",
+            )
 
             # Send confirmation DM if possible
             try:
@@ -720,7 +736,9 @@ class ReactionRolesSystem(commands.Cog):
                 f"Failed to add role {role.name} to {member}: Missing permissions"
             )
         except Exception as e:
-            logger.error("Failed to add role {role.name} to {member}: {e}", )
+            logger.error(
+                "Failed to add role {role.name} to {member}: {e}",
+            )
 
     async def remove_role_from_member(
         self, member: discord.Member, role: discord.Role, role_data: dict, config: dict
@@ -750,7 +768,9 @@ class ReactionRolesSystem(commands.Cog):
             await member.remove_roles(
                 role, reason=f"Reaction role removal ({mode} mode)"
             )
-            logger.info("Removed role {role.name} from {member} via reaction role", )
+            logger.info(
+                "Removed role {role.name} from {member} via reaction role",
+            )
 
             # Send confirmation DM if possible
             try:
@@ -768,7 +788,9 @@ class ReactionRolesSystem(commands.Cog):
                 f"Failed to remove role {role.name} from {member}: Missing permissions"
             )
         except Exception as e:
-            logger.error("Failed to remove role {role.name} from {member}: {e}", )
+            logger.error(
+                "Failed to remove role {role.name} from {member}: {e}",
+            )
 
 
 async def setup(bot):

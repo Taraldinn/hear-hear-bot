@@ -30,8 +30,8 @@ class ModerationSystem(commands.Cog):
 
     async def cog_load(self):
         """Load moderation data on startup"""
-        # Check if database supports MongoDB operations  
-        if not hasattr(self.db, '__getitem__'):
+        # Check if database supports MongoDB operations
+        if not hasattr(self.db, "__getitem__"):
             logger.warning(
                 "Moderation system disabled - requires MongoDB support. "
                 "Current database is PostgreSQL. This feature needs migration."
@@ -63,7 +63,9 @@ class ModerationSystem(commands.Cog):
                 f"Loaded sticky roles for {len(self.sticky_roles_cache)} guilds"
             )
         except Exception as e:
-            logger.error("Failed to load sticky roles: {e}", )
+            logger.error(
+                "Failed to load sticky roles: {e}",
+            )
 
     async def load_temporary_actions(self):
         """Load temporary actions from database"""
@@ -81,9 +83,13 @@ class ModerationSystem(commands.Cog):
                     "data": role_data,
                 }
 
-            logger.info("Loaded {len(self.temp_actions)} temporary actions", )
+            logger.info(
+                "Loaded {len(self.temp_actions)} temporary actions",
+            )
         except Exception as e:
-            logger.error("Failed to load temporary actions: {e}", )
+            logger.error(
+                "Failed to load temporary actions: {e}",
+            )
 
     @tasks.loop(minutes=1)
     async def check_temp_actions(self):
@@ -111,7 +117,9 @@ class ModerationSystem(commands.Cog):
                 )
 
             except Exception as e:
-                logger.error("Failed to handle expired action {key}: {e}", )
+                logger.error(
+                    "Failed to handle expired action {key}: {e}",
+                )
 
     @check_temp_actions.before_loop
     async def before_check_temp_actions(self):
@@ -134,10 +142,14 @@ class ModerationSystem(commands.Cog):
                 return
 
             await member.remove_roles(role, reason="Temporary role expired")
-            logger.info("Removed expired temporary role {role.name} from {member}", )
+            logger.info(
+                "Removed expired temporary role {role.name} from {member}",
+            )
 
         except Exception as e:
-            logger.error("Failed to remove expired temporary role: {e}", )
+            logger.error(
+                "Failed to remove expired temporary role: {e}",
+            )
 
     async def log_moderation_action(
         self,
@@ -175,7 +187,9 @@ class ModerationSystem(commands.Cog):
             return case_id
 
         except Exception as e:
-            logger.error("Failed to log moderation action: {e}", )
+            logger.error(
+                "Failed to log moderation action: {e}",
+            )
             return None
 
     # Moderation Commands
@@ -306,7 +320,9 @@ class ModerationSystem(commands.Cog):
                 "❌ I don't have permission to mute this member.", ephemeral=True
             )
         except Exception as e:
-            logger.error("Failed to mute member: {e}", )
+            logger.error(
+                "Failed to mute member: {e}",
+            )
             await interaction.followup.send(
                 f"❌ Failed to mute member: {str(e)}", ephemeral=True
             )
@@ -360,7 +376,9 @@ class ModerationSystem(commands.Cog):
                 "❌ I don't have permission to unmute this member.", ephemeral=True
             )
         except Exception as e:
-            logger.error("Failed to unmute member: {e}", )
+            logger.error(
+                "Failed to unmute member: {e}",
+            )
             await interaction.followup.send(
                 f"❌ Failed to unmute member: {str(e)}", ephemeral=True
             )
@@ -446,7 +464,9 @@ class ModerationSystem(commands.Cog):
                 "❌ I don't have permission to kick this member.", ephemeral=True
             )
         except Exception as e:
-            logger.error("Failed to kick member: {e}", )
+            logger.error(
+                "Failed to kick member: {e}",
+            )
             await interaction.followup.send(
                 f"❌ Failed to kick member: {str(e)}", ephemeral=True
             )
@@ -607,7 +627,9 @@ class ModerationSystem(commands.Cog):
                 "❌ I don't have permission to ban this member.", ephemeral=True
             )
         except Exception as e:
-            logger.error("Failed to ban member: {e}", )
+            logger.error(
+                "Failed to ban member: {e}",
+            )
             await interaction.followup.send(
                 f"❌ Failed to ban member: {str(e)}", ephemeral=True
             )
@@ -643,7 +665,9 @@ class ModerationSystem(commands.Cog):
             self.sticky_roles_cache[member.guild.id][member.id] = roles_to_save
 
         except Exception as e:
-            logger.error("Failed to save sticky roles for {member}: {e}", )
+            logger.error(
+                "Failed to save sticky roles for {member}: {e}",
+            )
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -675,7 +699,9 @@ class ModerationSystem(commands.Cog):
                     )
 
         except Exception as e:
-            logger.error("Failed to restore sticky roles for {member}: {e}", )
+            logger.error(
+                "Failed to restore sticky roles for {member}: {e}",
+            )
 
     def parse_duration(self, duration: str) -> Optional[int]:
         """Parse duration string into seconds"""

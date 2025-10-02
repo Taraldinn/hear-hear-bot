@@ -1,169 +1,335 @@
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Commands · aldinn bot</title>
-    <meta name="theme-color" content="#0072f5" />
+<!DOCTYPE html><!DOCTYPE html>
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#eff6ff',
-                            100: '#dbeafe',
-                            200: '#bfdbfe',
-                            300: '#93c5fd',
-                            400: '#60a5fa',
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                            700: '#1d4ed8',
-                            800: '#1e40af',
-                            900: '#1e3a8a',
-                            950: '#172554'
-                        },
-                        secondary: {
-                            50: '#faf5ff',
-                            100: '#f3e8ff',
-                            200: '#e9d5ff',
-                            300: '#d8b4fe',
-                            400: '#c084fc',
-                            500: '#a855f7',
-                            600: '#9333ea',
-                            700: '#7c3aed',
-                            800: '#6b21a8',
-                            900: '#581c87',
-                            950: '#3b0764'
-                        },
-                        success: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            200: '#bbf7d0',
-                            300: '#86efac',
-                            400: '#4ade80',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                            800: '#166534',
-                            900: '#14532d',
-                            950: '#052e16'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif']
-                    },
-                    animation: {
-                        'float': 'float 6s ease-in-out infinite',
-                        'gradient': 'gradient 8s linear infinite'
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0px)' },
-                            '50%': { transform: 'translateY(-20px)' }
-                        },
-                        gradient: {
-                            '0%, 100%': { backgroundPosition: '0% 50%' },
-                            '50%': { backgroundPosition: '100% 50%' }
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <style>
-        .gradient-bg {
-            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe, #00f2fe);
-            background-size: 400% 400%;
-            animation: gradient 15s ease infinite;
-        }
-        .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .dark .glass-card {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .command-card {
-            transition: all 0.3s ease;
-        }
-        .command-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        }
-        .dark .command-card:hover {
-            box-shadow: 0 20px 40px rgba(255, 255, 255, 0.1);
-        }
-    </style>
-</head>
-<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-slate-100 font-sans min-h-screen">
-    <!-- Animated Background -->
-    <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div class="absolute -top-40 -left-40 h-80 w-80 animate-float rounded-full bg-gradient-to-r from-blue-400/20 to-purple-600/20 blur-3xl"></div>
-        <div class="absolute -bottom-40 -right-40 h-80 w-80 animate-float rounded-full bg-gradient-to-r from-pink-400/20 to-yellow-600/20 blur-3xl" style="animation-delay: -3s;"></div>
-        <div class="absolute top-1/2 left-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 animate-float rounded-full bg-gradient-to-r from-green-400/10 to-blue-600/10 blur-3xl" style="animation-delay: -6s;"></div>
-    </div>
+<html lang="en" class="dark"><html lang="en" class="scroll-smooth">
 
-    <!-- Navbar -->
-    <header class="sticky top-0 z-50 glass-card border-b border-white/10">
-        <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-            <a href="/" class="flex items-center gap-3 group">
-                <div class="relative">
-                    <span class="text-3xl group-hover:scale-110 transition-transform duration-300">🤖</span>
-                    <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                </div>
-                <div>
-                    <span class="text-xl font-bold gradient-text">aldinn bot</span>
-                    <span class="hidden text-xs text-slate-500 md:inline ml-2">Commands</span>
-                </div>
-            </a>
-            <nav class="hidden items-center gap-8 md:flex">
-                <a href="/" class="text-sm font-medium text-slate-600 hover:text-primary-600 dark:text-slate-300 dark:hover:text-primary-400 transition-colors">Home</a>
-                <a href="/invite" class="rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-2 text-sm font-semibold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
-                    Add to Discord
-                </a>
-                <button id="themeToggle" aria-label="Toggle theme" class="rounded-xl glass-card border border-white/20 p-2.5 hover:scale-110 transition-all duration-300">
-                    <span class="text-lg">🌙</span>
-                </button>
-            </nav>
-        </div>
-    </header>
+<head><head>
 
-    <!-- Header / Hero -->
-    <section class="relative overflow-hidden py-24">
-        <div class="absolute inset-0 gradient-bg opacity-20"></div>
-        <div class="relative mx-auto max-w-7xl px-6 text-center">
-            <h1 class="mb-8 text-5xl font-black tracking-tight lg:text-6xl">
-                <span class="gradient-text">Bot Commands</span>
-            </h1>
-            <p class="mx-auto mb-12 max-w-3xl text-xl text-slate-600 dark:text-slate-300 lg:text-2xl">
-                Complete guide to all available commands with beautiful examples and usage instructions.
-            </p>
-            <div class="mx-auto inline-flex items-center gap-4 rounded-2xl glass-card border border-white/20 px-6 py-4 text-sm text-slate-700 dark:text-slate-200">
-                <div class="flex items-center gap-2">
-                    <span class="text-lg">💡</span>
-                    <span class="font-medium">Pro Tip:</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="rounded-lg bg-primary-100 px-3 py-1 font-mono text-xs text-primary-700 dark:bg-primary-500/10 dark:text-primary-300">/</span>
-                    <span>opens the command palette in Discord</span>
-                </div>
-            </div>
-        </div>
+    <meta charset="UTF-8">    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Commands - AldinnBot</title>    <title>Commands · aldinn bot</title>
+
+    <meta name="description" content="Complete list of AldinnBot commands for Discord debate tournament management">    <meta name="theme-color" content="#0072f5" />
+
+    
+
+    <!-- Tailwind CSS -->    <!-- Tailwind CSS -->
+
+    <script src="https://cdn.tailwindcss.com"></script>    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>    <script>
+
+        tailwind.config = {        tailwind.config = {
+
+            darkMode: 'class',            darkMode: 'class',
+
+            theme: {            theme: {
+
+                extend: {                extend: {
+
+                    colors: {                    colors: {
+
+                        border: 'hsl(240 3.7% 15.9%)',                        primary: {
+
+                        input: 'hsl(240 3.7% 15.9%)',                            50: '#eff6ff',
+
+                        ring: 'hsl(240 4.9% 83.9%)',                            100: '#dbeafe',
+
+                        background: 'hsl(240 10% 3.9%)',                            200: '#bfdbfe',
+
+                        foreground: 'hsl(0 0% 98%)',                            300: '#93c5fd',
+
+                        primary: {                            400: '#60a5fa',
+
+                            DEFAULT: 'hsl(0 0% 98%)',                            500: '#3b82f6',
+
+                            foreground: 'hsl(240 5.9% 10%)',                            600: '#2563eb',
+
+                        },                            700: '#1d4ed8',
+
+                        secondary: {                            800: '#1e40af',
+
+                            DEFAULT: 'hsl(240 3.7% 15.9%)',                            900: '#1e3a8a',
+
+                            foreground: 'hsl(0 0% 98%)',                            950: '#172554'
+
+                        },                        },
+
+                        muted: {                        secondary: {
+
+                            DEFAULT: 'hsl(240 3.7% 15.9%)',                            50: '#faf5ff',
+
+                            foreground: 'hsl(240 5% 64.9%)',                            100: '#f3e8ff',
+
+                        },                            200: '#e9d5ff',
+
+                        accent: {                            300: '#d8b4fe',
+
+                            DEFAULT: 'hsl(240 3.7% 15.9%)',                            400: '#c084fc',
+
+                            foreground: 'hsl(0 0% 98%)',                            500: '#a855f7',
+
+                        },                            600: '#9333ea',
+
+                        card: {                            700: '#7c3aed',
+
+                            DEFAULT: 'hsl(240 10% 3.9%)',                            800: '#6b21a8',
+
+                            foreground: 'hsl(0 0% 98%)',                            900: '#581c87',
+
+                        },                            950: '#3b0764'
+
+                    },                        },
+
+                },                        success: {
+
+            },                            50: '#f0fdf4',
+
+        }                            100: '#dcfce7',
+
+    </script>                            200: '#bbf7d0',
+
+                                300: '#86efac',
+
+    <style>                            400: '#4ade80',
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');                            500: '#22c55e',
+
+        * { font-family: 'Inter', sans-serif; }                            600: '#16a34a',
+
+        .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }                            700: '#15803d',
+
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); }                            800: '#166534',
+
+        .grid-pattern {                            900: '#14532d',
+
+            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),                            950: '#052e16'
+
+                              linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);                        }
+
+            background-size: 4rem 4rem;                    },
+
+        }                    fontFamily: {
+
+    </style>                        sans: ['Inter', 'system-ui', 'sans-serif']
+
+</head>                    },
+
+<body class="bg-background text-foreground antialiased">                    animation: {
+
+    <div class="fixed inset-0 grid-pattern -z-10"></div>                        'float': 'float 6s ease-in-out infinite',
+
+                            'gradient': 'gradient 8s linear infinite'
+
+    <!-- Navigation -->                    },
+
+    <nav class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">                    keyframes: {
+
+        <div class="container mx-auto flex h-16 items-center px-4 md:px-6">                        float: {
+
+            <div class="flex items-center gap-2">                            '0%, 100%': { transform: 'translateY(0px)' },
+
+                <span class="text-3xl">🎤</span>                            '50%': { transform: 'translateY(-20px)' }
+
+                <span class="text-xl font-bold">AldinnBot</span>                        },
+
+            </div>                        gradient: {
+
+                                        '0%, 100%': { backgroundPosition: '0% 50%' },
+
+            <div class="ml-auto flex items-center gap-4">                            '50%': { backgroundPosition: '100% 50%' }
+
+                <a href="/" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Home</a>                        }
+
+                <a href="/docs" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Documentation</a>                    }
+
+                <a href="/commands" class="text-sm font-medium text-foreground">Commands</a>                }
+
+                <a href="https://github.com/Taraldinn/hear-hear-bot" target="_blank" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">            }
+
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">        }
+
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>    </script>
+
+                    </svg>    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+                </a>    <style>
+
+                <a href="/invite" class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">        .gradient-bg {
+
+                    Add to Discord            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe, #00f2fe);
+
+                </a>            background-size: 400% 400%;
+
+            </div>            animation: gradient 15s ease infinite;
+
+        </div>        }
+
+    </nav>        .gradient-text {
+
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    <!-- Hero -->            -webkit-background-clip: text;
+
+    <section class="container mx-auto px-4 py-16 md:py-24">            background-clip: text;
+
+        <div class="mx-auto max-w-5xl text-center">            -webkit-text-fill-color: transparent;
+
+            <h1 class="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl mb-6">        }
+
+                Bot <span class="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Commands</span>        .glass-card {
+
+            </h1>            background: rgba(255, 255, 255, 0.1);
+
+            <p class="text-xl text-muted-foreground mb-8">Complete guide to all available commands for debate tournament management</p>            backdrop-filter: blur(10px);
+
+            <div class="inline-flex items-center gap-3 rounded-lg border border-border bg-card p-4 text-sm">            border: 1px solid rgba(255, 255, 255, 0.2);
+
+                <span class="text-2xl">💡</span>        }
+
+                <span class="text-muted-foreground">Tip: Type <code class="px-2 py-1 rounded bg-muted text-blue-400 font-mono">/</code> in Discord to see all available commands</span>        .dark .glass-card {
+
+            </div>            background: rgba(0, 0, 0, 0.2);
+
+        </div>            border: 1px solid rgba(255, 255, 255, 0.1);
+
+    </section>        }
+
+            .command-card {
+
+    <!-- Slash Commands -->            transition: all 0.3s ease;
+
+    <section class="container mx-auto px-4 py-12">        }
+
+        <div class="mx-auto max-w-5xl">        .command-card:hover {
+
+            <div class="mb-12">            transform: translateY(-4px);
+
+                <h2 class="text-3xl font-bold tracking-tight mb-3">⚡ Slash Commands</h2>            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+
+                <p class="text-lg text-muted-foreground">Modern Discord commands with autocomplete and validation</p>        }
+
+            </div>        .dark .command-card:hover {
+
+            <div class="grid gap-6 md:grid-cols-2">            box-shadow: 0 20px 40px rgba(255, 255, 255, 0.1);
+
+                {% for command in slash_commands %}        }
+
+                <div class="rounded-lg border border-border bg-card p-6 card-hover">    </style>
+
+                    <div class="flex items-center gap-2 mb-3"></head>
+
+                        <code class="px-3 py-1 rounded bg-blue-500/10 text-blue-400 font-mono text-sm font-semibold">/{{ command.name }}</code><body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-slate-100 font-sans min-h-screen">
+
+                    </div>    <!-- Animated Background -->
+
+                    <p class="text-muted-foreground">{{ command.description }}</p>    <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+
+                </div>        <div class="absolute -top-40 -left-40 h-80 w-80 animate-float rounded-full bg-gradient-to-r from-blue-400/20 to-purple-600/20 blur-3xl"></div>
+
+                {% endfor %}        <div class="absolute -bottom-40 -right-40 h-80 w-80 animate-float rounded-full bg-gradient-to-r from-pink-400/20 to-yellow-600/20 blur-3xl" style="animation-delay: -3s;"></div>
+
+            </div>        <div class="absolute top-1/2 left-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 animate-float rounded-full bg-gradient-to-r from-green-400/10 to-blue-600/10 blur-3xl" style="animation-delay: -6s;"></div>
+
+        </div>    </div>
+
     </section>
+
+        <!-- Navbar -->
+
+    <!-- Prefix Commands -->    <header class="sticky top-0 z-50 glass-card border-b border-white/10">
+
+    <section class="container mx-auto px-4 py-12">        <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+
+        <div class="mx-auto max-w-5xl">            <a href="/" class="flex items-center gap-3 group">
+
+            <div class="mb-12">                <div class="relative">
+
+                <h2 class="text-3xl font-bold tracking-tight mb-3">📝 Prefix Commands</h2>                    <span class="text-3xl group-hover:scale-110 transition-transform duration-300">🤖</span>
+
+                <p class="text-lg text-muted-foreground">Advanced commands for tournament management and administration</p>                    <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+
+            </div>                </div>
+
+            <div class="grid gap-6 md:grid-cols-2">                <div>
+
+                {% for command in prefix_commands %}                    <span class="text-xl font-bold gradient-text">aldinn bot</span>
+
+                <div class="rounded-lg border border-border bg-card p-6 card-hover">                    <span class="hidden text-xs text-slate-500 md:inline ml-2">Commands</span>
+
+                    <div class="flex items-center gap-2 mb-3">                </div>
+
+                        <code class="px-3 py-1 rounded bg-purple-500/10 text-purple-400 font-mono text-sm font-semibold">.{{ command.name }}</code>            </a>
+
+                    </div>            <nav class="hidden items-center gap-8 md:flex">
+
+                    <p class="text-muted-foreground">{{ command.description }}</p>                <a href="/" class="text-sm font-medium text-slate-600 hover:text-primary-600 dark:text-slate-300 dark:hover:text-primary-400 transition-colors">Home</a>
+
+                </div>                <a href="/invite" class="rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-2 text-sm font-semibold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+
+                {% endfor %}                    Add to Discord
+
+            </div>                </a>
+
+        </div>                <button id="themeToggle" aria-label="Toggle theme" class="rounded-xl glass-card border border-white/20 p-2.5 hover:scale-110 transition-all duration-300">
+
+    </section>                    <span class="text-lg">🌙</span>
+
+                    </button>
+
+    <!-- Footer -->            </nav>
+
+    <footer class="border-t border-border">        </div>
+
+        <div class="container mx-auto px-4 py-8">    </header>
+
+            <div class="flex flex-col items-center justify-between gap-4 md:flex-row">
+
+                <div class="flex items-center gap-2">    <!-- Header / Hero -->
+
+                    <span class="text-2xl">🎤</span>    <section class="relative overflow-hidden py-24">
+
+                    <span class="font-semibold">AldinnBot</span>        <div class="absolute inset-0 gradient-bg opacity-20"></div>
+
+                </div>        <div class="relative mx-auto max-w-7xl px-6 text-center">
+
+                <div class="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">            <h1 class="mb-8 text-5xl font-black tracking-tight lg:text-6xl">
+
+                    <a href="/" class="hover:text-foreground transition-colors">Home</a>                <span class="gradient-text">Bot Commands</span>
+
+                    <a href="/docs" class="hover:text-foreground transition-colors">Documentation</a>            </h1>
+
+                    <a href="/commands" class="hover:text-foreground transition-colors">Commands</a>            <p class="mx-auto mb-12 max-w-3xl text-xl text-slate-600 dark:text-slate-300 lg:text-2xl">
+
+                    <a href="/health" class="hover:text-foreground transition-colors">Status</a>                Complete guide to all available commands with beautiful examples and usage instructions.
+
+                    <a href="https://github.com/Taraldinn/hear-hear-bot" target="_blank" class="hover:text-foreground transition-colors flex items-center gap-1">            </p>
+
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">            <div class="mx-auto inline-flex items-center gap-4 rounded-2xl glass-card border border-white/20 px-6 py-4 text-sm text-slate-700 dark:text-slate-200">
+
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>                <div class="flex items-center gap-2">
+
+                        </svg>                    <span class="text-lg">💡</span>
+
+                        GitHub                    <span class="font-medium">Pro Tip:</span>
+
+                    </a>                </div>
+
+                </div>                <div class="flex items-center gap-2">
+
+                <div class="text-sm text-muted-foreground"><p>© 2025 aldinn. Version 2.1.0</p></div>                    <span class="rounded-lg bg-primary-100 px-3 py-1 font-mono text-xs text-primary-700 dark:bg-primary-500/10 dark:text-primary-300">/</span>
+
+            </div>                    <span>opens the command palette in Discord</span>
+
+        </div>                </div>
+
+    </footer>            </div>
+
+</body>        </div>
+
+</html>    </section>
+
 
     <main class="py-16">
         <div class="mx-auto max-w-7xl px-6">
