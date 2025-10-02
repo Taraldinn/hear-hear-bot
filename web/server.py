@@ -384,9 +384,8 @@ class WebServer:
             
             <nav class="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
                 <div class="container mx-auto flex h-16 items-center px-6">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center">
                         <img src="/static/Logo.png" alt="AldinnBot Logo" class="h-10 w-10">
-                        <span class="text-xl font-bold">{bot_name}</span>
                         {('<span class="ml-2 flex h-2 w-2 rounded-full bg-green-500"><span class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-green-400 opacity-75"></span></span>' if bot_stats['status'] == 'Online' else '')}
                     </div>
                     
@@ -456,9 +455,8 @@ class WebServer:
             <footer class="border-t border-border mt-20">
                 <div class="container mx-auto px-4 py-8">
                     <div class="flex flex-col items-center justify-between gap-4 md:flex-row">
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center">
                             <img src="/static/Logo.png" alt="AldinnBot Logo" class="h-8 w-8">
-                            <span class="font-semibold">{bot_name}</span>
                         </div>
                         <div class="flex gap-6 text-sm text-muted-foreground">
                             <a href="/" class="hover:text-foreground transition-colors">Home</a>
