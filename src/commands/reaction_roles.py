@@ -4,16 +4,17 @@ Author: aldinn
 Email: kferdoush617@gmail.com
 """
 
-import discord
-from discord.ext import commands
-from discord import app_commands
 import asyncio
 import logging
-from typing import Dict, List, Optional, Union
-from datetime import datetime, timedelta
-import re
+from datetime import datetime
+from typing import Optional
+
+import discord
+from discord import app_commands
+from discord.ext import commands
+
 from src.database.connection import database
-from src.database.models import ReactionRoleConfig, ReactionRole, COLLECTIONS
+from src.database.models import COLLECTIONS, ReactionRole, ReactionRoleConfig
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +41,16 @@ class ReactionRolesSystem(commands.Cog):
 
     async def load_reaction_roles(self):
         """Load all reaction role configurations from database"""
+        if not hasattr(self.db, "__getitem__"):
+            return
         try:
-            configs = (
-                await self.db[COLLECTIONS["reaction_role_configs"]]
-                .find()
-                .to_list(length=None)
-            )
-            roles = (
-                await self.db[COLLECTIONS["reaction_roles"]].find().to_list(length=None)
-            )
+            # pylint: disable=unsubscriptable-object
+            config_collection = self.db[COLLECTIONS["reaction_role_configs"]]  # type: ignore[index]
+            configs = await config_collection.find().to_list(length=None)
+            
+            role_collection = self.db[COLLECTIONS["reaction_roles"]]  # type: ignore[index]
+            roles = await role_collection.find().to_list(length=None)
+            # pylint: enable=unsubscriptable-object
 
             # Group roles by message ID
             roles_by_message = {}
@@ -71,13 +73,11 @@ class ReactionRolesSystem(commands.Cog):
                     await self.schedule_self_destruct(msg_id, config["self_destruct"])
 
             logger.info(
-                f"Loaded {len(self.reaction_roles_cache)} reaction role messages"
+                "Loaded %d reaction role messages", len(self.reaction_roles_cache)
             )
 
-        except Exception as e:
-            logger.error(
-                "Failed to load reaction roles: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to load reaction roles: %s", exc)
 
     async def schedule_self_destruct(self, message_id: int, delay: int):
         """Schedule a message for self-destruction"""
@@ -92,7 +92,7 @@ class ReactionRolesSystem(commands.Cog):
                             message = await channel.fetch_message(message_id)
                             await message.delete()
                             logger.info(
-                                f"Self-destructed reaction role message {message_id}"
+                                "Self-destructed reaction role message %d", message_id
                             )
                             break
                         except discord.NotFound:
@@ -103,9 +103,9 @@ class ReactionRolesSystem(commands.Cog):
                 # Clean up from database and cache
                 await self.remove_reaction_role_message(message_id)
 
-            except Exception as e:
+            except Exception as exc:
                 logger.error(
-                    "Failed to self-destruct message {message_id}: {e}",
+                    "Failed to self-destruct message %d: %s", message_id, exc
                 )
             finally:
                 # Clean up task reference
@@ -159,7 +159,20 @@ class ReactionRolesSystem(commands.Cog):
         channel: Optional[discord.TextChannel] = None,
     ):
         """Create a new reaction role message"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+
         if not channel:
+            # Get channel and ensure it's a text channel
+            if not isinstance(interaction.channel, discord.TextChannel):
+                await interaction.response.send_message(
+                    "❌ This command can only be used in a text channel.",
+                    ephemeral=True,
+                )
+                return
             channel = interaction.channel
 
         # Check permissions
@@ -239,9 +252,11 @@ class ReactionRolesSystem(commands.Cog):
                 created_by=interaction.user.id,
             )
 
-            await self.db[COLLECTIONS["reaction_role_configs"]].insert_one(
-                config.__dict__
-            )
+            if hasattr(self.db, "__getitem__"):
+                # pylint: disable=unsubscriptable-object
+                collection = self.db[COLLECTIONS["reaction_role_configs"]]  # type: ignore[index]
+                await collection.insert_one(config.__dict__)
+                # pylint: enable=unsubscriptable-object
 
             # Add to cache
             self.reaction_roles_cache[message.id] = {
@@ -261,12 +276,11 @@ class ReactionRolesSystem(commands.Cog):
                 f"📝 Use `/add-reaction-role message_id:{message.id}` to add roles!"
             )
 
-        except Exception as e:
-            logger.error(
-                "Failed to create reaction role message: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to create reaction role message: %s", exc)
             await interaction.followup.send(
-                f"❌ Failed to create reaction role message: {str(e)}", ephemeral=True
+                f"❌ Failed to create reaction role message: {str(exc)}",
+                ephemeral=True,
             )
 
     @app_commands.command(
@@ -290,6 +304,12 @@ class ReactionRolesSystem(commands.Cog):
         max_uses: Optional[int] = None,
     ):
         """Add a reaction role to an existing message"""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server.", ephemeral=True
+            )
+            return
+
         try:
             msg_id = int(message_id)
         except ValueError:
@@ -369,9 +389,11 @@ class ReactionRolesSystem(commands.Cog):
             )
 
             # Save to database
-            await self.db[COLLECTIONS["reaction_roles"]].insert_one(
-                reaction_role.__dict__
-            )
+            if hasattr(self.db, "__getitem__"):
+                # pylint: disable=unsubscriptable-object
+                collection = self.db[COLLECTIONS["reaction_roles"]]  # type: ignore[index]
+                await collection.insert_one(reaction_role.__dict__)
+                # pylint: enable=unsubscriptable-object
 
             # Add to cache
             self.reaction_roles_cache[msg_id]["roles"].append(reaction_role.__dict__)
@@ -387,12 +409,10 @@ class ReactionRolesSystem(commands.Cog):
                 f"👥 **Max Uses:** {max_uses or 'Unlimited'}"
             )
 
-        except Exception as e:
-            logger.error(
-                "Failed to add reaction role: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to add reaction role: %s", exc)
             await interaction.followup.send(
-                f"❌ Failed to add reaction role: {str(e)}", ephemeral=True
+                f"❌ Failed to add reaction role: {str(exc)}", ephemeral=True
             )
 
     async def update_reaction_role_embed(self, message: discord.Message):
@@ -487,21 +507,21 @@ class ReactionRolesSystem(commands.Cog):
 
             await message.edit(embed=embed)
 
-        except Exception as e:
-            logger.error(
-                "Failed to update reaction role embed: {e}",
-            )
+        except Exception as exc:
+            logger.error("Failed to update reaction role embed: %s", exc)
 
     async def remove_reaction_role_message(self, message_id: int):
         """Remove a reaction role message from database and cache"""
         try:
             # Remove from database
-            await self.db[COLLECTIONS["reaction_role_configs"]].delete_one(
-                {"message_id": message_id}
-            )
-            await self.db[COLLECTIONS["reaction_roles"]].delete_many(
-                {"message_id": message_id}
-            )
+            if hasattr(self.db, "__getitem__"):
+                # pylint: disable=unsubscriptable-object
+                config_collection = self.db[COLLECTIONS["reaction_role_configs"]]  # type: ignore[index]
+                await config_collection.delete_one({"message_id": message_id})
+                
+                role_collection = self.db[COLLECTIONS["reaction_roles"]]  # type: ignore[index]
+                await role_collection.delete_many({"message_id": message_id})
+                # pylint: enable=unsubscriptable-object
 
             # Remove from cache
             if message_id in self.reaction_roles_cache:
@@ -512,9 +532,9 @@ class ReactionRolesSystem(commands.Cog):
                 self.self_destruct_tasks[message_id].cancel()
                 del self.self_destruct_tasks[message_id]
 
-        except Exception as e:
+        except Exception as exc:
             logger.error(
-                "Failed to remove reaction role message {message_id}: {e}",
+                "Failed to remove reaction role message %d: %s", message_id, exc
             )
 
     @commands.Cog.listener()
@@ -588,10 +608,8 @@ class ReactionRolesSystem(commands.Cog):
                     member, role, target_role_data, config
                 )
 
-        except Exception as e:
-            logger.error(
-                "Error handling reaction role: {e}",
-            )
+        except Exception as exc:
+            logger.error("Error handling reaction role: %s", exc)
 
     async def check_reaction_role_permissions(
         self, member: discord.Member, config: dict, role: discord.Role
@@ -681,7 +699,7 @@ class ReactionRolesSystem(commands.Cog):
                     )
 
                 try:
-                    reaction, user = await self.bot.wait_for(
+                    reaction, _ = await self.bot.wait_for(
                         "reaction_add", timeout=60.0, check=check
                     )
 
@@ -713,7 +731,7 @@ class ReactionRolesSystem(commands.Cog):
         try:
             await member.add_roles(role, reason=f"Reaction role ({mode} mode)")
             logger.info(
-                "Added role {role.name} to {member} via reaction role",
+                "Added role %s to %s via reaction role", role.name, member
             )
 
             # Send confirmation DM if possible
@@ -733,15 +751,19 @@ class ReactionRolesSystem(commands.Cog):
 
         except discord.Forbidden:
             logger.error(
-                f"Failed to add role {role.name} to {member}: Missing permissions"
+                "Failed to add role %s to %s: Missing permissions", role.name, member
             )
-        except Exception as e:
+        except Exception as exc:
             logger.error(
-                "Failed to add role {role.name} to {member}: {e}",
+                "Failed to add role %s to %s: %s", role.name, member, exc
             )
 
     async def remove_role_from_member(
-        self, member: discord.Member, role: discord.Role, role_data: dict, config: dict
+        self,
+        member: discord.Member,
+        role: discord.Role,
+        role_data: dict,  # pylint: disable=unused-argument
+        config: dict,
     ):
         """Remove a role from a member with mode-specific logic"""
         mode = config["mode"]
@@ -769,7 +791,7 @@ class ReactionRolesSystem(commands.Cog):
                 role, reason=f"Reaction role removal ({mode} mode)"
             )
             logger.info(
-                "Removed role {role.name} from {member} via reaction role",
+                "Removed role %s from %s via reaction role", role.name, member
             )
 
             # Send confirmation DM if possible
@@ -785,13 +807,16 @@ class ReactionRolesSystem(commands.Cog):
 
         except discord.Forbidden:
             logger.error(
-                f"Failed to remove role {role.name} from {member}: Missing permissions"
+                "Failed to remove role %s from %s: Missing permissions",
+                role.name,
+                member,
             )
-        except Exception as e:
+        except Exception as exc:
             logger.error(
-                "Failed to remove role {role.name} from {member}: {e}",
+                "Failed to remove role %s from %s: %s", role.name, member, exc
             )
 
 
 async def setup(bot):
+    """Load the ReactionRolesSystem cog"""
     await bot.add_cog(ReactionRolesSystem(bot))
