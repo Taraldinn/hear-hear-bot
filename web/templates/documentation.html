@@ -167,112 +167,242 @@
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">            transition: all 0.3s ease;
 
                         <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>        }
-
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - AldinnBot</title>
+    <meta name="description" content="Comprehensive documentation for AldinnBot - Discord debate tournament management bot.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        border: 'hsl(240 3.7% 15.9%)',
+                        input: 'hsl(240 3.7% 15.9%)',
+                        ring: 'hsl(240 4.9% 83.9%)',
+                        background: 'hsl(240 10% 3.9%)',
+                        foreground: 'hsl(0 0% 98%)',
+                        primary: {
+                            DEFAULT: 'hsl(0 0% 98%)',
+                            foreground: 'hsl(240 5.9% 10%)',
+                        },
+                        secondary: {
+                            DEFAULT: 'hsl(240 3.7% 15.9%)',
+                            foreground: 'hsl(0 0% 98%)',
+                        },
+                        muted: {
+                            DEFAULT: 'hsl(240 3.7% 15.9%)',
+                            foreground: 'hsl(240 5% 64.9%)',
+                        },
+                        accent: {
+                            DEFAULT: 'hsl(240 3.7% 15.9%)',
+                            foreground: 'hsl(0 0% 98%)',
+                        },
+                        card: {
+                            DEFAULT: 'hsl(240 10% 3.9%)',
+                            foreground: 'hsl(0 0% 98%)',
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+        .gradient-text {
+            background: linear-gradient(to right, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        .prose a { color: #818cf8; text-decoration: underline; }
+        .prose a:hover { color: #a5b4fc; }
+    </style>
+</head>
+<body class="bg-background text-foreground antialiased">
+    <div class="fixed inset-0 grid-pattern -z-10"></div>
+    <nav class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div class="container mx-auto flex h-16 items-center px-4 md:px-6">
+            <div class="flex items-center gap-2">
+                <span class="text-3xl">🎤</span>
+                <span class="text-xl font-bold">AldinnBot</span>
+            </div>
+            <div class="ml-auto flex items-center gap-4">
+                <a href="/" class="text-sm font-medium text-foreground">Home</a>
+                <a href="/docs" class="text-sm font-medium text-primary">Documentation</a>
+                <a href="/commands" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Commands</a>
+                <a href="https://github.com/Taraldinn/hear-hear-bot" target="_blank" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
                     </svg>
-
-                </a>        .nav-link:hover {
-
-                <a href="/invite" class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">            background-color: var(--primary-color);
-
-                    Add to Discord            color: white;
-
-                </a>        }
-
+                </a>
             </div>
-
-        </div>        .section {
-
-    </nav>            background-color: var(--card-bg);
-
-                margin-bottom: 2rem;
-
-    <!-- Hero -->            padding: 2rem;
-
-    <section class="container mx-auto px-4 py-16 md:py-24">            border-radius: 15px;
-
-        <div class="mx-auto max-w-5xl text-center">            border: 1px solid var(--border-color);
-
-            <h1 class="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl mb-6">        }
-
-                <span class="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Documentation</span>
-
-            </h1>        .section h2 {
-
-            <p class="text-xl text-muted-foreground mb-8">            color: var(--primary-color);
-
-                Everything you need to know about AldinnBot            font-size: 2rem;
-
-            </p>            margin-bottom: 1rem;
-
-        </div>            border-bottom: 2px solid var(--primary-color);
-
-    </section>            padding-bottom: 0.5rem;
-
-            }
-
-    <!-- Content -->
-
-    <section class="container mx-auto px-4 py-12 mb-20">        .section h3 {
-
-        <div class="mx-auto max-w-4xl">            color: var(--secondary-color);
-
-            <!-- Introduction -->            font-size: 1.5rem;
-
-            <div class="rounded-lg border border-border bg-card p-8 mb-8">            margin: 1.5rem 0 1rem 0;
-
-                <div class="prose">        }
-
-                    <h2>🎯 Introduction</h2>
-
-                    <p>        .command-grid {
-
-                        AldinnBot is a powerful Discord bot designed specifically for debate tournament management.            display: grid;
-
-                        It provides professional timing features, an extensive motion database, Tabbycat integration,            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-
-                        and comprehensive tournament organization tools.            gap: 1.5rem;
-
-                    </p>            margin-top: 1.5rem;
-
-                </div>        }
-
+        </div>
+    </nav>
+    <main class="container mx-auto px-4 py-12 max-w-4xl">
+        <h1 class="text-4xl font-bold mb-6 gradient-text">📚 AldinnBot Documentation</h1>
+        <div class="prose prose-invert max-w-none mb-12">
+            <p>Welcome to the comprehensive documentation for AldinnBot - your professional Discord debate tournament management bot.</p>
+        </div>
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">📖 Table of Contents</h2>
+            <ul class="list-disc ml-6 space-y-1">
+                <li><a href="../README.md">🏠 Main README</a> - Project overview and quick start guide</li>
+            </ul>
+        </section>
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">📂 Documentation Structure</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="font-bold mb-2">🎨 Design Documentation</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./design/SHADCN_UI_REDESIGN.md">Shadcn UI Redesign</a></li>
+                        <li><a href="./design/SHADCN_SUMMARY.md">Shadcn Summary</a></li>
+                        <li><a href="./design/SHADCN_QUICKSTART.md">Shadcn Quickstart</a></li>
+                        <li><a href="./design/SHADCN_VISUAL_REFERENCE.md">Shadcn Visual Reference</a></li>
+                        <li><a href="./design/DESIGN_COMPARISON.md">Design Comparison</a></li>
+                        <li><a href="./design/WEB_REDESIGN_SUMMARY.md">Web Redesign Summary</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold mb-2">💾 Database Documentation</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./database/DATABASE_FIX_SUMMARY.md">Database Fix Summary</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold mb-2">🚀 Deployment Documentation</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./deployment/DEPLOYMENT_GUIDE.md">Deployment Guide</a></li>
+                        <li><a href="./deployment/DEPLOYMENT_CHECKLIST.md">Deployment Checklist</a></li>
+                        <li><a href="./deployment/DEPLOYMENT_QUICKREF.md">Deployment Quick Reference</a></li>
+                        <li><a href="./deployment/ENVIRONMENT_VERIFICATION.md">Environment Verification</a></li>
+                        <li><a href="./deployment/GLOBAL_DEPLOYMENT.md">Global Deployment</a></li>
+                        <li><a href="./deployment/SIMPLE_DEPLOYMENT.md">Simple Deployment</a></li>
+                        <li><a href="./deployment/PRODUCTION_CHECKLIST.md">Production Checklist</a></li>
+                        <li><a href="./deployment/POSTGRESQL_MIGRATION.md">PostgreSQL Migration</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold mb-2">🔌 Integrations Documentation</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./integrations/TOPGG_IMPLEMENTATION_SUMMARY.md">Top.gg Implementation</a></li>
+                        <li><a href="./integrations/TOPGG_INTEGRATION.md">Top.gg Integration Guide</a></li>
+                        <li><a href="./integrations/TOPGG_QUICKSTART.md">Top.gg Quickstart</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold mb-2">📘 User Guides</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./guides/USER_GUIDE.md">User Guide</a></li>
+                        <li><a href="./guides/README_SEO.md">SEO Optimized README</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold mb-2">⚙️ Features Documentation</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./features/COMMANDS.md">Commands</a></li>
+                        <li><a href="./features/SLASH_COMMANDS_COMPLETE.md">Slash Commands</a></li>
+                        <li><a href="./features/TIMER_RESTORATION_COMPLETE.md">Timer System</a></li>
+                        <li><a href="./features/TOURNAMENT.md">Tournament Management</a></li>
+                        <li><a href="./features/MOTIONS_FROM_GOOGLE_SHEETS.md">Motion Database</a></li>
+                        <li><a href="./features/CARL_BOT_FEATURES.md">Carl-bot Features</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold mb-2">🛠️ Development Documentation</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./development/SETUP.md">Setup Guide</a></li>
+                        <li><a href="./development/COMPLETE_DOCUMENTATION.md">Complete Documentation</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold mb-2">❗ Troubleshooting</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./troubleshooting/MONGODB_SSL_TROUBLESHOOTING.md">MongoDB SSL Troubleshooting</a></li>
+                        <li><a href="./troubleshooting/PERMISSION_FIX_GUIDE.md">Permission Fix Guide</a></li>
+                    </ul>
+                </div>
             </div>
-
-                    .command-card {
-
-            <!-- Features -->            background-color: var(--bg-color);
-
-            <div class="rounded-lg border border-border bg-card p-8 mb-8">            padding: 1.5rem;
-
-                <div class="prose">            border-radius: 10px;
-
-                    <h2>✨ Key Features</h2>            border: 1px solid var(--border-color);
-
-                    <h3>⏱️ Advanced Timer System</h3>            transition: transform 0.3s ease;
-
-                    <ul>        }
-
-                        <li>Multiple debate format support (BP, WSDC, AP, Parliamentary)</li>
-
-                        <li>Automatic protected time tracking</li>        .command-card:hover {
-
-                        <li>Real-time updates with Discord embeds</li>            transform: translateY(-5px);
-
-                        <li>Speaker time management</li>            border-color: var(--primary-color);
-
-                    </ul>        }
-
-                    
-
-                    <h3>📋 Motion Database</h3>        .command-name {
-
-                    <ul>            font-size: 1.2rem;
-
-                        <li>1000+ debate motions in multiple languages</li>            font-weight: bold;
-
-                        <li>Smart search and filtering</li>            color: var(--secondary-color);
-
-                        <li>Random motion generation</li>            margin-bottom: 0.5rem;
+        </section>
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">🚀 Quick Start Guides</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="font-bold mb-2">For Users</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./QUICK_START.md">Quick Start</a></li>
+                        <li><a href="./QUICK_REFERENCE.md">Quick Reference</a></li>
+                        <li><a href="./guides/USER_GUIDE.md">User Guide</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold mb-2">For Developers</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./development/SETUP.md">Development Setup</a></li>
+                        <li><a href="./development/COMPLETE_DOCUMENTATION.md">Complete Documentation</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold mb-2">For Deployers</h3>
+                    <ul class="list-disc ml-6 space-y-1">
+                        <li><a href="./deployment/DEPLOYMENT_QUICKREF.md">Deployment Quick Reference</a></li>
+                        <li><a href="./deployment/DEPLOYMENT_GUIDE.md">Deployment Guide</a></li>
+                        <li><a href="./deployment/PRODUCTION_CHECKLIST.md">Production Checklist</a></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">🔗 External Resources</h2>
+            <ul class="list-disc ml-6 space-y-1">
+                <li><a href="https://github.com/Taraldinn/hear-hear-bot" target="_blank">GitHub Repository</a></li>
+                <li><a href="https://top.gg/bot/YOUR_BOT_ID" target="_blank">AldinnBot on Top.gg</a></li>
+                <li><a href="#">Discord Support</a></li>
+            </ul>
+        </section>
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold mb-4">📝 Documentation Standards</h2>
+            <ul class="list-disc ml-6 space-y-1">
+                <li>✅ Markdown format (.md)</li>
+                <li>✅ Clear headings and structure</li>
+            </ul>
+        </section>
+    </main>
+    <footer class="border-t border-border">
+        <div class="container mx-auto px-4 py-8">
+            <div class="flex flex-col items-center justify-between gap-4 md:flex-row">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🎤</span>
+                    <span class="font-semibold">AldinnBot</span>
+                </div>
+                <div class="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
+                    <a href="/" class="hover:text-foreground transition-colors">Home</a>
+                    <a href="/docs" class="hover:text-foreground transition-colors">Documentation</a>
+                    <a href="/commands" class="hover:text-foreground transition-colors">Commands</a>
+                    <a href="/health" class="hover:text-foreground transition-colors">Status</a>
+                    <a href="https://github.com/Taraldinn/hear-hear-bot" target="_blank" class="hover:text-foreground transition-colors">GitHub</a>
+                </div>
+                <div class="text-sm text-muted-foreground">
+                    <p>© 2025 aldinn. Version 2.1.0</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
 
                         <li>Google Sheets integration for custom motion lists</li>        }
 
